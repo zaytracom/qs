@@ -370,7 +370,3 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 - 📖 [Documentation](https://pkg.go.dev/github.com/zaytracom/qs)
 - 🐛 [Issue Tracker](https://github.com/zaytracom/qs/issues)
 - 💬 [Discussions](https://github.com/zaytracom/qs/discussions)
-
----
-
-Made with ❤️ by the QS team
