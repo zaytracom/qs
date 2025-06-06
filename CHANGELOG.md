@@ -99,7 +99,7 @@ Perfect for:
 
 ### 📄 License
 
-Licensed under the Apache License 2.0 - see [LICENSE.md](LICENSE.md) for details.
+Licensed under the Apache License 2.0 - see [LICENSE](LICENSE) for details.
 
 ### 🙏 Acknowledgments
 
