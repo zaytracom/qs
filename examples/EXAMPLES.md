@@ -273,7 +273,7 @@ package main
 
 import (
     "fmt"
-    "github.com/zaytra/qs/qs"
+    "github.com/zaytracom/qs/qs"
 )
 
 type User struct {
@@ -437,7 +437,7 @@ package main
 
 import (
     "fmt"
-    "github.com/zaytra/qs/qs"
+    "github.com/zaytracom/qs/qs"
 )
 
 func main() {
@@ -880,7 +880,7 @@ package main
 
 import (
     "fmt"
-    "github.com/zaytra/qs/qs"
+    "github.com/zaytracom/qs/qs"
 )
 
 type User struct {

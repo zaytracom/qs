@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zaytra/qs/v1"
+	"github.com/zaytracom/qs/v1"
 )
 
 func TestStringifyQueryStringObject(t *testing.T) {

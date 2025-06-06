@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/zaytra/qs/v1"
+	"github.com/zaytracom/qs/v1"
 )
 
 type User struct {

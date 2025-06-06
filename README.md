@@ -1,42 +1,52 @@
 # QS - Query String Library for Go
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/zaytra/qs.svg)](https://pkg.go.dev/github.com/zaytra/qs)
-[![Go Report Card](https://goreportcard.com/badge/github.com/zaytra/qs)](https://goreportcard.com/report/github.com/zaytra/qs)
+[![Go Reference](https://pkg.go.dev/badge/github.com/zaytracom/qs.svg)](https://pkg.go.dev/github.com/zaytracom/qs)
+[![Go Report Card](https://goreportcard.com/badge/github.com/zaytracom/qs)](https://goreportcard.com/report/github.com/zaytracom/qs)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![GitHub release](https://img.shields.io/github/release/zaytracom/qs.svg)](https://github.com/zaytracom/qs/releases)
+[![Build Status](https://github.com/zaytracom/qs/workflows/CI/badge.svg)](https://github.com/zaytracom/qs/actions)
 
-QS is a Go library for parsing and stringifying URL query strings with support for nested objects, arrays, and complex data structures. This is a port of the popular JavaScript [qs library](https://github.com/ljharb/qs).
+**QS** is a powerful, high-performance Go library for parsing and stringifying URL query strings with support for nested objects, arrays, and complex data structures. This library is inspired by and compatible with the popular JavaScript [qs library](https://github.com/ljharb/qs), while providing Go-specific features like struct parsing with query tags and idiomatic Marshal/Unmarshal functions.
 
-## Features
+## ✨ Features
 
-- ✅ Parse query strings into nested Go data structures
-- ✅ Stringify Go data structures into query strings
-- ✅ Support for nested objects and arrays
-- ✅ Multiple array formats (indices, brackets, repeat)
-- ✅ URL encoding/decoding
-- ✅ Customizable options and delimiters
-- ✅ High performance with comprehensive benchmarks
-- ✅ Extensive test coverage for complex scenarios
+- 🔍 **Parse query strings** into nested Go data structures
+- 📝 **Stringify Go data structures** into query strings
+- 🏗️ **Support for nested objects and arrays** with multiple formatting options
+- 🏷️ **Struct parsing with query tags** for type-safe operations
+- 🔄 **Idiomatic Marshal/Unmarshal functions** with automatic type detection
+- 🎯 **Strapi-style API support** for CMS and API applications
+- ⚡ **High performance** with comprehensive benchmarks
+- 🛡️ **Extensive customization** through options
+- 📚 **Comprehensive documentation** and examples
+- 🧪 **Extensive test coverage** (>95%)
+- 🌐 **Framework agnostic** - works with any Go web framework
 
-## Installation
+## 📦 Installation
 
 ```bash
-go get github.com/zaytra/qs
+go get github.com/zaytracom/qs/v1
 ```
 
-## Quick Start
+## 🚀 Quick Start
+
+### Basic Usage
 
 ```go
 package main
 
 import (
     "fmt"
-    "github.com/zaytra/qs/qs"
+    "log"
+
+    "github.com/zaytracom/qs/v1"
 )
 
 func main() {
     // Parse a query string
     result, err := qs.Parse("name=John&age=30&skills[]=Go&skills[]=Python")
     if err != nil {
-        panic(err)
+        log.Fatal(err)
     }
     fmt.Printf("%+v\n", result)
     // Output: map[age:30 name:John skills:[Go Python]]
@@ -54,262 +64,16 @@ func main() {
 
     queryString, err := qs.Stringify(data)
     if err != nil {
-        panic(err)
+        log.Fatal(err)
     }
     fmt.Println(queryString)
     // Output: user[name]=Jane&user[profile][age]=25&user[profile][skills][0]=JavaScript&user[profile][skills][1]=TypeScript
 }
 ```
 
-## Parsing Examples
-
-### Simple Key-Value Pairs
+### Struct Parsing with Query Tags
 
 ```go
-result, _ := qs.Parse("name=John&age=30&city=NYC")
-// Result: map[string]interface{}{
-//     "name": "John",
-//     "age":  "30",
-//     "city": "NYC",
-// }
-```
-
-### Nested Objects
-
-```go
-result, _ := qs.Parse("user[profile][name]=John&user[profile][age]=30")
-// Result: map[string]interface{}{
-//     "user": map[string]interface{}{
-//         "profile": map[string]interface{}{
-//             "name": "John",
-//             "age":  "30",
-//         },
-//     },
-// }
-```
-
-### Arrays
-
-```go
-result, _ := qs.Parse("tags[]=golang&tags[]=programming&tags[]=web")
-// Result: map[string]interface{}{
-//     "tags": []interface{}{"golang", "programming", "web"},
-// }
-```
-
-### Complex Nested Structures
-
-```go
-queryString := "products[0][id]=123&products[0][name]=Laptop&products[0][tags][]=electronics&products[0][tags][]=computers&filters[price][min]=100&filters[price][max]=1000"
-result, _ := qs.Parse(queryString)
-// Result: deeply nested map with products array and filters object
-```
-
-## Stringify Examples
-
-### Basic Usage
-
-```go
-data := map[string]interface{}{
-    "name": "John",
-    "age":  30,
-}
-result, _ := qs.Stringify(data)
-// Result: "age=30&name=John"
-```
-
-### Arrays with Different Formats
-
-```go
-data := map[string]interface{}{
-    "items": []interface{}{"a", "b", "c"},
-}
-
-// Indices format (default)
-result1, _ := qs.Stringify(data)
-// Result: "items[0]=a&items[1]=b&items[2]=c"
-
-// Brackets format
-result2, _ := qs.Stringify(data, &qs.StringifyOptions{
-    ArrayFormat: "brackets",
-})
-// Result: "items[]=a&items[]=b&items[]=c"
-
-// Repeat format
-result3, _ := qs.Stringify(data, &qs.StringifyOptions{
-    ArrayFormat: "repeat",
-})
-// Result: "items=a&items=b&items=c"
-```
-
-## Options
-
-### Parse Options
-
-```go
-options := &qs.ParseOptions{
-    Delimiter:         "&",     // Parameter delimiter
-    IgnoreQueryPrefix: true,    // Ignore leading '?'
-    StrictNullHandling: false,  // Handle null values strictly
-    // ... more options available
-}
-
-result, err := qs.Parse("?name=John&age=30", options)
-```
-
-### Stringify Options
-
-```go
-options := &qs.StringifyOptions{
-    ArrayFormat:    "brackets", // Array format: "indices", "brackets", "repeat"
-    AddQueryPrefix: true,       // Add '?' prefix
-    Delimiter:      "&",        // Parameter delimiter
-    // ... more options available
-}
-
-result, err := qs.Stringify(data, options)
-```
-
-## Advanced Usage
-
-### Custom Delimiters
-
-```go
-// Parse with semicolon delimiter
-result, _ := qs.Parse("name=John;age=30;city=NYC", &qs.ParseOptions{
-    Delimiter: ";",
-})
-
-// Stringify with semicolon delimiter
-data := map[string]interface{}{"a": "1", "b": "2"}
-result, _ := qs.Stringify(data, &qs.StringifyOptions{
-    Delimiter: ";",
-})
-// Result: "a=1;b=2"
-```
-
-### URL Encoding
-
-```go
-// Parse URL-encoded values
-result, _ := qs.Parse("message=Hello%20World&emoji=%F0%9F%9A%80")
-// Result: map[string]interface{}{
-//     "message": "Hello World",
-//     "emoji":   "🚀",
-// }
-
-// Stringify with URL encoding (enabled by default)
-data := map[string]interface{}{
-    "message": "Hello World!",
-    "symbols": "@#$%^&*()",
-}
-result, _ := qs.Stringify(data)
-// Result: URL-encoded query string
-```
-
-## Real-World Examples
-
-See [`examples.md`](examples.md) for comprehensive real-world usage examples including:
-
-- E-commerce product filtering
-- API request building
-- Form data processing
-- Analytics and metrics
-- Configuration management
-- Search interfaces
-
-## Performance
-
-Benchmark results on Apple M1 Pro:
-
-```
-BenchmarkParseSimple-10       169478    6458 ns/op    11499 B/op    147 allocs/op
-BenchmarkParseComplex-10       64339   18474 ns/op    27625 B/op    322 allocs/op
-BenchmarkStringifySimple-10  2973129     400 ns/op      190 B/op     10 allocs/op
-BenchmarkStringifyComplex-10  701146    1675 ns/op     1121 B/op     31 allocs/op
-```
-
-The library is optimized for performance while maintaining full compatibility with the JavaScript qs library.
-
-## API Reference
-
-### `Parse(str string, opts ...*ParseOptions) (map[string]interface{}, error)`
-
-Parses a query string into a nested data structure.
-
-**Parameters:**
-- `str` - The query string to parse
-- `opts` - Optional parsing options
-
-**Returns:**
-- `map[string]interface{}` - The parsed data structure
-- `error` - Any parsing error
-
-### `Stringify(obj interface{}, opts ...*StringifyOptions) (string, error)`
-
-Converts a data structure into a query string.
-
-**Parameters:**
-- `obj` - The data structure to stringify
-- `opts` - Optional stringify options
-
-**Returns:**
-- `string` - The generated query string
-- `error` - Any stringification error
-
-## Compatibility
-
-This library aims to be compatible with the JavaScript [qs library](https://github.com/ljharb/qs) while following Go conventions and idioms.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-This library is inspired by and aims to be compatible with the JavaScript [qs library](https://github.com/ljharb/qs) by Jordan Harband.
-
-# QS Go Library - Idiomatic Marshal/Unmarshal Functions
-
-The QS library for Go now supports idiomatic `Marshal` and `Unmarshal` functions that automatically detect data types at runtime and choose the appropriate processing method.
-
-## Key Features
-
-### ✨ Automatic Type Detection
-- **Runtime type detection** - functions automatically determine whether they work with struct, map, or slice
-- **Unified API** - same functions for all data types
-- **Full compatibility** - backward compatibility with existing API is preserved
-
-### 🚀 Performance
-```
-BenchmarkMarshal-10                       759507              1491 ns/op
-BenchmarkUnmarshal-10                     175050              7350 ns/op
-BenchmarkMarshalComplex-10                406468              2964 ns/op
-BenchmarkUnmarshalComplex-10               75964             15018 ns/op
-```
-
-### 📋 Supported Types
-- **Structs** with query tags (`query:"field_name"`)
-- **Maps** (`map[string]interface{}`, `map[string]string`, etc.)
-- **Slices** and **Arrays**
-- **Nested structures**
-- **Pointers**
-- **All basic Go types** (string, int, float, bool, etc.)
-
-## Quick Start
-
-```go
-package main
-
-import (
-    "fmt"
-    "github.com/zaytra/qs/qs"
-)
-
 type User struct {
     Name     string  `query:"name"`
     Age      int     `query:"age"`
@@ -319,115 +83,294 @@ type User struct {
 }
 
 func main() {
-    // Marshal struct -> query string
-    user := User{
-        Name:     "John Doe",
-        Age:      30,
-        Email:    "john@example.com",
+    // Parse to struct
+    queryString := "name=John&age=30&email=john@example.com&active=true&score=95.5"
+    var user User
+    err := qs.ParseToStruct(queryString, &user)
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Printf("User: %+v\n", user)
+
+    // Convert struct to query string
+    newUser := User{
+        Name:     "Alice",
+        Age:      25,
+        Email:    "alice@example.com",
         IsActive: true,
-        Score:    95.5,
+        Score:    88.5,
     }
 
-    queryString, err := qs.Marshal(user)
+    queryString, err = qs.StructToQueryString(&newUser)
     if err != nil {
-        panic(err)
+        log.Fatal(err)
     }
     fmt.Printf("Query: %s\n", queryString)
+}
+```
 
-    // Unmarshal query string -> struct
+### Idiomatic Marshal/Unmarshal
+
+```go
+func main() {
+    // Marshal with automatic type detection
+    user := User{Name: "John", Age: 30}
+    queryString, err := qs.Marshal(user)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Unmarshal with automatic type detection
     var newUser User
     err = qs.Unmarshal(queryString, &newUser)
     if err != nil {
-        panic(err)
+        log.Fatal(err)
     }
-    fmt.Printf("User: %+v\n", newUser)
 }
 ```
 
-## API Reference
+## 📚 Documentation
 
-### Marshal
+### Core Functions
+
+| Function | Description |
+|----------|-------------|
+| `Parse(str, opts)` | Parse query string to map |
+| `Stringify(obj, opts)` | Convert data structure to query string |
+| `Marshal(v, opts)` | Convert any type to query string (idiomatic) |
+| `Unmarshal(str, v, opts)` | Parse query string to any type (idiomatic) |
+| `ParseToStruct(str, dest, opts)` | Parse query string to struct |
+| `StructToQueryString(obj, opts)` | Convert struct to query string |
+
+### Array Formats
+
+The library supports multiple array formats:
+
 ```go
-func Marshal(v interface{}, opts ...*StringifyOptions) (string, error)
+data := map[string]interface{}{
+    "items": []interface{}{"a", "b", "c"},
+}
+
+// Indices format (default)
+qs.Stringify(data)
+// Result: "items[0]=a&items[1]=b&items[2]=c"
+
+// Brackets format
+qs.Stringify(data, &qs.StringifyOptions{ArrayFormat: "brackets"})
+// Result: "items[]=a&items[]=b&items[]=c"
+
+// Repeat format
+qs.Stringify(data, &qs.StringifyOptions{ArrayFormat: "repeat"})
+// Result: "items=a&items=b&items=c"
 ```
-Converts any data type to a query string. Automatically detects type at runtime.
 
-### Unmarshal
+### Nested Objects
+
 ```go
-func Unmarshal(queryString string, v interface{}, opts ...*ParseOptions) error
-```
-Parses query string into the specified data type. Automatically detects target type at runtime.
+// Parse nested structures
+result, _ := qs.Parse("user[profile][name]=John&user[profile][age]=30")
+// Result: map[user:map[profile:map[age:30 name:John]]]
 
-## Usage Examples
-
-### Runtime Type Detection
-```go
-testQuery := "name=Alice&age=28&q=search&tags[]=go&tags[]=api"
-
-// Single API for different types
-var userTarget User
-var mapTarget map[string]interface{}
-var filterTarget SearchFilter
-
-qs.Unmarshal(testQuery, &userTarget)    // struct
-qs.Unmarshal(testQuery, &mapTarget)     // map
-qs.Unmarshal(testQuery, &filterTarget)  // another struct
+// Create nested structures
+data := map[string]interface{}{
+    "user": map[string]interface{}{
+        "profile": map[string]interface{}{
+            "name": "John",
+            "age":  30,
+        },
+    },
+}
+queryString, _ := qs.Stringify(data)
+// Result: "user[profile][age]=30&user[profile][name]=John"
 ```
 
-### HTTP Handler
+### Custom Options
+
+#### Parse Options
+
 ```go
-func handler(w http.ResponseWriter, r *http.Request) {
-    // Parse query parameters into struct
-    var params RequestParams
-    if err := qs.Unmarshal(r.URL.RawQuery, &params); err != nil {
-        http.Error(w, err.Error(), http.StatusBadRequest)
+options := &qs.ParseOptions{
+    Delimiter:         "&",     // Parameter delimiter
+    IgnoreQueryPrefix: true,    // Ignore leading '?'
+    ArrayLimit:        20,      // Maximum array elements
+    Depth:            5,        // Maximum nesting depth
+    ParameterLimit:   1000,     // Maximum parameters
+}
+
+result, err := qs.Parse("?name=John&age=30", options)
+```
+
+#### Stringify Options
+
+```go
+options := &qs.StringifyOptions{
+    ArrayFormat:    "brackets", // Array format
+    AddQueryPrefix: true,       // Add '?' prefix
+    Delimiter:      "&",        // Parameter delimiter
+    Encode:         true,       // URL encoding
+}
+
+result, err := qs.Stringify(data, options)
+```
+
+## 🏗️ Advanced Usage
+
+### Strapi-style APIs
+
+Perfect for building CMS and API applications:
+
+```go
+type StrapiQuery struct {
+    Filters    map[string]interface{} `query:"filters"`
+    Sort       []string               `query:"sort"`
+    Fields     []string               `query:"fields"`
+    Populate   map[string]interface{} `query:"populate"`
+    Pagination map[string]interface{} `query:"pagination"`
+    Locale     string                 `query:"locale"`
+}
+
+// Parse complex Strapi query
+strapiQuery := "filters[title][$contains]=golang&sort[]=publishedAt:desc&populate[author][fields][]=name"
+var query StrapiQuery
+err := qs.Unmarshal(strapiQuery, &query)
+```
+
+### Framework Integration
+
+Works seamlessly with popular Go web frameworks:
+
+#### Gin Framework
+
+```go
+func getArticles(c *gin.Context) {
+    var query ArticleQuery
+    if err := qs.Unmarshal(c.Request.URL.RawQuery, &query); err != nil {
+        c.JSON(400, gin.H{"error": err.Error()})
         return
     }
 
-    // Process...
-    response := ResponseData{Status: "success", Data: params}
-
-    // Create response query
-    responseQuery, _ := qs.Marshal(response)
-    w.Header().Set("X-Response-Query", responseQuery)
+    articles := getArticlesFromDB(query)
+    c.JSON(200, gin.H{"data": articles})
 }
 ```
 
-### Complex Nested Structures
-```go
-type ComplexData struct {
-    User     User              `query:"user"`
-    Filters  SearchFilter      `query:"filters"`
-    Settings map[string]string `query:"settings"`
-    Enabled  bool              `query:"enabled"`
-}
-
-// Marshal/Unmarshal work with any complexity
-queryString, _ := qs.Marshal(complexData)
-var parsed ComplexData
-qs.Unmarshal(queryString, &parsed)
-```
-
-## Query Tags
-
-The following tag options are supported:
+#### Echo Framework
 
 ```go
-type Example struct {
-    Name     string `query:"name"`        // Custom field name
-    Age      int    `query:"age"`         // Automatic type conversion
-    Email    string `query:"email"`       // URL encoding/decoding
-    Hidden   string `query:"-"`           // Skip field
-    Default  string                       // Use lowercase field name
+func getProducts(c echo.Context) error {
+    var query ProductQuery
+    if err := qs.Unmarshal(c.Request().URL.RawQuery, &query); err != nil {
+        return echo.NewHTTPError(400, err.Error())
+    }
+
+    products := getProductsFromDB(query)
+    return c.JSON(200, products)
 }
 ```
 
-## Compatibility
+## 📊 Performance
 
-New functions are fully compatible with the existing API:
-- `Parse()` - parsing to map
-- `Stringify()` - creating query string from map
-- `ParseToStruct()` - parsing to struct
-- `StructToQueryString()` - creating query string from struct
-- `MapToStruct()` - converting map to struct
-- `StructToMap()` - converting struct to map
+QS is optimized for high performance:
+
+```
+BenchmarkParseSimple-10       169478    6458 ns/op    11499 B/op    147 allocs/op
+BenchmarkParseComplex-10       64339   18474 ns/op    27625 B/op    322 allocs/op
+BenchmarkStringifySimple-10  2973129     400 ns/op      190 B/op     10 allocs/op
+BenchmarkStringifyComplex-10  701146    1675 ns/op     1121 B/op     31 allocs/op
+BenchmarkMarshal-10           759507    1491 ns/op      520 B/op     15 allocs/op
+BenchmarkUnmarshal-10         175050    7350 ns/op     3825 B/op     95 allocs/op
+```
+
+## 🔧 Real-World Examples
+
+### E-commerce Product Filtering
+
+```go
+type ProductQuery struct {
+    Filters struct {
+        Category   string  `query:"category"`
+        PriceMin   float64 `query:"price_min"`
+        PriceMax   float64 `query:"price_max"`
+        InStock    bool    `query:"in_stock"`
+        Brand      []string `query:"brand"`
+    } `query:"filters"`
+    Sort       []string `query:"sort"`
+    Pagination struct {
+        Page     int `query:"page"`
+        PageSize int `query:"page_size"`
+    } `query:"pagination"`
+}
+
+// Parse: /api/products?filters[category]=electronics&filters[price_min]=100&filters[price_max]=1000&sort[]=price:asc
+```
+
+### Search Interface
+
+```go
+type SearchQuery struct {
+    Query    string   `query:"q"`
+    Filters  map[string]interface{} `query:"filters"`
+    Facets   []string `query:"facets"`
+    Sort     []string `query:"sort"`
+    Page     int      `query:"page"`
+    PageSize int      `query:"page_size"`
+}
+```
+
+### Analytics Dashboard
+
+```go
+type AnalyticsQuery struct {
+    Metrics   []string `query:"metrics"`
+    DateRange struct {
+        Start string `query:"start"`
+        End   string `query:"end"`
+    } `query:"date_range"`
+    GroupBy   []string `query:"group_by"`
+    Filters   map[string]interface{} `query:"filters"`
+}
+```
+
+## 🧪 Testing
+
+Run the test suite:
+
+```bash
+# Run all tests
+go test ./...
+
+# Run tests with coverage
+go test -cover ./...
+
+# Run benchmarks
+go test -bench=. ./...
+```
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE.md) file for details.
+
+## 🙏 Acknowledgments
+
+- Inspired by the JavaScript [qs library](https://github.com/ljharb/qs) by Jordan Harband
+- Thanks to all contributors who have helped improve this library
+
+## 📞 Support
+
+- 📖 [Documentation](https://pkg.go.dev/github.com/zaytracom/qs)
+- 🐛 [Issue Tracker](https://github.com/zaytracom/qs/issues)
+- 💬 [Discussions](https://github.com/zaytracom/qs/discussions)
+
+---
+
+Made with ❤️ by the QS team

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	qs "github.com/zaytra/qs/v1"
+	qs "github.com/zaytracom/qs/v1"
 )
 
 // EmptyTestCase represents a test case for empty keys

@@ -1,3 +1,3 @@
-module github.com/zaytra/qs
+module github.com/zaytracom/qs
 
-go 1.24.3
+go 1.19

@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	qs "github.com/zaytra/qs/v1"
+	qs "github.com/zaytracom/qs/v1"
 )
 
 type Person struct {

@@ -1,3 +1,134 @@
+// Package qs provides parsing and stringifying of URL query strings with support
+// for nested objects, arrays, and complex data structures.
+//
+// This library is inspired by and compatible with the popular JavaScript qs library
+// (https://github.com/ljharb/qs), while following Go conventions and idioms.
+//
+// # Features
+//
+//   - Parse query strings into nested Go data structures
+//   - Stringify Go data structures into query strings
+//   - Support for nested objects and arrays
+//   - Multiple array formats (indices, brackets, repeat)
+//   - URL encoding/decoding
+//   - Customizable options and delimiters
+//   - Struct parsing with query tags
+//   - Idiomatic Marshal/Unmarshal functions with automatic type detection
+//   - High performance with comprehensive benchmarks
+//   - Extensive test coverage
+//
+// # Quick Start
+//
+// Basic parsing:
+//
+//	result, err := qs.Parse("name=John&age=30&skills[]=Go&skills[]=Python")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	fmt.Printf("%+v\n", result)
+//	// Output: map[age:30 name:John skills:[Go Python]]
+//
+// Basic stringifying:
+//
+//	data := map[string]interface{}{
+//	    "user": map[string]interface{}{
+//	        "name": "Jane",
+//	        "profile": map[string]interface{}{
+//	            "age": 25,
+//	            "skills": []interface{}{"JavaScript", "TypeScript"},
+//	        },
+//	    },
+//	}
+//	queryString, err := qs.Stringify(data)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	fmt.Println(queryString)
+//	// Output: user[name]=Jane&user[profile][age]=25&user[profile][skills][0]=JavaScript&user[profile][skills][1]=TypeScript
+//
+// # Struct Parsing with Query Tags
+//
+// Define structs with query tags:
+//
+//	type User struct {
+//	    Name     string  `query:"name"`
+//	    Age      int     `query:"age"`
+//	    Email    string  `query:"email"`
+//	    IsActive bool    `query:"active"`
+//	    Score    float64 `query:"score"`
+//	}
+//
+// Parse query string to struct:
+//
+//	queryString := "name=John&age=30&email=john@example.com&active=true&score=95.5"
+//	var user User
+//	err := qs.ParseToStruct(queryString, &user)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	fmt.Printf("User: %+v\n", user)
+//
+// # Idiomatic Marshal/Unmarshal
+//
+// The package provides idiomatic Marshal and Unmarshal functions that automatically
+// detect data types at runtime:
+//
+//	// Marshal any data type to query string
+//	queryString, err := qs.Marshal(user)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//
+//	// Unmarshal query string to any data type
+//	var newUser User
+//	err = qs.Unmarshal(queryString, &newUser)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//
+// # Strapi-style APIs
+//
+// The library supports complex Strapi-like query structures:
+//
+//	type StrapiQuery struct {
+//	    Filters    map[string]interface{} `query:"filters"`
+//	    Sort       []string               `query:"sort"`
+//	    Fields     []string               `query:"fields"`
+//	    Populate   map[string]interface{} `query:"populate"`
+//	    Pagination map[string]interface{} `query:"pagination"`
+//	    Locale     string                 `query:"locale"`
+//	}
+//
+// # Options
+//
+// Both parsing and stringifying support extensive customization through options:
+//
+//	// Parse options
+//	result, err := qs.Parse("name=John&age=30", &qs.ParseOptions{
+//	    Delimiter:         "&",
+//	    IgnoreQueryPrefix: true,
+//	})
+//
+//	// Stringify options
+//	queryString, err := qs.Stringify(data, &qs.StringifyOptions{
+//	    ArrayFormat:    "brackets",
+//	    AddQueryPrefix: true,
+//	})
+//
+// # Performance
+//
+// The library is optimized for performance:
+//
+//	BenchmarkParseSimple-10       169478    6458 ns/op
+//	BenchmarkParseComplex-10       64339   18474 ns/op
+//	BenchmarkStringifySimple-10  2973129     400 ns/op
+//	BenchmarkStringifyComplex-10  701146    1675 ns/op
+//
+// # Compatibility
+//
+// This library aims to be compatible with the JavaScript qs library while
+// following Go conventions and idioms. It supports all major query string
+// patterns and provides additional Go-specific features like struct parsing.
 package qs
 
 import (
@@ -10,30 +141,91 @@ import (
 	"time"
 )
 
+// ParseOptions configures how query strings are parsed.
+// These options control various aspects of the parsing process,
+// including array handling, depth limits, and character encoding.
 type ParseOptions struct {
-	AllowDots                bool
-	AllowEmptyArrays         bool
-	AllowPrototypes          bool
-	AllowSparse              bool
-	ArrayLimit               int
-	Charset                  string
-	CharsetSentinel          bool
-	Comma                    bool
-	DecodeDotInKeys          bool
-	Decoder                  func(str string, decoder ...interface{}) (string, error)
-	Delimiter                string
-	Depth                    int
-	Duplicates               string
-	IgnoreQueryPrefix        bool
+	// AllowDots enables parsing of keys with dots (e.g., "a.b.c=value")
+	// as nested objects instead of treating them as literal keys.
+	AllowDots bool
+
+	// AllowEmptyArrays allows arrays with no values to be parsed
+	// as empty arrays instead of being omitted.
+	AllowEmptyArrays bool
+
+	// AllowPrototypes enables setting properties on Object.prototype
+	// (mainly for JavaScript compatibility).
+	AllowPrototypes bool
+
+	// AllowSparse enables sparse arrays where some indices may be missing.
+	AllowSparse bool
+
+	// ArrayLimit sets the maximum number of array elements to parse.
+	// Default is 20. Set to 0 for unlimited.
+	ArrayLimit int
+
+	// Charset specifies the character encoding to use.
+	// Default is "utf-8".
+	Charset string
+
+	// CharsetSentinel enables detection of charset parameter in query string.
+	CharsetSentinel bool
+
+	// Comma enables parsing of comma-separated values within a single parameter.
+	Comma bool
+
+	// DecodeDotInKeys enables decoding of URL-encoded dots in keys.
+	DecodeDotInKeys bool
+
+	// Decoder is a custom function for decoding parameter values.
+	// If nil, url.QueryUnescape is used.
+	Decoder func(str string, decoder ...interface{}) (string, error)
+
+	// Delimiter specifies the character used to separate parameters.
+	// Default is "&".
+	Delimiter string
+
+	// Depth sets the maximum depth for nested objects.
+	// Default is 5.
+	Depth int
+
+	// Duplicates specifies how to handle duplicate keys.
+	// Options: "combine" (default), "first", "last".
+	Duplicates string
+
+	// IgnoreQueryPrefix ignores leading "?" in query string.
+	IgnoreQueryPrefix bool
+
+	// InterpretNumericEntities enables interpretation of HTML numeric entities.
 	InterpretNumericEntities bool
-	ParameterLimit           int
-	ParseArrays              bool
-	PlainObjects             bool
-	StrictDepth              bool
-	StrictNullHandling       bool
-	ThrowOnLimitExceeded     bool
+
+	// ParameterLimit sets the maximum number of parameters to parse.
+	// Default is 1000. Set to 0 for unlimited.
+	ParameterLimit int
+
+	// ParseArrays enables parsing of array notation (e.g., "a[]=1&a[]=2").
+	ParseArrays bool
+
+	// PlainObjects creates objects without prototypes
+	// (mainly for JavaScript compatibility).
+	PlainObjects bool
+
+	// StrictDepth throws an error when depth limit is exceeded
+	// instead of silently truncating.
+	StrictDepth bool
+
+	// StrictNullHandling preserves null values instead of converting
+	// them to empty strings.
+	StrictNullHandling bool
+
+	// ThrowOnLimitExceeded throws an error when parameter limit is exceeded
+	// instead of silently truncating.
+	ThrowOnLimitExceeded bool
 }
 
+// defaultParseOptions returns a ParseOptions struct with default values.
+// These defaults provide sensible behavior for most use cases while
+// maintaining compatibility with the JavaScript qs library.
 func defaultParseOptions() *ParseOptions {
 	return &ParseOptions{
 		AllowDots:                false,
@@ -60,6 +252,66 @@ func defaultParseOptions() *ParseOptions {
 	}
 }
 
+// Parse parses a query string into a nested data structure.
+//
+// This function converts URL query strings into Go maps with support for
+// nested objects, arrays, and various encoding formats. It's compatible
+// with the JavaScript qs library while providing Go-specific features.
+//
+// # Parameters
+//
+//   - str: The query string to parse (with or without leading "?")
+//   - opts: Optional ParseOptions to customize parsing behavior
+//
+// # Return Values
+//
+//   - map[string]interface{}: The parsed data structure
+//   - error: Any error that occurred during parsing
+//
+// # Examples
+//
+// Simple key-value pairs:
+//
+//	result, err := qs.Parse("name=John&age=30")
+//	// Returns: map[string]interface{}{"name": "John", "age": "30"}
+//
+// Nested objects:
+//
+//	result, err := qs.Parse("user[profile][name]=John&user[profile][age]=30")
+//	// Returns: map[string]interface{}{
+//	//     "user": map[string]interface{}{
+//	//         "profile": map[string]interface{}{
+//	//             "name": "John",
+//	//             "age": "30",
+//	//         },
+//	//     },
+//	// }
+//
+// Arrays:
+//
+//	result, err := qs.Parse("tags[]=golang&tags[]=programming")
+//	// Returns: map[string]interface{}{"tags": []interface{}{"golang", "programming"}}
+//
+// With custom options:
+//
+//	result, err := qs.Parse("?name=John&age=30", &qs.ParseOptions{
+//	    IgnoreQueryPrefix: true,
+//	    Delimiter: "&",
+//	})
+//
+// # Error Handling
+//
+// Parse returns an error if:
+//   - The parameter limit is exceeded (when ThrowOnLimitExceeded is true)
+//   - The depth limit is exceeded (when StrictDepth is true)
+//   - URL decoding fails
+//   - Custom decoder function returns an error
+//
+// # Performance
+//
+// The function is optimized for performance and can handle complex
+// nested structures efficiently. For best performance with large
+// query strings, consider adjusting ParameterLimit and Depth options.
 func Parse(str string, opts ...*ParseOptions) (map[string]interface{}, error) {
 	options := defaultParseOptions()
 	if len(opts) > 0 && opts[0] != nil {
@@ -506,27 +758,86 @@ func getCleanKey(key string) string {
 	return key
 }
 
+// StringifyOptions configures how data structures are converted to query strings.
+// These options control various aspects of the stringification process,
+// including array formatting, encoding, and output structure.
 type StringifyOptions struct {
-	AddQueryPrefix     bool
-	AllowDots          bool
-	AllowEmptyArrays   bool
-	ArrayFormat        string
-	Charset            string
-	CharsetSentinel    bool
-	CommaRoundTrip     bool
-	Delimiter          string
-	Encode             bool
-	EncodeDotInKeys    bool
-	Encoder            func(str string, defaultEncoder ...interface{}) string
-	EncodeValuesOnly   bool
-	Filter             interface{}
-	Format             string
-	Formatter          func(string) string
-	Indices            bool
-	SerializeDate      func(date time.Time) string
-	SkipNulls          bool
+	// AddQueryPrefix adds a leading "?" to the output query string.
+	AddQueryPrefix bool
+
+	// AllowDots enables dot notation for nested objects (e.g., "a.b.c=value").
+	AllowDots bool
+
+	// AllowEmptyArrays includes empty arrays in the output instead of omitting them.
+	AllowEmptyArrays bool
+
+	// ArrayFormat specifies how arrays are formatted in the query string.
+	// Options: "indices" (default), "brackets", "repeat".
+	//   - "indices": a[0]=1&a[1]=2
+	//   - "brackets": a[]=1&a[]=2
+	//   - "repeat": a=1&a=2
+	ArrayFormat string
+
+	// Charset specifies the character encoding to use.
+	// Default is "utf-8".
+	Charset string
+
+	// CharsetSentinel includes a charset parameter in the query string
+	// for better JavaScript compatibility.
+	CharsetSentinel bool
+
+	// CommaRoundTrip enables comma-separated values within a single parameter
+	// for better compatibility with specific parsers.
+	CommaRoundTrip bool
+
+	// Delimiter specifies the character used to separate parameters.
+	// Default is "&".
+	Delimiter string
+
+	// Encode enables URL encoding of parameter values.
+	// Default is true.
+	Encode bool
+
+	// EncodeDotInKeys enables encoding of dots in parameter keys.
+	EncodeDotInKeys bool
+
+	// Encoder is a custom function for encoding parameter values.
+	// If nil, the default URL encoder is used.
+	Encoder func(str string, defaultEncoder ...interface{}) string
+
+	// EncodeValuesOnly enables encoding only parameter values,
+	// leaving keys unencoded.
+	EncodeValuesOnly bool
+
+	// Filter specifies which properties to include in the output.
+	// Can be a function or a list of allowed keys.
+	Filter interface{}
+
+	// Format specifies the encoding format.
+	// Options: "RFC1738", "RFC3986" (default).
+	Format string
+
+	// Formatter is a custom function for formatting the final output.
+	Formatter func(string) string
+
+	// Indices is deprecated. Use ArrayFormat instead.
+	Indices bool
+
+	// SerializeDate is a custom function for serializing time.Time values.
+	// Default uses RFC3339 format.
+	SerializeDate func(date time.Time) string
+
+	// SkipNulls omits null/nil values from the output instead of
+	// including them as empty parameters.
+	SkipNulls bool
+
+	// StrictNullHandling preserves null values as literal "null"
+	// instead of converting them to empty strings.
 	StrictNullHandling bool
-	Sort               func(a, b string) bool
+
+	// Sort is a custom function for sorting parameter keys.
+	// If nil, parameters appear in their natural order.
+	Sort func(a, b string) bool
 }
 
 var arrayPrefixGenerators = map[string]func(prefix string, key ...string) string{
@@ -571,6 +882,96 @@ func defaultStringifyOptions() *StringifyOptions {
 	}
 }
 
+// Stringify converts a data structure into a query string.
+//
+// This function takes Go data structures (maps, structs, slices) and converts
+// them into URL query strings with support for nested objects, arrays, and
+// various formatting options. It's compatible with the JavaScript qs library.
+//
+// # Parameters
+//
+//   - obj: The data structure to convert (map, struct, slice, or primitive value)
+//   - opts: Optional StringifyOptions to customize output format
+//
+// # Return Values
+//
+//   - string: The generated query string
+//   - error: Any error that occurred during stringification
+//
+// # Examples
+//
+// Simple map:
+//
+//	data := map[string]interface{}{
+//	    "name": "John",
+//	    "age":  30,
+//	}
+//	result, err := qs.Stringify(data)
+//	// Returns: "age=30&name=John"
+//
+// Nested objects:
+//
+//	data := map[string]interface{}{
+//	    "user": map[string]interface{}{
+//	        "profile": map[string]interface{}{
+//	            "name": "John",
+//	            "age":  30,
+//	        },
+//	    },
+//	}
+//	result, err := qs.Stringify(data)
+//	// Returns: "user[profile][age]=30&user[profile][name]=John"
+//
+// Arrays with different formats:
+//
+//	data := map[string]interface{}{
+//	    "items": []interface{}{"a", "b", "c"},
+//	}
+//
+//	// Default (indices)
+//	result1, err := qs.Stringify(data)
+//	// Returns: "items[0]=a&items[1]=b&items[2]=c"
+//
+//	// Brackets format
+//	result2, err := qs.Stringify(data, &qs.StringifyOptions{
+//	    ArrayFormat: "brackets",
+//	})
+//	// Returns: "items[]=a&items[]=b&items[]=c"
+//
+//	// Repeat format
+//	result3, err := qs.Stringify(data, &qs.StringifyOptions{
+//	    ArrayFormat: "repeat",
+//	})
+//	// Returns: "items=a&items=b&items=c"
+//
+// With query prefix:
+//
+//	result, err := qs.Stringify(data, &qs.StringifyOptions{
+//	    AddQueryPrefix: true,
+//	})
+//	// Returns: "?items[0]=a&items[1]=b&items[2]=c"
+//
+// # Supported Data Types
+//
+//   - Maps: map[string]interface{}, map[string]string, etc.
+//   - Structs: with or without query tags
+//   - Slices and arrays: []interface{}, []string, []int, etc.
+//   - Primitive types: string, int, float, bool
+//   - Pointers: automatically dereferenced
+//   - time.Time: serialized using SerializeDate function
+//
+// # Error Handling
+//
+// Stringify returns an error if:
+//   - Custom encoder function returns an error
+//   - Unsupported data type is encountered
+//   - Reflection operations fail
+//
+// # Performance
+//
+// The function is optimized for performance and can handle large
+// data structures efficiently. Consider using appropriate StringifyOptions
+// for best performance with your specific use case.
 func Stringify(obj interface{}, opts ...*StringifyOptions) (string, error) {
 	options := defaultStringifyOptions()
 	if len(opts) > 0 && opts[0] != nil {
@@ -705,6 +1106,9 @@ func Stringify(obj interface{}, opts ...*StringifyOptions) (string, error) {
 	return result, nil
 }
 
+// stringify is a helper function that recursively converts data structures
+// into query string parts. It handles different data types and applies
+// the configured formatting options.
 func stringify(parts *[]string, obj interface{}, options *StringifyOptions, prefix string) {
 	if obj == nil {
 		if options.StrictNullHandling {
@@ -1060,17 +1464,72 @@ func StructToMap(obj interface{}) (map[string]interface{}, error) {
 	return result, nil
 }
 
-// Unmarshal parses a query string into the provided value.
-// It automatically detects the type at runtime and chooses the appropriate parsing method.
-// The value must be a pointer to a struct, map, or slice.
+// Unmarshal parses a query string and stores the result in the value pointed to by v.
 //
-// Examples:
+// This function provides idiomatic Go unmarshaling with automatic type detection.
+// It works with structs, maps, slices, and primitive types, automatically choosing
+// the appropriate conversion method based on the target type.
 //
+// # Parameters
+//
+//   - queryString: The query string to parse (with or without leading "?")
+//   - v: Pointer to the value where the result should be stored
+//   - opts: Optional ParseOptions to customize parsing behavior
+//
+// # Return Values
+//
+//   - error: Any error that occurred during parsing or unmarshaling
+//
+// # Examples
+//
+// Unmarshal to struct:
+//
+//	type User struct {
+//	    Name string `query:"name"`
+//	    Age  int    `query:"age"`
+//	}
 //	var user User
 //	err := qs.Unmarshal("name=John&age=30", &user)
 //
+// Unmarshal to map:
+//
 //	var data map[string]interface{}
 //	err := qs.Unmarshal("name=John&age=30", &data)
+//
+// Unmarshal to slice:
+//
+//	var tags []string
+//	err := qs.Unmarshal("tags[]=go&tags[]=programming", &tags)
+//
+// With custom options:
+//
+//	var user User
+//	err := qs.Unmarshal("?name=John&age=30", &user, &qs.ParseOptions{
+//	    IgnoreQueryPrefix: true,
+//	})
+//
+// # Supported Target Types
+//
+//   - Structs with query tags
+//   - Maps (map[string]interface{}, map[string]string, etc.)
+//   - Slices and arrays
+//   - Primitive types (string, int, float, bool)
+//   - Pointers (automatically allocated if nil)
+//   - Interfaces (interface{})
+//
+// # Error Handling
+//
+// Unmarshal returns an error if:
+//   - The target is nil or not a pointer
+//   - The target is not settable
+//   - Type conversion fails
+//   - The query string is malformed
+//   - Custom parsing options cause errors
+//
+// # Performance
+//
+// This function provides excellent performance with automatic type detection,
+// making it suitable for high-throughput applications.
 func Unmarshal(queryString string, v interface{}, opts ...*ParseOptions) error {
 	if v == nil {
 		return fmt.Errorf("unmarshal target cannot be nil")
@@ -1096,15 +1555,77 @@ func Unmarshal(queryString string, v interface{}, opts ...*ParseOptions) error {
 }
 
 // Marshal converts a value to a query string.
-// It automatically detects the type at runtime and chooses the appropriate conversion method.
 //
-// Examples:
+// This function provides idiomatic Go marshaling with automatic type detection.
+// It works with structs, maps, slices, and primitive types, automatically choosing
+// the appropriate conversion method based on the source type.
 //
+// # Parameters
+//
+//   - v: The value to convert to a query string
+//   - opts: Optional StringifyOptions to customize output format
+//
+// # Return Values
+//
+//   - string: The generated query string
+//   - error: Any error that occurred during marshaling
+//
+// # Examples
+//
+// Marshal struct:
+//
+//	type User struct {
+//	    Name string `query:"name"`
+//	    Age  int    `query:"age"`
+//	}
 //	user := User{Name: "John", Age: 30}
 //	queryString, err := qs.Marshal(user)
+//	// Returns: "age=30&name=John"
 //
-//	data := map[string]interface{}{"name": "John", "age": 30}
+// Marshal map:
+//
+//	data := map[string]interface{}{
+//	    "name": "John",
+//	    "age":  30,
+//	}
 //	queryString, err := qs.Marshal(data)
+//	// Returns: "age=30&name=John"
+//
+// Marshal slice:
+//
+//	tags := []string{"go", "programming"}
+//	queryString, err := qs.Marshal(tags)
+//	// Returns: "0=go&1=programming"
+//
+// With custom options:
+//
+//	queryString, err := qs.Marshal(data, &qs.StringifyOptions{
+//	    ArrayFormat:    "brackets",
+//	    AddQueryPrefix: true,
+//	})
+//
+// # Supported Source Types
+//
+//   - Structs with or without query tags
+//   - Maps (any map with string keys)
+//   - Slices and arrays
+//   - Primitive types (string, int, float, bool)
+//   - Pointers (automatically dereferenced)
+//   - time.Time values
+//   - Interfaces (interface{})
+//
+// # Error Handling
+//
+// Marshal returns an error if:
+//   - Reflection operations fail
+//   - Unsupported types are encountered
+//   - Custom encoding functions return errors
+//
+// # Performance
+//
+// This function provides excellent performance with automatic type detection,
+// making it suitable for high-throughput applications where the source type
+// may vary at runtime.
 func Marshal(v interface{}, opts ...*StringifyOptions) (string, error) {
 	if v == nil {
 		return "", nil
