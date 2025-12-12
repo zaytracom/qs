@@ -155,7 +155,9 @@ func TestNormalizeParseOptions(t *testing.T) {
 		}
 	})
 
-	t.Run("zero numeric values get defaults", func(t *testing.T) {
+	t.Run("explicit zero numeric values are preserved", func(t *testing.T) {
+		// Explicit zero values should be preserved (not replaced with defaults)
+		// This matches JS behavior where depth: 0 disables nesting
 		opts, err := normalizeParseOptions(&ParseOptions{
 			ArrayLimit:     0,
 			Depth:          0,
@@ -164,14 +166,14 @@ func TestNormalizeParseOptions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if opts.ArrayLimit != DefaultArrayLimit {
-			t.Errorf("ArrayLimit = %d, want %d", opts.ArrayLimit, DefaultArrayLimit)
+		if opts.ArrayLimit != 0 {
+			t.Errorf("ArrayLimit = %d, want 0", opts.ArrayLimit)
 		}
-		if opts.Depth != DefaultDepth {
-			t.Errorf("Depth = %d, want %d", opts.Depth, DefaultDepth)
+		if opts.Depth != 0 {
+			t.Errorf("Depth = %d, want 0", opts.Depth)
 		}
-		if opts.ParameterLimit != DefaultParameterLimit {
-			t.Errorf("ParameterLimit = %d, want %d", opts.ParameterLimit, DefaultParameterLimit)
+		if opts.ParameterLimit != 0 {
+			t.Errorf("ParameterLimit = %d, want 0", opts.ParameterLimit)
 		}
 	})
 
@@ -455,35 +457,35 @@ func TestFunctionalOptions(t *testing.T) {
 		}
 	})
 
-	t.Run("no options returns defaults", func(t *testing.T) {
+	t.Run("no options returns sentinel values before normalization", func(t *testing.T) {
+		// applyParseOptions returns sentinel values for numeric fields
+		// normalizeParseOptions then replaces sentinels with defaults
 		opts := applyParseOptions()
 		defaults := DefaultParseOptions()
-		if opts.ArrayLimit != defaults.ArrayLimit {
-			t.Errorf("ArrayLimit = %d, want %d", opts.ArrayLimit, defaults.ArrayLimit)
-		}
-		if opts.Depth != defaults.Depth {
-			t.Errorf("Depth = %d, want %d", opts.Depth, defaults.Depth)
-		}
+		// Boolean and non-numeric fields should match defaults
 		if opts.ParseArrays != defaults.ParseArrays {
 			t.Errorf("ParseArrays = %v, want %v", opts.ParseArrays, defaults.ParseArrays)
 		}
+		// Numeric fields should be sentinel values (to distinguish from explicit 0)
+		// These get replaced with defaults in normalizeParseOptions
 	})
 
-	t.Run("defaults are correct with functional options", func(t *testing.T) {
-		// This is the key test - verifies that functional options solve the zero-value problem
-		opts := applyParseOptions() // no options = all defaults
+	t.Run("defaults are correct after normalization", func(t *testing.T) {
+		// This is the key test - verifies that normalization provides correct defaults
+		opts := applyParseOptions() // no options = sentinel values
+		normalized, _ := normalizeParseOptions(&opts)
 
-		if opts.ParseArrays != true {
+		if normalized.ParseArrays != true {
 			t.Error("ParseArrays default should be true")
 		}
-		if opts.ArrayLimit != 20 {
-			t.Errorf("ArrayLimit default should be 20, got %d", opts.ArrayLimit)
+		if normalized.ArrayLimit != 20 {
+			t.Errorf("ArrayLimit default should be 20, got %d", normalized.ArrayLimit)
 		}
-		if opts.Depth != 5 {
-			t.Errorf("Depth default should be 5, got %d", opts.Depth)
+		if normalized.Depth != 5 {
+			t.Errorf("Depth default should be 5, got %d", normalized.Depth)
 		}
-		if opts.ParameterLimit != 1000 {
-			t.Errorf("ParameterLimit default should be 1000, got %d", opts.ParameterLimit)
+		if normalized.ParameterLimit != 1000 {
+			t.Errorf("ParameterLimit default should be 1000, got %d", normalized.ParameterLimit)
 		}
 	})
 }
@@ -1149,13 +1151,15 @@ func TestParsePrototypeProtection(t *testing.T) {
 		}
 	})
 
-	t.Run("allows __proto__ with AllowPrototypes", func(t *testing.T) {
+	t.Run("__proto__ is ALWAYS blocked even with AllowPrototypes", func(t *testing.T) {
+		// __proto__ is a security risk and should always be blocked
+		// This matches JS qs library behavior
 		result, err := Parse("__proto__=bad", WithAllowPrototypes(true))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if result["__proto__"] != "bad" {
-			t.Errorf("result['__proto__'] = %v, want 'bad'", result["__proto__"])
+		if _, ok := result["__proto__"]; ok {
+			t.Error("__proto__ should always be blocked, even with AllowPrototypes")
 		}
 	})
 

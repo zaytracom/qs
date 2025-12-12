@@ -117,8 +117,8 @@ func TestDecode(t *testing.T) {
 		{"utf8 3-byte", "%E2%98%BA", CharsetUTF8, "☺"},
 		{"utf8 4-byte", "%F0%9F%98%80", CharsetUTF8, "😀"},
 
-		// ISO-8859-1 decoding (returns raw bytes, not UTF-8)
-		{"iso latin", "%E9", CharsetISO88591, "\xe9"},
+		// ISO-8859-1 decoding (converts Latin-1 to proper UTF-8)
+		{"iso latin", "%E9", CharsetISO88591, "é"},
 		{"iso space", "%20", CharsetISO88591, " "},
 		{"iso plus", "a+b", CharsetISO88591, "a b"},
 

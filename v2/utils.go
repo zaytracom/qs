@@ -11,6 +11,20 @@ import (
 	"unicode/utf8"
 )
 
+// explicitNull is a marker type to distinguish intentional null values
+// (from strictNullHandling) from sparse array slots (which are also nil).
+// This allows Compact to remove sparse slots while preserving explicit nulls.
+type explicitNull struct{}
+
+// ExplicitNullValue is the sentinel used to mark explicit null values.
+var ExplicitNullValue = explicitNull{}
+
+// IsExplicitNull checks if a value is the explicit null marker.
+func IsExplicitNull(v any) bool {
+	_, ok := v.(explicitNull)
+	return ok
+}
+
 // Charset represents supported character sets for encoding/decoding.
 type Charset string
 
@@ -183,7 +197,7 @@ func Decode(str string, charset Charset) string {
 }
 
 // decodeISO88591 decodes a percent-encoded string as ISO-8859-1.
-// Each %XX is interpreted as a single Latin-1 byte.
+// Each %XX is interpreted as a Latin-1 byte, which maps directly to Unicode U+0000-U+00FF.
 func decodeISO88591(str string) string {
 	var result strings.Builder
 	result.Grow(len(str))
@@ -194,7 +208,9 @@ func decodeISO88591(str string) string {
 			hi := unhex(str[i+1])
 			lo := unhex(str[i+2])
 			if hi >= 0 && lo >= 0 {
-				result.WriteByte(byte(hi<<4 | lo))
+				// ISO-8859-1 bytes 0x00-0xFF map directly to Unicode U+0000-U+00FF
+				// Use WriteRune to properly encode as UTF-8
+				result.WriteRune(rune(hi<<4 | lo))
 				i += 3
 				continue
 			}
@@ -343,10 +359,23 @@ func Merge(target, source any, allowPrototypes bool) any {
 	return mergeTarget
 }
 
+// prototypeKeys are JavaScript Object prototype properties that should be blocked.
+var prototypeKeysMap = map[string]bool{
+	"__proto__":            true,
+	"constructor":          true,
+	"prototype":            true,
+	"toString":             true,
+	"toLocaleString":       true,
+	"valueOf":              true,
+	"hasOwnProperty":       true,
+	"isPrototypeOf":        true,
+	"propertyIsEnumerable": true,
+}
+
 // isPrototypeKey returns true if the key is a JavaScript prototype pollution key.
 // In Go this is less relevant, but we maintain compatibility.
 func isPrototypeKey(key string) bool {
-	return key == "__proto__" || key == "constructor" || key == "prototype"
+	return prototypeKeysMap[key]
 }
 
 // ArrayToObject converts a slice to a map with string indices as keys.
@@ -383,10 +412,16 @@ func Compact(value any) any {
 }
 
 // compactSlice removes nil values from a slice and recursively compacts nested structures.
+// ExplicitNullValue markers are preserved and converted to nil (they represent intentional nulls).
 func compactSlice(slice []any) []any {
 	result := make([]any, 0, len(slice))
 	for _, v := range slice {
 		if v == nil {
+			continue // Skip sparse array slots
+		}
+		if IsExplicitNull(v) {
+			// Preserve explicit null, convert marker to actual nil
+			result = append(result, nil)
 			continue
 		}
 		switch val := v.(type) {
@@ -403,9 +438,14 @@ func compactSlice(slice []any) []any {
 }
 
 // compactMap recursively compacts all nested slices within a map.
+// Also converts ExplicitNullValue markers to actual nil.
 func compactMap(m map[string]any) {
 	for k, v := range m {
 		if v == nil {
+			continue
+		}
+		if IsExplicitNull(v) {
+			m[k] = nil // Convert marker to actual nil
 			continue
 		}
 		switch val := v.(type) {

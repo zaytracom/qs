@@ -527,11 +527,11 @@ func parseObject(chain []string, val any, opts *ParseOptions, valuesParsed bool)
 
 		if root == "[]" && opts.ParseArrays {
 			// Empty brackets means array
-			if opts.AllowEmptyArrays && (leaf == "" || (opts.StrictNullHandling && leaf == nil)) {
+			if opts.AllowEmptyArrays && (leaf == "" || IsExplicitNull(leaf)) {
 				obj = []any{}
-			} else if opts.StrictNullHandling && leaf == nil {
+			} else if IsExplicitNull(leaf) {
 				// With strictNullHandling, null is meaningful - include it explicitly
-				obj = []any{nil}
+				obj = []any{ExplicitNullValue}
 			} else {
 				obj = Combine([]any{}, leaf)
 			}
@@ -568,11 +568,8 @@ func parseObject(chain []string, val any, opts *ParseOptions, valuesParsed bool)
 				// Regular object key
 				objMap[decodedRoot] = leaf
 				obj = objMap
-			} else if opts.AllowPrototypes {
-				objMap[decodedRoot] = leaf
-				obj = objMap
 			} else {
-				// Skip __proto__ key
+				// __proto__ is ALWAYS blocked, regardless of allowPrototypes (security)
 				obj = objMap
 			}
 		}
@@ -770,7 +767,8 @@ func parseValues(str string, opts *ParseOptions) (orderedResult, error) {
 			}
 			key = decoded
 			if opts.StrictNullHandling {
-				val = nil
+				// Use ExplicitNullValue marker to distinguish from sparse array slots
+				val = ExplicitNullValue
 			} else {
 				val = ""
 			}
@@ -912,6 +910,7 @@ func Parse(str string, opts ...ParseOption) (map[string]any, error) {
 	}
 
 	// Compact sparse arrays if AllowSparse is false
+	// Compact will convert ExplicitNullValue markers to actual nil while preserving them
 	if !normalizedOpts.AllowSparse {
 		compacted := Compact(result)
 		if m, ok := compacted.(map[string]any); ok {
