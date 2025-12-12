@@ -438,13 +438,27 @@ func newSideChannel() *sideChannel {
 
 // getValuePtr returns a unique identifier for a value based on its memory address.
 // Returns 0 for non-reference types (primitives).
+// Note: Empty slices in Go may share the same backing array address (runtime optimization),
+// so we return 0 for empty slices to avoid false cyclic reference detection.
 func getValuePtr(v any) uintptr {
 	if v == nil {
 		return 0
 	}
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
-	case reflect.Map, reflect.Slice, reflect.Ptr:
+	case reflect.Map:
+		if rv.IsNil() || rv.Len() == 0 {
+			return 0
+		}
+		return rv.Pointer()
+	case reflect.Slice:
+		// Empty slices may share the same backing array pointer in Go,
+		// so we skip cyclic detection for them to avoid false positives.
+		if rv.IsNil() || rv.Len() == 0 {
+			return 0
+		}
+		return rv.Pointer()
+	case reflect.Ptr:
 		if rv.IsNil() {
 			return 0
 		}

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os/exec"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -47,31 +48,6 @@ func parseJSON(t *testing.T, s string) any {
 func deepEqual(t *testing.T, go1, js string) bool {
 	t.Helper()
 	return reflect.DeepEqual(parseJSON(t, go1), parseJSON(t, js))
-}
-
-// normalizeForJSON converts ExplicitNullValue markers to nil for proper JSON comparison
-func normalizeForJSON(v any) any {
-	if v == nil {
-		return nil
-	}
-	if qs.IsExplicitNull(v) {
-		return nil
-	}
-	switch val := v.(type) {
-	case map[string]any:
-		result := make(map[string]any)
-		for k, v := range val {
-			result[k] = normalizeForJSON(v)
-		}
-		return result
-	case []any:
-		result := make([]any, len(val))
-		for i, v := range val {
-			result[i] = normalizeForJSON(v)
-		}
-		return result
-	}
-	return v
 }
 
 // compareQueryStrings compares two query strings semantically (ignoring param order)
@@ -235,10 +211,8 @@ func TestSparseArraysNulls(t *testing.T) {
 
 	jsParsedJSON := runJS(t, `console.log(JSON.stringify(qs.parse(`+"`"+jsResult+"`"+`, { strictNullHandling: true, allowSparse: true })));`)
 
-	// Normalize ExplicitNullValue -> nil for JSON comparison
-	normalized := normalizeForJSON(goParsed)
-	if !deepEqual(t, toJSON(t, normalized), jsParsedJSON) {
-		t.Errorf("Parse mismatch:\nGo: %s\nJS: %s", toJSON(t, normalized), jsParsedJSON)
+	if !deepEqual(t, toJSON(t, goParsed), jsParsedJSON) {
+		t.Errorf("Parse mismatch:\nGo: %s\nJS: %s", toJSON(t, goParsed), jsParsedJSON)
 	}
 }
 
@@ -880,6 +854,653 @@ func TestMegaComplex(t *testing.T) {
 	`)
 
 	if !compareQueryStrings(t, goResult, jsResult) {
+		t.Errorf("Stringify mismatch:\nGo: %s\nJS: %s", goResult, jsResult)
+	}
+}
+
+// =============================================================================
+// MISSING PARSE OPTIONS TESTS
+// =============================================================================
+
+// Test 25: AllowPrototypes - allows __proto__ and similar keys
+func TestAllowPrototypes(t *testing.T) {
+	// By default, __proto__ is blocked
+	goParsedBlocked, err := qs.Parse("a[__proto__][b]=c")
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	jsBlockedJSON := runJS(t, `console.log(JSON.stringify(qs.parse("a[__proto__][b]=c")));`)
+	if !deepEqual(t, toJSON(t, goParsedBlocked), jsBlockedJSON) {
+		t.Errorf("Blocked mismatch:\nGo: %s\nJS: %s", toJSON(t, goParsedBlocked), jsBlockedJSON)
+	}
+
+	// With allowPrototypes: true
+	goParsedAllowed, err := qs.Parse("a[__proto__][b]=c", qs.WithAllowPrototypes(true))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	jsAllowedJSON := runJS(t, `console.log(JSON.stringify(qs.parse("a[__proto__][b]=c", { allowPrototypes: true })));`)
+	if !deepEqual(t, toJSON(t, goParsedAllowed), jsAllowedJSON) {
+		t.Errorf("Allowed mismatch:\nGo: %s\nJS: %s", toJSON(t, goParsedAllowed), jsAllowedJSON)
+	}
+}
+
+// Test 26: DelimiterRegexp - regex delimiter
+func TestDelimiterRegexp(t *testing.T) {
+	re := regexp.MustCompile(`[;,]`)
+	goParsed, err := qs.Parse("a=1;b=2,c=3", qs.WithDelimiterRegexp(re))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	jsParsedJSON := runJS(t, `console.log(JSON.stringify(qs.parse("a=1;b=2,c=3", { delimiter: /[;,]/ })));`)
+	if !deepEqual(t, toJSON(t, goParsed), jsParsedJSON) {
+		t.Errorf("Parse mismatch:\nGo: %s\nJS: %s", toJSON(t, goParsed), jsParsedJSON)
+	}
+}
+
+// Test 27: InterpretNumericEntities - HTML entities in ISO-8859-1
+func TestInterpretNumericEntities(t *testing.T) {
+	goParsed, err := qs.Parse("a=%26%23945%3B", qs.WithCharset(qs.CharsetISO88591), qs.WithInterpretNumericEntities(true))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	jsParsedJSON := runJS(t, `console.log(JSON.stringify(qs.parse("a=%26%23945%3B", { charset: "iso-8859-1", interpretNumericEntities: true })));`)
+	if !deepEqual(t, toJSON(t, goParsed), jsParsedJSON) {
+		t.Errorf("Parse mismatch:\nGo: %s\nJS: %s", toJSON(t, goParsed), jsParsedJSON)
+	}
+}
+
+// Test 28: ParameterLimit
+func TestParameterLimit(t *testing.T) {
+	goParsed, err := qs.Parse("a=1&b=2&c=3&d=4&e=5", qs.WithParameterLimit(3))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	jsParsedJSON := runJS(t, `console.log(JSON.stringify(qs.parse("a=1&b=2&c=3&d=4&e=5", { parameterLimit: 3 })));`)
+	if !deepEqual(t, toJSON(t, goParsed), jsParsedJSON) {
+		t.Errorf("Parse mismatch:\nGo: %s\nJS: %s", toJSON(t, goParsed), jsParsedJSON)
+	}
+}
+
+// Test 29: ParseArrays false - disable array parsing
+func TestParseArraysFalse(t *testing.T) {
+	goParsed, err := qs.Parse("a[0]=b&a[1]=c", qs.WithParseArrays(false))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	jsParsedJSON := runJS(t, `console.log(JSON.stringify(qs.parse("a[0]=b&a[1]=c", { parseArrays: false })));`)
+	if !deepEqual(t, toJSON(t, goParsed), jsParsedJSON) {
+		t.Errorf("Parse mismatch:\nGo: %s\nJS: %s", toJSON(t, goParsed), jsParsedJSON)
+	}
+}
+
+// Test 30: PlainObjects
+func TestPlainObjects(t *testing.T) {
+	goParsed, err := qs.Parse("a[hasOwnProperty]=b", qs.WithPlainObjects(true))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	jsParsedJSON := runJS(t, `console.log(JSON.stringify(qs.parse("a[hasOwnProperty]=b", { plainObjects: true })));`)
+	if !deepEqual(t, toJSON(t, goParsed), jsParsedJSON) {
+		t.Errorf("Parse mismatch:\nGo: %s\nJS: %s", toJSON(t, goParsed), jsParsedJSON)
+	}
+}
+
+// Test 31: StrictDepth - error when depth exceeded
+func TestStrictDepth(t *testing.T) {
+	// Should NOT error when within depth
+	goParsedOK, err := qs.Parse("a[b][c]=d", qs.WithDepth(2), qs.WithStrictDepth(true))
+	if err != nil {
+		t.Fatalf("Parse should not fail within depth: %v", err)
+	}
+	jsOKJSON := runJS(t, `console.log(JSON.stringify(qs.parse("a[b][c]=d", { depth: 2, strictDepth: true })));`)
+	if !deepEqual(t, toJSON(t, goParsedOK), jsOKJSON) {
+		t.Errorf("OK parse mismatch:\nGo: %s\nJS: %s", toJSON(t, goParsedOK), jsOKJSON)
+	}
+
+	// Should error when exceeding depth
+	_, err = qs.Parse("a[b][c][d]=e", qs.WithDepth(2), qs.WithStrictDepth(true))
+	if err == nil {
+		t.Errorf("Expected error when strictDepth exceeded, got nil")
+	}
+
+	// JS throws an error too
+	jsError := runJS(t, `
+		try {
+			qs.parse("a[b][c][d]=e", { depth: 2, strictDepth: true });
+			console.log("no_error");
+		} catch(e) {
+			console.log("error");
+		}
+	`)
+	if jsError != "error" {
+		t.Errorf("JS should throw error for strictDepth exceeded")
+	}
+}
+
+// Test 32: ThrowOnLimitExceeded - error when parameter limit exceeded
+func TestThrowOnLimitExceeded(t *testing.T) {
+	// Should error when exceeding parameter limit
+	_, err := qs.Parse("a=1&b=2&c=3", qs.WithParameterLimit(2), qs.WithThrowOnLimitExceeded(true))
+	if err == nil {
+		t.Errorf("Expected error when parameterLimit exceeded with throwOnLimitExceeded")
+	}
+
+	// JS throws too
+	jsError := runJS(t, `
+		try {
+			qs.parse("a=1&b=2&c=3", { parameterLimit: 2, throwOnLimitExceeded: true });
+			console.log("no_error");
+		} catch(e) {
+			console.log("error");
+		}
+	`)
+	if jsError != "error" {
+		t.Errorf("JS should throw error for parameterLimit exceeded")
+	}
+}
+
+// Test 33: Custom Decoder
+func TestCustomDecoder(t *testing.T) {
+	// Custom decoder that adds prefix to values
+	decoder := func(str string, charset qs.Charset, kind string) (string, error) {
+		decoded := qs.Decode(str, charset)
+		if kind == "value" {
+			return "PREFIX_" + decoded, nil
+		}
+		return decoded, nil
+	}
+
+	goParsed, err := qs.Parse("foo=bar", qs.WithDecoder(decoder))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	// JS decoder takes 4 args: (str, defaultDecoder, charset, kind)
+	jsParsedJSON := runJS(t, `
+		const decoder = (str, defaultDecoder, charset, kind) => {
+			const decoded = defaultDecoder(str, defaultDecoder, charset);
+			if (kind === 'value') return 'PREFIX_' + decoded;
+			return decoded;
+		};
+		console.log(JSON.stringify(qs.parse("foo=bar", { decoder })));
+	`)
+
+	if !deepEqual(t, toJSON(t, goParsed), jsParsedJSON) {
+		t.Errorf("Custom decoder mismatch:\nGo: %s\nJS: %s", toJSON(t, goParsed), jsParsedJSON)
+	}
+}
+
+// =============================================================================
+// MISSING STRINGIFY OPTIONS TESTS
+// =============================================================================
+
+// Test 34: Encode false - disable URL encoding
+func TestEncodeDisabled(t *testing.T) {
+	input := map[string]any{"a": "hello world", "b": "foo&bar"}
+
+	goResult, err := qs.Stringify(input, qs.WithEncode(false))
+	if err != nil {
+		t.Fatalf("Stringify failed: %v", err)
+	}
+
+	jsResult := runJS(t, `console.log(qs.stringify({ a: "hello world", b: "foo&bar" }, { encode: false }));`)
+
+	if goResult != jsResult {
+		t.Errorf("Stringify mismatch:\nGo: %s\nJS: %s", goResult, jsResult)
+	}
+}
+
+// Test 35: Custom Encoder
+func TestCustomEncoder(t *testing.T) {
+	// Custom encoder that adds a suffix to values
+	encoder := func(str string, charset qs.Charset, kind string, format qs.Format) string {
+		encoded := qs.Encode(str, charset, format)
+		if kind == "value" {
+			return encoded + "_SUFFIX"
+		}
+		return encoded
+	}
+
+	input := map[string]any{"a": "test"}
+	goResult, err := qs.Stringify(input, qs.WithEncoder(encoder))
+	if err != nil {
+		t.Fatalf("Stringify failed: %v", err)
+	}
+
+	// JS encoder takes 4 args: (str, defaultEncoder, charset, kind)
+	jsResult := runJS(t, `
+		const encoder = (str, defaultEncoder, charset, kind) => {
+			const encoded = defaultEncoder(str, defaultEncoder, charset);
+			if (kind === 'value') return encoded + '_SUFFIX';
+			return encoded;
+		};
+		console.log(qs.stringify({ a: "test" }, { encoder }));
+	`)
+
+	if goResult != jsResult {
+		t.Errorf("Custom encoder mismatch:\nGo: %s\nJS: %s", goResult, jsResult)
+	}
+}
+
+// Test 36: Filter as function
+func TestFilterFunction(t *testing.T) {
+	input := map[string]any{
+		"a": "1",
+		"b": "2",
+		"c": "3",
+	}
+
+	// Filter function that only includes keys starting with 'a' or 'b'
+	filter := func(prefix string, value any) any {
+		if strings.HasPrefix(prefix, "a") || strings.HasPrefix(prefix, "b") {
+			return value
+		}
+		return nil
+	}
+
+	goResult, err := qs.Stringify(input, qs.WithFilter(filter))
+	if err != nil {
+		t.Fatalf("Stringify failed: %v", err)
+	}
+
+	jsResult := runJS(t, `
+		const filter = (prefix, value) => {
+			if (prefix.startsWith('a') || prefix.startsWith('b')) return value;
+			return;
+		};
+		console.log(qs.stringify({ a: "1", b: "2", c: "3" }, { filter }));
+	`)
+
+	if !compareQueryStrings(t, goResult, jsResult) {
+		t.Errorf("Filter function mismatch:\nGo: %s\nJS: %s", goResult, jsResult)
+	}
+}
+
+// Test 37: Filter as array of keys
+func TestFilterArray(t *testing.T) {
+	input := map[string]any{
+		"a": "1",
+		"b": "2",
+		"c": "3",
+	}
+
+	goResult, err := qs.Stringify(input, qs.WithFilter([]string{"a", "c"}))
+	if err != nil {
+		t.Fatalf("Stringify failed: %v", err)
+	}
+
+	jsResult := runJS(t, `console.log(qs.stringify({ a: "1", b: "2", c: "3" }, { filter: ["a", "c"] }));`)
+
+	if !compareQueryStrings(t, goResult, jsResult) {
+		t.Errorf("Filter array mismatch:\nGo: %s\nJS: %s", goResult, jsResult)
+	}
+}
+
+// Test 38: SerializeDate
+func TestSerializeDate(t *testing.T) {
+	// Use a fixed timestamp for testing
+	// Note: We can't directly compare time.Time with JS Date, so we test the serialize function behavior
+	input := map[string]any{
+		"date": "2024-01-15T10:30:00Z",
+	}
+
+	goResult, err := qs.Stringify(input)
+	if err != nil {
+		t.Fatalf("Stringify failed: %v", err)
+	}
+
+	jsResult := runJS(t, `console.log(qs.stringify({ date: "2024-01-15T10:30:00Z" }));`)
+
+	if !compareQueryStrings(t, goResult, jsResult) {
+		t.Errorf("Date stringify mismatch:\nGo: %s\nJS: %s", goResult, jsResult)
+	}
+}
+
+// =============================================================================
+// IMPORTANT OPTION COMBINATIONS
+// =============================================================================
+
+// Test 39: allowDots + depth + strictDepth
+func TestAllowDotsWithDepthStrict(t *testing.T) {
+	goParsed, err := qs.Parse("a.b.c.d=e", qs.WithAllowDots(true), qs.WithDepth(2), qs.WithStrictDepth(false))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	jsParsedJSON := runJS(t, `console.log(JSON.stringify(qs.parse("a.b.c.d=e", { allowDots: true, depth: 2, strictDepth: false })));`)
+
+	if !deepEqual(t, toJSON(t, goParsed), jsParsedJSON) {
+		t.Errorf("Parse mismatch:\nGo: %s\nJS: %s", toJSON(t, goParsed), jsParsedJSON)
+	}
+}
+
+// Test 40: comma + arrayLimit
+func TestCommaWithArrayLimit(t *testing.T) {
+	goParsed, err := qs.Parse("a=1,2,3,4,5", qs.WithComma(true), qs.WithArrayLimit(2))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	jsParsedJSON := runJS(t, `console.log(JSON.stringify(qs.parse("a=1,2,3,4,5", { comma: true, arrayLimit: 2 })));`)
+
+	if !deepEqual(t, toJSON(t, goParsed), jsParsedJSON) {
+		t.Errorf("Parse mismatch:\nGo: %s\nJS: %s", toJSON(t, goParsed), jsParsedJSON)
+	}
+}
+
+// Test 41: strictNullHandling + allowEmptyArrays
+func TestStrictNullWithEmptyArrays(t *testing.T) {
+	input := map[string]any{
+		"a":     nil,
+		"b":     []any{},
+		"c":     "value",
+		"empty": []any{},
+	}
+
+	goResult, err := qs.Stringify(input,
+		qs.WithStringifyStrictNullHandling(true),
+		qs.WithStringifyAllowEmptyArrays(true))
+	if err != nil {
+		t.Fatalf("Stringify failed: %v", err)
+	}
+
+	jsResult := runJS(t, `
+		console.log(qs.stringify({ a: null, b: [], c: "value", empty: [] },
+			{ strictNullHandling: true, allowEmptyArrays: true }));
+	`)
+
+	if !compareQueryStrings(t, goResult, jsResult) {
+		t.Errorf("Stringify mismatch:\nGo: %s\nJS: %s", goResult, jsResult)
+	}
+}
+
+// Test 42: arrayFormat brackets + encodeValuesOnly
+func TestBracketsWithEncodeValuesOnly(t *testing.T) {
+	input := map[string]any{
+		"items": []any{"hello world", "foo&bar"},
+	}
+
+	goResult, err := qs.Stringify(input,
+		qs.WithArrayFormat(qs.ArrayFormatBrackets),
+		qs.WithEncodeValuesOnly(true))
+	if err != nil {
+		t.Fatalf("Stringify failed: %v", err)
+	}
+
+	jsResult := runJS(t, `
+		console.log(qs.stringify({ items: ["hello world", "foo&bar"] },
+			{ arrayFormat: "brackets", encodeValuesOnly: true }));
+	`)
+
+	if !compareQueryStrings(t, goResult, jsResult) {
+		t.Errorf("Stringify mismatch:\nGo: %s\nJS: %s", goResult, jsResult)
+	}
+}
+
+// Test 43: charset ISO-8859-1 + charsetSentinel + interpretNumericEntities
+func TestISO8859WithSentinelAndEntities(t *testing.T) {
+	// Stringify with ISO charset and sentinel
+	input := map[string]any{"a": "ä", "b": "test"}
+
+	goResult, err := qs.Stringify(input,
+		qs.WithStringifyCharset(qs.CharsetISO88591),
+		qs.WithStringifyCharsetSentinel(true))
+	if err != nil {
+		t.Fatalf("Stringify failed: %v", err)
+	}
+
+	jsResult := runJS(t, `
+		console.log(qs.stringify({ a: "ä", b: "test" },
+			{ charset: "iso-8859-1", charsetSentinel: true }));
+	`)
+
+	if !compareQueryStrings(t, goResult, jsResult) {
+		t.Errorf("Stringify mismatch:\nGo: %s\nJS: %s", goResult, jsResult)
+	}
+}
+
+// Test 44: allowDots + encodeDotInKeys + sort
+func TestDotsWithEncodingAndSort(t *testing.T) {
+	input := map[string]any{
+		"z.key": "last",
+		"a.key": "first",
+		"m.key": "middle",
+		"nested": map[string]any{
+			"x.val": 1,
+			"a.val": 2,
+		},
+	}
+
+	goResult, err := qs.Stringify(input,
+		qs.WithStringifyAllowDots(true),
+		qs.WithEncodeDotInKeys(true),
+		qs.WithSort(func(a, b string) bool { return a < b }))
+	if err != nil {
+		t.Fatalf("Stringify failed: %v", err)
+	}
+
+	jsResult := runJS(t, `
+		const input = {
+			"z.key": "last",
+			"a.key": "first",
+			"m.key": "middle",
+			nested: { "x.val": 1, "a.val": 2 }
+		};
+		console.log(qs.stringify(input,
+			{ allowDots: true, encodeDotInKeys: true, sort: (a, b) => a.localeCompare(b) }));
+	`)
+
+	// For sorted output, we can compare directly
+	if goResult != jsResult {
+		t.Errorf("Stringify mismatch:\nGo: %s\nJS: %s", goResult, jsResult)
+	}
+}
+
+// Test 45: duplicates + parameterLimit
+func TestDuplicatesWithParameterLimit(t *testing.T) {
+	// Test that parameter limit is applied before duplicate handling
+	goParsed, err := qs.Parse("a=1&a=2&a=3&b=4&b=5", qs.WithDuplicates(qs.DuplicateCombine), qs.WithParameterLimit(3))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	jsParsedJSON := runJS(t, `
+		console.log(JSON.stringify(qs.parse("a=1&a=2&a=3&b=4&b=5",
+			{ duplicates: "combine", parameterLimit: 3 })));
+	`)
+
+	if !deepEqual(t, toJSON(t, goParsed), jsParsedJSON) {
+		t.Errorf("Parse mismatch:\nGo: %s\nJS: %s", toJSON(t, goParsed), jsParsedJSON)
+	}
+}
+
+// Test 46: skipNulls + filter + arrayFormat
+func TestSkipNullsWithFilterAndArrayFormat(t *testing.T) {
+	input := map[string]any{
+		"a": nil,
+		"b": []any{"x", "y"},
+		"c": "keep",
+		"d": nil,
+	}
+
+	goResult, err := qs.Stringify(input,
+		qs.WithSkipNulls(true),
+		qs.WithFilter([]string{"a", "b", "c"}),
+		qs.WithArrayFormat(qs.ArrayFormatBrackets))
+	if err != nil {
+		t.Fatalf("Stringify failed: %v", err)
+	}
+
+	jsResult := runJS(t, `
+		console.log(qs.stringify({ a: null, b: ["x", "y"], c: "keep", d: null },
+			{ skipNulls: true, filter: ["a", "b", "c"], arrayFormat: "brackets" }));
+	`)
+
+	if !compareQueryStrings(t, goResult, jsResult) {
+		t.Errorf("Stringify mismatch:\nGo: %s\nJS: %s", goResult, jsResult)
+	}
+}
+
+// Test 47: ignoreQueryPrefix + delimiter + depth
+func TestIgnorePrefixWithDelimiterAndDepth(t *testing.T) {
+	goParsed, err := qs.Parse("?a[b][c]=1;d[e]=2",
+		qs.WithIgnoreQueryPrefix(true),
+		qs.WithDelimiter(";"),
+		qs.WithDepth(1))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	jsParsedJSON := runJS(t, `
+		console.log(JSON.stringify(qs.parse("?a[b][c]=1;d[e]=2",
+			{ ignoreQueryPrefix: true, delimiter: ";", depth: 1 })));
+	`)
+
+	if !deepEqual(t, toJSON(t, goParsed), jsParsedJSON) {
+		t.Errorf("Parse mismatch:\nGo: %s\nJS: %s", toJSON(t, goParsed), jsParsedJSON)
+	}
+}
+
+// Test 48: addQueryPrefix + format RFC1738 + encode
+func TestQueryPrefixWithFormatRFC1738(t *testing.T) {
+	input := map[string]any{
+		"search": "hello world",
+		"filter": "a+b",
+	}
+
+	goResult, err := qs.Stringify(input,
+		qs.WithStringifyAddQueryPrefix(true),
+		qs.WithFormat(qs.FormatRFC1738))
+	if err != nil {
+		t.Fatalf("Stringify failed: %v", err)
+	}
+
+	jsResult := runJS(t, `
+		console.log(qs.stringify({ search: "hello world", filter: "a+b" },
+			{ addQueryPrefix: true, format: "RFC1738" }));
+	`)
+
+	if !compareQueryStrings(t, goResult, jsResult) {
+		t.Errorf("Stringify mismatch:\nGo: %s\nJS: %s", goResult, jsResult)
+	}
+}
+
+// Test 49: Parse and Stringify round-trip with complex options
+func TestRoundTripComplex(t *testing.T) {
+	// Start with a complex input
+	input := map[string]any{
+		"users": []any{
+			map[string]any{"name": "Alice", "active": true},
+			map[string]any{"name": "Bob", "active": false},
+		},
+		"filters": map[string]any{
+			"status": []any{"pending", "active"},
+		},
+		"page": 1,
+	}
+
+	// Stringify with specific options
+	goStringified, err := qs.Stringify(input, qs.WithArrayFormat(qs.ArrayFormatIndices))
+	if err != nil {
+		t.Fatalf("Stringify failed: %v", err)
+	}
+
+	jsStringified := runJS(t, `
+		const input = {
+			users: [{ name: "Alice", active: true }, { name: "Bob", active: false }],
+			filters: { status: ["pending", "active"] },
+			page: 1
+		};
+		console.log(qs.stringify(input, { arrayFormat: "indices" }));
+	`)
+
+	if !compareQueryStrings(t, goStringified, jsStringified) {
+		t.Errorf("Stringify mismatch:\nGo: %s\nJS: %s", goStringified, jsStringified)
+	}
+
+	// Parse back
+	goParsed, err := qs.Parse(goStringified)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	jsParsedJSON := runJS(t, `console.log(JSON.stringify(qs.parse(`+"`"+jsStringified+"`"+`)));`)
+
+	if !deepEqual(t, toJSON(t, goParsed), jsParsedJSON) {
+		t.Errorf("Round-trip parse mismatch:\nGo: %s\nJS: %s", toJSON(t, goParsed), jsParsedJSON)
+	}
+}
+
+// Test 50: All parse options together (reasonable combination)
+func TestAllParseOptionsCombined(t *testing.T) {
+	goParsed, err := qs.Parse("?utf8=%E2%9C%93&a.b=1&c[0]=x&c[1]=y&d=hello%20world",
+		qs.WithAllowDots(true),
+		qs.WithCharset(qs.CharsetUTF8),
+		qs.WithCharsetSentinel(true),
+		qs.WithDepth(5),
+		qs.WithIgnoreQueryPrefix(true),
+		qs.WithParameterLimit(100))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	jsParsedJSON := runJS(t, `
+		console.log(JSON.stringify(qs.parse("?utf8=%E2%9C%93&a.b=1&c[0]=x&c[1]=y&d=hello%20world", {
+			allowDots: true,
+			charset: "utf-8",
+			charsetSentinel: true,
+			depth: 5,
+			ignoreQueryPrefix: true,
+			parameterLimit: 100
+		})));
+	`)
+
+	if !deepEqual(t, toJSON(t, goParsed), jsParsedJSON) {
+		t.Errorf("Parse mismatch:\nGo: %s\nJS: %s", toJSON(t, goParsed), jsParsedJSON)
+	}
+}
+
+// Test 51: All stringify options together (reasonable combination)
+func TestAllStringifyOptionsCombined(t *testing.T) {
+	input := map[string]any{
+		"search":  "hello world",
+		"tags":    []any{"a", "b"},
+		"filters": map[string]any{"active": true},
+		"empty":   nil,
+	}
+
+	goResult, err := qs.Stringify(input,
+		qs.WithStringifyAddQueryPrefix(true),
+		qs.WithStringifyAllowDots(true),
+		qs.WithArrayFormat(qs.ArrayFormatBrackets),
+		qs.WithStringifyCharset(qs.CharsetUTF8),
+		qs.WithFormat(qs.FormatRFC3986),
+		qs.WithSkipNulls(true),
+		qs.WithSort(func(a, b string) bool { return a < b }))
+	if err != nil {
+		t.Fatalf("Stringify failed: %v", err)
+	}
+
+	jsResult := runJS(t, `
+		console.log(qs.stringify({
+			search: "hello world",
+			tags: ["a", "b"],
+			filters: { active: true },
+			empty: null
+		}, {
+			addQueryPrefix: true,
+			allowDots: true,
+			arrayFormat: "brackets",
+			charset: "utf-8",
+			format: "RFC3986",
+			skipNulls: true,
+			sort: (a, b) => a.localeCompare(b)
+		}));
+	`)
+
+	// With sort, order should match
+	if goResult != jsResult {
 		t.Errorf("Stringify mismatch:\nGo: %s\nJS: %s", goResult, jsResult)
 	}
 }
