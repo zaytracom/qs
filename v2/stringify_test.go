@@ -326,7 +326,8 @@ func TestStringifyFilter(t *testing.T) {
 			}
 			return value
 		})
-		result, err := Stringify(input, WithFilter(filter), WithSort(func(a, b string) bool { return a < b }))
+		result, err := Stringify(input, WithFilter(filter),
+			WithSort(func(a, b string) bool { return a < b }))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -384,7 +385,8 @@ func TestStringifySerializeDate(t *testing.T) {
 
 func TestStringifyDelimiter(t *testing.T) {
 	input := map[string]any{"a": "1", "b": "2"}
-	result, err := Stringify(input, WithStringifyDelimiter(";"), WithSort(func(a, b string) bool { return a < b }))
+	result, err := Stringify(input, WithStringifyDelimiter(";"),
+		WithSort(func(a, b string) bool { return a < b }))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -594,7 +596,9 @@ func TestJSStringifyFalsyValues(t *testing.T) {
 		expected string
 	}{
 		{"nil input", nil, nil, ""},
-		{"nil with strictNullHandling", nil, []StringifyOption{WithStringifyStrictNullHandling(true)}, ""},
+		{"nil with strictNullHandling", nil, []StringifyOption{
+			WithStringifyStrictNullHandling(true),
+		}, ""},
 	}
 
 	for _, tt := range tests {
@@ -1044,7 +1048,10 @@ func TestJSStringifyAllowEmptyArrays(t *testing.T) {
 		{
 			"allowEmptyArrays true",
 			map[string]any{"a": []any{}, "b": "zz"},
-			[]StringifyOption{WithStringifyAllowEmptyArrays(true), WithSort(func(a, b string) bool { return a < b })},
+			[]StringifyOption{
+				WithStringifyAllowEmptyArrays(true),
+				WithSort(func(a, b string) bool { return a < b }),
+			},
 			"a[]&b=zz",
 		},
 	}
@@ -1087,9 +1094,18 @@ func TestJSStringifyArraySingleVsMultipleItems(t *testing.T) {
 			opts     []StringifyOption
 			expected string
 		}{
-			{"indices", []StringifyOption{WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatIndices)}, "a=c"},
-			{"brackets", []StringifyOption{WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatBrackets)}, "a=c"},
-			{"comma", []StringifyOption{WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatComma)}, "a=c"},
+			{"indices", []StringifyOption{
+				WithEncodeValuesOnly(true),
+				WithArrayFormat(ArrayFormatIndices),
+			}, "a=c"},
+			{"brackets", []StringifyOption{
+				WithEncodeValuesOnly(true),
+				WithArrayFormat(ArrayFormatBrackets),
+			}, "a=c"},
+			{"comma", []StringifyOption{
+				WithEncodeValuesOnly(true),
+				WithArrayFormat(ArrayFormatComma),
+			}, "a=c"},
 			{"default", []StringifyOption{WithEncodeValuesOnly(true)}, "a=c"},
 		}
 		for _, tt := range tests {
@@ -1112,10 +1128,22 @@ func TestJSStringifyArraySingleVsMultipleItems(t *testing.T) {
 			opts     []StringifyOption
 			expected string
 		}{
-			{"indices", []StringifyOption{WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatIndices)}, "a[0]=c"},
-			{"brackets", []StringifyOption{WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatBrackets)}, "a[]=c"},
-			{"comma", []StringifyOption{WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatComma)}, "a=c"},
-			{"comma with commaRoundTrip", []StringifyOption{WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatComma), WithCommaRoundTrip(true)}, "a[]=c"},
+			{"indices", []StringifyOption{
+				WithEncodeValuesOnly(true),
+				WithArrayFormat(ArrayFormatIndices),
+			}, "a[0]=c"},
+			{"brackets", []StringifyOption{
+				WithEncodeValuesOnly(true),
+				WithArrayFormat(ArrayFormatBrackets),
+			}, "a[]=c"},
+			{"comma", []StringifyOption{
+				WithEncodeValuesOnly(true),
+				WithArrayFormat(ArrayFormatComma),
+			}, "a=c"},
+			{"comma with commaRoundTrip", []StringifyOption{
+				WithEncodeValuesOnly(true),
+				WithArrayFormat(ArrayFormatComma), WithCommaRoundTrip(true),
+			}, "a[]=c"},
 			{"default", []StringifyOption{WithEncodeValuesOnly(true)}, "a[0]=c"},
 		}
 		for _, tt := range tests {
@@ -1138,10 +1166,22 @@ func TestJSStringifyArraySingleVsMultipleItems(t *testing.T) {
 			opts     []StringifyOption
 			expected string
 		}{
-			{"indices", []StringifyOption{WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatIndices)}, "a[0]=c&a[1]=d"},
-			{"brackets", []StringifyOption{WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatBrackets)}, "a[]=c&a[]=d"},
-			{"comma", []StringifyOption{WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatComma)}, "a=c,d"},
-			{"comma with commaRoundTrip", []StringifyOption{WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatComma), WithCommaRoundTrip(true)}, "a=c,d"},
+			{"indices", []StringifyOption{
+				WithEncodeValuesOnly(true),
+				WithArrayFormat(ArrayFormatIndices),
+			}, "a[0]=c&a[1]=d"},
+			{"brackets", []StringifyOption{
+				WithEncodeValuesOnly(true),
+				WithArrayFormat(ArrayFormatBrackets),
+			}, "a[]=c&a[]=d"},
+			{"comma", []StringifyOption{
+				WithEncodeValuesOnly(true),
+				WithArrayFormat(ArrayFormatComma),
+			}, "a=c,d"},
+			{"comma with commaRoundTrip", []StringifyOption{
+				WithEncodeValuesOnly(true),
+				WithArrayFormat(ArrayFormatComma), WithCommaRoundTrip(true),
+			}, "a=c,d"},
 			{"default", []StringifyOption{WithEncodeValuesOnly(true)}, "a[0]=c&a[1]=d"},
 		}
 		for _, tt := range tests {
@@ -1164,10 +1204,19 @@ func TestJSStringifyArraySingleVsMultipleItems(t *testing.T) {
 			opts     []StringifyOption
 			expected string
 		}{
-			{"comma encodeValuesOnly", []StringifyOption{WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatComma)}, "a=c%2Cd,e"},
+			{"comma encodeValuesOnly", []StringifyOption{
+				WithEncodeValuesOnly(true),
+				WithArrayFormat(ArrayFormatComma),
+			}, "a=c%2Cd,e"},
 			{"comma", []StringifyOption{WithArrayFormat(ArrayFormatComma)}, "a=c%2Cd%2Ce"},
-			{"comma encodeValuesOnly commaRoundTrip", []StringifyOption{WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatComma), WithCommaRoundTrip(true)}, "a=c%2Cd,e"},
-			{"comma commaRoundTrip", []StringifyOption{WithArrayFormat(ArrayFormatComma), WithCommaRoundTrip(true)}, "a=c%2Cd%2Ce"},
+			{"comma encodeValuesOnly commaRoundTrip", []StringifyOption{
+				WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatComma),
+				WithCommaRoundTrip(true),
+			}, "a=c%2Cd,e"},
+			{"comma commaRoundTrip", []StringifyOption{
+				WithArrayFormat(ArrayFormatComma),
+				WithCommaRoundTrip(true),
+			}, "a=c%2Cd%2Ce"},
 		}
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
@@ -1191,8 +1240,14 @@ func TestJSStringifyNestedArrayValue(t *testing.T) {
 		opts     []StringifyOption
 		expected string
 	}{
-		{"indices", []StringifyOption{WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatIndices)}, "a[b][0]=c&a[b][1]=d"},
-		{"brackets", []StringifyOption{WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatBrackets)}, "a[b][]=c&a[b][]=d"},
+		{"indices", []StringifyOption{
+			WithEncodeValuesOnly(true),
+			WithArrayFormat(ArrayFormatIndices),
+		}, "a[b][0]=c&a[b][1]=d"},
+		{"brackets", []StringifyOption{
+			WithEncodeValuesOnly(true),
+			WithArrayFormat(ArrayFormatBrackets),
+		}, "a[b][]=c&a[b][]=d"},
 		{"comma", []StringifyOption{WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatComma)}, "a[b]=c,d"},
 		{"default", []StringifyOption{WithEncodeValuesOnly(true)}, "a[b][0]=c&a[b][1]=d"},
 	}
@@ -1222,18 +1277,54 @@ func TestJSStringifyCommaAndEmptyArrayValues(t *testing.T) {
 		opts     []StringifyOption
 		expected string
 	}{
-		{"encode false, indices", []StringifyOption{WithEncode(false), WithArrayFormat(ArrayFormatIndices)}, "a[0]=,&a[1]=&a[2]=c,d%"},
-		{"encode false, brackets", []StringifyOption{WithEncode(false), WithArrayFormat(ArrayFormatBrackets)}, "a[]=,&a[]=&a[]=c,d%"},
-		{"encode false, comma", []StringifyOption{WithEncode(false), WithArrayFormat(ArrayFormatComma)}, "a=,,,c,d%"},
-		{"encode false, repeat", []StringifyOption{WithEncode(false), WithArrayFormat(ArrayFormatRepeat)}, "a=,&a=&a=c,d%"},
-		{"encodeValuesOnly, indices", []StringifyOption{WithEncode(true), WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatIndices)}, "a[0]=%2C&a[1]=&a[2]=c%2Cd%25"},
-		{"encodeValuesOnly, brackets", []StringifyOption{WithEncode(true), WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatBrackets)}, "a[]=%2C&a[]=&a[]=c%2Cd%25"},
-		{"encodeValuesOnly, comma", []StringifyOption{WithEncode(true), WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatComma)}, "a=%2C,,c%2Cd%25"},
-		{"encodeValuesOnly, repeat", []StringifyOption{WithEncode(true), WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatRepeat)}, "a=%2C&a=&a=c%2Cd%25"},
-		{"encode all, indices", []StringifyOption{WithEncode(true), WithEncodeValuesOnly(false), WithArrayFormat(ArrayFormatIndices)}, "a%5B0%5D=%2C&a%5B1%5D=&a%5B2%5D=c%2Cd%25"},
-		{"encode all, brackets", []StringifyOption{WithEncode(true), WithEncodeValuesOnly(false), WithArrayFormat(ArrayFormatBrackets)}, "a%5B%5D=%2C&a%5B%5D=&a%5B%5D=c%2Cd%25"},
-		{"encode all, comma", []StringifyOption{WithEncode(true), WithEncodeValuesOnly(false), WithArrayFormat(ArrayFormatComma)}, "a=%2C%2C%2Cc%2Cd%25"},
-		{"encode all, repeat", []StringifyOption{WithEncode(true), WithEncodeValuesOnly(false), WithArrayFormat(ArrayFormatRepeat)}, "a=%2C&a=&a=c%2Cd%25"},
+		{"encode false, indices", []StringifyOption{
+			WithEncode(false),
+			WithArrayFormat(ArrayFormatIndices),
+		}, "a[0]=,&a[1]=&a[2]=c,d%"},
+		{"encode false, brackets", []StringifyOption{
+			WithEncode(false),
+			WithArrayFormat(ArrayFormatBrackets),
+		}, "a[]=,&a[]=&a[]=c,d%"},
+		{"encode false, comma", []StringifyOption{
+			WithEncode(false),
+			WithArrayFormat(ArrayFormatComma),
+		}, "a=,,,c,d%"},
+		{"encode false, repeat", []StringifyOption{
+			WithEncode(false),
+			WithArrayFormat(ArrayFormatRepeat),
+		}, "a=,&a=&a=c,d%"},
+		{"encodeValuesOnly, indices", []StringifyOption{
+			WithEncode(true),
+			WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatIndices),
+		}, "a[0]=%2C&a[1]=&a[2]=c%2Cd%25"},
+		{"encodeValuesOnly, brackets", []StringifyOption{
+			WithEncode(true),
+			WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatBrackets),
+		}, "a[]=%2C&a[]=&a[]=c%2Cd%25"},
+		{"encodeValuesOnly, comma", []StringifyOption{
+			WithEncode(true), WithEncodeValuesOnly(true),
+			WithArrayFormat(ArrayFormatComma),
+		}, "a=%2C,,c%2Cd%25"},
+		{"encodeValuesOnly, repeat", []StringifyOption{
+			WithEncode(true),
+			WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatRepeat),
+		}, "a=%2C&a=&a=c%2Cd%25"},
+		{"encode all, indices", []StringifyOption{
+			WithEncode(true), WithEncodeValuesOnly(false),
+			WithArrayFormat(ArrayFormatIndices),
+		}, "a%5B0%5D=%2C&a%5B1%5D=&a%5B2%5D=c%2Cd%25"},
+		{"encode all, brackets", []StringifyOption{
+			WithEncode(true), WithEncodeValuesOnly(false),
+			WithArrayFormat(ArrayFormatBrackets),
+		}, "a%5B%5D=%2C&a%5B%5D=&a%5B%5D=c%2Cd%25"},
+		{"encode all, comma", []StringifyOption{
+			WithEncode(true), WithEncodeValuesOnly(false),
+			WithArrayFormat(ArrayFormatComma),
+		}, "a=%2C%2C%2Cc%2Cd%25"},
+		{"encode all, repeat", []StringifyOption{
+			WithEncode(true), WithEncodeValuesOnly(false),
+			WithArrayFormat(ArrayFormatRepeat),
+		}, "a=%2C&a=&a=c%2Cd%25"},
 	}
 
 	for _, tt := range tests {
@@ -1259,18 +1350,57 @@ func TestJSStringifyCommaAndEmptyNonArrayValues(t *testing.T) {
 		opts     []StringifyOption
 		expected string
 	}{
-		{"encode false, indices", []StringifyOption{WithEncode(false), WithArrayFormat(ArrayFormatIndices), WithSort(func(a, b string) bool { return a < b })}, "a=,&b=&c=c,d%"},
-		{"encode false, brackets", []StringifyOption{WithEncode(false), WithArrayFormat(ArrayFormatBrackets), WithSort(func(a, b string) bool { return a < b })}, "a=,&b=&c=c,d%"},
-		{"encode false, comma", []StringifyOption{WithEncode(false), WithArrayFormat(ArrayFormatComma), WithSort(func(a, b string) bool { return a < b })}, "a=,&b=&c=c,d%"},
-		{"encode false, repeat", []StringifyOption{WithEncode(false), WithArrayFormat(ArrayFormatRepeat), WithSort(func(a, b string) bool { return a < b })}, "a=,&b=&c=c,d%"},
-		{"encodeValuesOnly, indices", []StringifyOption{WithEncode(true), WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatIndices), WithSort(func(a, b string) bool { return a < b })}, "a=%2C&b=&c=c%2Cd%25"},
-		{"encodeValuesOnly, brackets", []StringifyOption{WithEncode(true), WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatBrackets), WithSort(func(a, b string) bool { return a < b })}, "a=%2C&b=&c=c%2Cd%25"},
-		{"encodeValuesOnly, comma", []StringifyOption{WithEncode(true), WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatComma), WithSort(func(a, b string) bool { return a < b })}, "a=%2C&b=&c=c%2Cd%25"},
-		{"encodeValuesOnly, repeat", []StringifyOption{WithEncode(true), WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatRepeat), WithSort(func(a, b string) bool { return a < b })}, "a=%2C&b=&c=c%2Cd%25"},
-		{"encode all, indices", []StringifyOption{WithEncode(true), WithEncodeValuesOnly(false), WithArrayFormat(ArrayFormatIndices), WithSort(func(a, b string) bool { return a < b })}, "a=%2C&b=&c=c%2Cd%25"},
-		{"encode all, brackets", []StringifyOption{WithEncode(true), WithEncodeValuesOnly(false), WithArrayFormat(ArrayFormatBrackets), WithSort(func(a, b string) bool { return a < b })}, "a=%2C&b=&c=c%2Cd%25"},
-		{"encode all, comma", []StringifyOption{WithEncode(true), WithEncodeValuesOnly(false), WithArrayFormat(ArrayFormatComma), WithSort(func(a, b string) bool { return a < b })}, "a=%2C&b=&c=c%2Cd%25"},
-		{"encode all, repeat", []StringifyOption{WithEncode(true), WithEncodeValuesOnly(false), WithArrayFormat(ArrayFormatRepeat), WithSort(func(a, b string) bool { return a < b })}, "a=%2C&b=&c=c%2Cd%25"},
+		{"encode false, indices", []StringifyOption{
+			WithEncode(false),
+			WithArrayFormat(ArrayFormatIndices), WithSort(func(a, b string) bool { return a < b }),
+		}, "a=,&b=&c=c,d%"},
+		{"encode false, brackets", []StringifyOption{
+			WithEncode(false),
+			WithArrayFormat(ArrayFormatBrackets), WithSort(func(a, b string) bool { return a < b }),
+		}, "a=,&b=&c=c,d%"},
+		{"encode false, comma", []StringifyOption{
+			WithEncode(false),
+			WithArrayFormat(ArrayFormatComma), WithSort(func(a, b string) bool { return a < b }),
+		}, "a=,&b=&c=c,d%"},
+		{"encode false, repeat", []StringifyOption{
+			WithEncode(false),
+			WithArrayFormat(ArrayFormatRepeat), WithSort(func(a, b string) bool { return a < b }),
+		}, "a=,&b=&c=c,d%"},
+		{"encodeValuesOnly, indices", []StringifyOption{
+			WithEncode(true),
+			WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatIndices),
+			WithSort(func(a, b string) bool { return a < b }),
+		}, "a=%2C&b=&c=c%2Cd%25"},
+		{"encodeValuesOnly, brackets", []StringifyOption{
+			WithEncode(true),
+			WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatBrackets),
+			WithSort(func(a, b string) bool { return a < b }),
+		}, "a=%2C&b=&c=c%2Cd%25"},
+		{"encodeValuesOnly, comma", []StringifyOption{
+			WithEncode(true), WithEncodeValuesOnly(true),
+			WithArrayFormat(ArrayFormatComma), WithSort(func(a, b string) bool { return a < b }),
+		}, "a=%2C&b=&c=c%2Cd%25"},
+		{"encodeValuesOnly, repeat", []StringifyOption{
+			WithEncode(true),
+			WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatRepeat),
+			WithSort(func(a, b string) bool { return a < b }),
+		}, "a=%2C&b=&c=c%2Cd%25"},
+		{"encode all, indices", []StringifyOption{
+			WithEncode(true), WithEncodeValuesOnly(false),
+			WithArrayFormat(ArrayFormatIndices), WithSort(func(a, b string) bool { return a < b }),
+		}, "a=%2C&b=&c=c%2Cd%25"},
+		{"encode all, brackets", []StringifyOption{
+			WithEncode(true), WithEncodeValuesOnly(false),
+			WithArrayFormat(ArrayFormatBrackets), WithSort(func(a, b string) bool { return a < b }),
+		}, "a=%2C&b=&c=c%2Cd%25"},
+		{"encode all, comma", []StringifyOption{
+			WithEncode(true), WithEncodeValuesOnly(false),
+			WithArrayFormat(ArrayFormatComma), WithSort(func(a, b string) bool { return a < b }),
+		}, "a=%2C&b=&c=c%2Cd%25"},
+		{"encode all, repeat", []StringifyOption{
+			WithEncode(true), WithEncodeValuesOnly(false),
+			WithArrayFormat(ArrayFormatRepeat), WithSort(func(a, b string) bool { return a < b }),
+		}, "a=%2C&b=&c=c%2Cd%25"},
 	}
 
 	for _, tt := range tests {
@@ -1294,9 +1424,18 @@ func TestJSStringifyNestedArrayValueWithDots(t *testing.T) {
 		opts     []StringifyOption
 		expected string
 	}{
-		{"indices", []StringifyOption{WithStringifyAllowDots(true), WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatIndices)}, "a.b[0]=c&a.b[1]=d"},
-		{"brackets", []StringifyOption{WithStringifyAllowDots(true), WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatBrackets)}, "a.b[]=c&a.b[]=d"},
-		{"comma", []StringifyOption{WithStringifyAllowDots(true), WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatComma)}, "a.b=c,d"},
+		{"indices", []StringifyOption{
+			WithStringifyAllowDots(true), WithEncodeValuesOnly(true),
+			WithArrayFormat(ArrayFormatIndices),
+		}, "a.b[0]=c&a.b[1]=d"},
+		{"brackets", []StringifyOption{
+			WithStringifyAllowDots(true), WithEncodeValuesOnly(true),
+			WithArrayFormat(ArrayFormatBrackets),
+		}, "a.b[]=c&a.b[]=d"},
+		{"comma", []StringifyOption{
+			WithStringifyAllowDots(true), WithEncodeValuesOnly(true),
+			WithArrayFormat(ArrayFormatComma),
+		}, "a.b=c,d"},
 		{"default", []StringifyOption{WithStringifyAllowDots(true), WithEncodeValuesOnly(true)}, "a.b[0]=c&a.b[1]=d"},
 	}
 
@@ -1325,9 +1464,15 @@ func TestJSStringifyObjectInsideArray(t *testing.T) {
 			opts     []StringifyOption
 			expected string
 		}{
-			{"indices", []StringifyOption{WithArrayFormat(ArrayFormatIndices), WithEncodeValuesOnly(true)}, "a[0][b]=c"},
+			{"indices", []StringifyOption{
+				WithArrayFormat(ArrayFormatIndices),
+				WithEncodeValuesOnly(true),
+			}, "a[0][b]=c"},
 			{"repeat", []StringifyOption{WithArrayFormat(ArrayFormatRepeat), WithEncodeValuesOnly(true)}, "a[b]=c"},
-			{"brackets", []StringifyOption{WithArrayFormat(ArrayFormatBrackets), WithEncodeValuesOnly(true)}, "a[][b]=c"},
+			{"brackets", []StringifyOption{
+				WithArrayFormat(ArrayFormatBrackets),
+				WithEncodeValuesOnly(true),
+			}, "a[][b]=c"},
 			{"default", []StringifyOption{WithEncodeValuesOnly(true)}, "a[0][b]=c"},
 		}
 		for _, tt := range tests {
@@ -1351,9 +1496,18 @@ func TestJSStringifyObjectInsideArray(t *testing.T) {
 			opts     []StringifyOption
 			expected string
 		}{
-			{"indices", []StringifyOption{WithArrayFormat(ArrayFormatIndices), WithEncodeValuesOnly(true)}, "a[0][b][c][0]=1"},
-			{"repeat", []StringifyOption{WithArrayFormat(ArrayFormatRepeat), WithEncodeValuesOnly(true)}, "a[b][c]=1"},
-			{"brackets", []StringifyOption{WithArrayFormat(ArrayFormatBrackets), WithEncodeValuesOnly(true)}, "a[][b][c][]=1"},
+			{"indices", []StringifyOption{
+				WithArrayFormat(ArrayFormatIndices),
+				WithEncodeValuesOnly(true),
+			}, "a[0][b][c][0]=1"},
+			{"repeat", []StringifyOption{
+				WithArrayFormat(ArrayFormatRepeat),
+				WithEncodeValuesOnly(true),
+			}, "a[b][c]=1"},
+			{"brackets", []StringifyOption{
+				WithArrayFormat(ArrayFormatBrackets),
+				WithEncodeValuesOnly(true),
+			}, "a[][b][c][]=1"},
 			{"default", []StringifyOption{WithEncodeValuesOnly(true)}, "a[0][b][c][0]=1"},
 		}
 		for _, tt := range tests {
@@ -1379,8 +1533,14 @@ func TestJSStringifyArrayWithMixedObjectsAndPrimitives(t *testing.T) {
 		opts     []StringifyOption
 		expected string
 	}{
-		{"indices", []StringifyOption{WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatIndices)}, "a[0][b]=1&a[1]=2&a[2]=3"},
-		{"brackets", []StringifyOption{WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatBrackets)}, "a[][b]=1&a[]=2&a[]=3"},
+		{"indices", []StringifyOption{
+			WithEncodeValuesOnly(true),
+			WithArrayFormat(ArrayFormatIndices),
+		}, "a[0][b]=1&a[1]=2&a[2]=3"},
+		{"brackets", []StringifyOption{
+			WithEncodeValuesOnly(true),
+			WithArrayFormat(ArrayFormatBrackets),
+		}, "a[][b]=1&a[]=2&a[]=3"},
 		{"default", []StringifyOption{WithEncodeValuesOnly(true)}, "a[0][b]=1&a[1]=2&a[2]=3"},
 	}
 
@@ -1407,8 +1567,14 @@ func TestJSStringifyObjectInsideArrayWithDots(t *testing.T) {
 			opts     []StringifyOption
 			expected string
 		}{
-			{"indices", []StringifyOption{WithStringifyAllowDots(true), WithEncode(false), WithArrayFormat(ArrayFormatIndices)}, "a[0].b=c"},
-			{"brackets", []StringifyOption{WithStringifyAllowDots(true), WithEncode(false), WithArrayFormat(ArrayFormatBrackets)}, "a[].b=c"},
+			{"indices", []StringifyOption{
+				WithStringifyAllowDots(true), WithEncode(false),
+				WithArrayFormat(ArrayFormatIndices),
+			}, "a[0].b=c"},
+			{"brackets", []StringifyOption{
+				WithStringifyAllowDots(true), WithEncode(false),
+				WithArrayFormat(ArrayFormatBrackets),
+			}, "a[].b=c"},
 			{"default", []StringifyOption{WithStringifyAllowDots(true), WithEncode(false)}, "a[0].b=c"},
 		}
 		for _, tt := range tests {
@@ -1432,8 +1598,14 @@ func TestJSStringifyObjectInsideArrayWithDots(t *testing.T) {
 			opts     []StringifyOption
 			expected string
 		}{
-			{"indices", []StringifyOption{WithStringifyAllowDots(true), WithEncode(false), WithArrayFormat(ArrayFormatIndices)}, "a[0].b.c[0]=1"},
-			{"brackets", []StringifyOption{WithStringifyAllowDots(true), WithEncode(false), WithArrayFormat(ArrayFormatBrackets)}, "a[].b.c[]=1"},
+			{"indices", []StringifyOption{
+				WithStringifyAllowDots(true), WithEncode(false),
+				WithArrayFormat(ArrayFormatIndices),
+			}, "a[0].b.c[0]=1"},
+			{"brackets", []StringifyOption{
+				WithStringifyAllowDots(true), WithEncode(false),
+				WithArrayFormat(ArrayFormatBrackets),
+			}, "a[].b.c[]=1"},
 			{"default", []StringifyOption{WithStringifyAllowDots(true), WithEncode(false)}, "a[0].b.c[0]=1"},
 		}
 		for _, tt := range tests {
@@ -1513,7 +1685,8 @@ func TestJSStringifyBracketsFormat(t *testing.T) {
 
 // TestJSStringifyComplicatedObject tests complicated object
 func TestJSStringifyComplicatedObject(t *testing.T) {
-	result, err := Stringify(map[string]any{"a": map[string]any{"b": "c", "d": "e"}}, WithSort(func(a, b string) bool { return a < b }))
+	result, err := Stringify(map[string]any{"a": map[string]any{"b": "c", "d": "e"}},
+		WithSort(func(a, b string) bool { return a < b }))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1532,12 +1705,22 @@ func TestJSStringifyEmptyValue(t *testing.T) {
 		expected string
 	}{
 		{"empty string", map[string]any{"a": ""}, nil, "a="},
-		{"null strictNullHandling", map[string]any{"a": nil}, []StringifyOption{WithStringifyStrictNullHandling(true)}, "a"},
-		{"two empty strings", map[string]any{"a": "", "b": ""}, []StringifyOption{WithSort(func(a, b string) bool { return a < b })}, "a=&b="},
-		{"null and empty strictNullHandling", map[string]any{"a": nil, "b": ""}, []StringifyOption{WithStringifyStrictNullHandling(true), WithSort(func(a, b string) bool { return a < b })}, "a&b="},
+		{"null strictNullHandling", map[string]any{"a": nil}, []StringifyOption{
+			WithStringifyStrictNullHandling(true),
+		}, "a"},
+		{"two empty strings", map[string]any{"a": "", "b": ""}, []StringifyOption{
+			WithSort(func(a, b string) bool { return a < b }),
+		}, "a=&b="},
+		{"null and empty strictNullHandling", map[string]any{"a": nil, "b": ""}, []StringifyOption{
+			WithStringifyStrictNullHandling(true), WithSort(func(a, b string) bool { return a < b }),
+		}, "a&b="},
 		{"nested empty string", map[string]any{"a": map[string]any{"b": ""}}, nil, "a%5Bb%5D="},
-		{"nested null strictNullHandling", map[string]any{"a": map[string]any{"b": nil}}, []StringifyOption{WithStringifyStrictNullHandling(true)}, "a%5Bb%5D"},
-		{"nested null no strictNullHandling", map[string]any{"a": map[string]any{"b": nil}}, []StringifyOption{WithStringifyStrictNullHandling(false)}, "a%5Bb%5D="},
+		{"nested null strictNullHandling", map[string]any{"a": map[string]any{"b": nil}}, []StringifyOption{
+			WithStringifyStrictNullHandling(true),
+		}, "a%5Bb%5D"},
+		{"nested null no strictNullHandling", map[string]any{"a": map[string]any{"b": nil}}, []StringifyOption{
+			WithStringifyStrictNullHandling(false),
+		}, "a%5Bb%5D="},
 	}
 
 	for _, tt := range tests {
@@ -1565,21 +1748,75 @@ func TestJSStringifyEmptyArrayDifferentFormats(t *testing.T) {
 		opts     []StringifyOption
 		expected string
 	}{
-		{"encode false default", []StringifyOption{WithEncode(false), WithSort(func(a, b string) bool { return a < b })}, "b[0]=&c=c"},
-		{"encode false indices", []StringifyOption{WithEncode(false), WithArrayFormat(ArrayFormatIndices), WithSort(func(a, b string) bool { return a < b })}, "b[0]=&c=c"},
-		{"encode false brackets", []StringifyOption{WithEncode(false), WithArrayFormat(ArrayFormatBrackets), WithSort(func(a, b string) bool { return a < b })}, "b[]=&c=c"},
-		{"encode false repeat", []StringifyOption{WithEncode(false), WithArrayFormat(ArrayFormatRepeat), WithSort(func(a, b string) bool { return a < b })}, "b=&c=c"},
-		{"encode false comma", []StringifyOption{WithEncode(false), WithArrayFormat(ArrayFormatComma), WithSort(func(a, b string) bool { return a < b })}, "b=&c=c"},
-		{"encode false comma commaRoundTrip", []StringifyOption{WithEncode(false), WithArrayFormat(ArrayFormatComma), WithCommaRoundTrip(true), WithSort(func(a, b string) bool { return a < b })}, "b[]=&c=c"},
-		{"encode false indices strictNullHandling", []StringifyOption{WithEncode(false), WithArrayFormat(ArrayFormatIndices), WithStringifyStrictNullHandling(true), WithSort(func(a, b string) bool { return a < b })}, "b[0]&c=c"},
-		{"encode false brackets strictNullHandling", []StringifyOption{WithEncode(false), WithArrayFormat(ArrayFormatBrackets), WithStringifyStrictNullHandling(true), WithSort(func(a, b string) bool { return a < b })}, "b[]&c=c"},
-		{"encode false repeat strictNullHandling", []StringifyOption{WithEncode(false), WithArrayFormat(ArrayFormatRepeat), WithStringifyStrictNullHandling(true), WithSort(func(a, b string) bool { return a < b })}, "b&c=c"},
-		{"encode false comma strictNullHandling", []StringifyOption{WithEncode(false), WithArrayFormat(ArrayFormatComma), WithStringifyStrictNullHandling(true), WithSort(func(a, b string) bool { return a < b })}, "b&c=c"},
-		{"encode false comma strictNullHandling commaRoundTrip", []StringifyOption{WithEncode(false), WithArrayFormat(ArrayFormatComma), WithStringifyStrictNullHandling(true), WithCommaRoundTrip(true), WithSort(func(a, b string) bool { return a < b })}, "b[]&c=c"},
-		{"encode false indices skipNulls", []StringifyOption{WithEncode(false), WithArrayFormat(ArrayFormatIndices), WithSkipNulls(true), WithSort(func(a, b string) bool { return a < b })}, "c=c"},
-		{"encode false brackets skipNulls", []StringifyOption{WithEncode(false), WithArrayFormat(ArrayFormatBrackets), WithSkipNulls(true), WithSort(func(a, b string) bool { return a < b })}, "c=c"},
-		{"encode false repeat skipNulls", []StringifyOption{WithEncode(false), WithArrayFormat(ArrayFormatRepeat), WithSkipNulls(true), WithSort(func(a, b string) bool { return a < b })}, "c=c"},
-		{"encode false comma skipNulls", []StringifyOption{WithEncode(false), WithArrayFormat(ArrayFormatComma), WithSkipNulls(true), WithSort(func(a, b string) bool { return a < b })}, "c=c"},
+		{"encode false default", []StringifyOption{
+			WithEncode(false),
+			WithSort(func(a, b string) bool { return a < b }),
+		}, "b[0]=&c=c"},
+		{"encode false indices", []StringifyOption{
+			WithEncode(false),
+			WithArrayFormat(ArrayFormatIndices), WithSort(func(a, b string) bool { return a < b }),
+		}, "b[0]=&c=c"},
+		{"encode false brackets", []StringifyOption{
+			WithEncode(false),
+			WithArrayFormat(ArrayFormatBrackets), WithSort(func(a, b string) bool { return a < b }),
+		}, "b[]=&c=c"},
+		{"encode false repeat", []StringifyOption{
+			WithEncode(false),
+			WithArrayFormat(ArrayFormatRepeat), WithSort(func(a, b string) bool { return a < b }),
+		}, "b=&c=c"},
+		{"encode false comma", []StringifyOption{
+			WithEncode(false),
+			WithArrayFormat(ArrayFormatComma), WithSort(func(a, b string) bool { return a < b }),
+		}, "b=&c=c"},
+		{"encode false comma commaRoundTrip", []StringifyOption{
+			WithEncode(false),
+			WithArrayFormat(ArrayFormatComma), WithCommaRoundTrip(true),
+			WithSort(func(a, b string) bool { return a < b }),
+		}, "b[]=&c=c"},
+		{"encode false indices strictNullHandling", []StringifyOption{
+			WithEncode(false),
+			WithArrayFormat(ArrayFormatIndices), WithStringifyStrictNullHandling(true),
+			WithSort(func(a, b string) bool { return a < b }),
+		}, "b[0]&c=c"},
+		{"encode false brackets strictNullHandling", []StringifyOption{
+			WithEncode(false),
+			WithArrayFormat(ArrayFormatBrackets), WithStringifyStrictNullHandling(true),
+			WithSort(func(a, b string) bool { return a < b }),
+		}, "b[]&c=c"},
+		{"encode false repeat strictNullHandling", []StringifyOption{
+			WithEncode(false),
+			WithArrayFormat(ArrayFormatRepeat), WithStringifyStrictNullHandling(true),
+			WithSort(func(a, b string) bool { return a < b }),
+		}, "b&c=c"},
+		{"encode false comma strictNullHandling", []StringifyOption{
+			WithEncode(false),
+			WithArrayFormat(ArrayFormatComma), WithStringifyStrictNullHandling(true),
+			WithSort(func(a, b string) bool { return a < b }),
+		}, "b&c=c"},
+		{"encode false comma strictNullHandling commaRoundTrip", []StringifyOption{
+			WithEncode(false), WithArrayFormat(ArrayFormatComma), WithStringifyStrictNullHandling(true),
+			WithCommaRoundTrip(true), WithSort(func(a, b string) bool { return a < b }),
+		}, "b[]&c=c"},
+		{"encode false indices skipNulls", []StringifyOption{
+			WithEncode(false),
+			WithArrayFormat(ArrayFormatIndices), WithSkipNulls(true),
+			WithSort(func(a, b string) bool { return a < b }),
+		}, "c=c"},
+		{"encode false brackets skipNulls", []StringifyOption{
+			WithEncode(false),
+			WithArrayFormat(ArrayFormatBrackets), WithSkipNulls(true),
+			WithSort(func(a, b string) bool { return a < b }),
+		}, "c=c"},
+		{"encode false repeat skipNulls", []StringifyOption{
+			WithEncode(false),
+			WithArrayFormat(ArrayFormatRepeat), WithSkipNulls(true),
+			WithSort(func(a, b string) bool { return a < b }),
+		}, "c=c"},
+		{"encode false comma skipNulls", []StringifyOption{
+			WithEncode(false),
+			WithArrayFormat(ArrayFormatComma), WithSkipNulls(true),
+			WithSort(func(a, b string) bool { return a < b }),
+		}, "c=c"},
 	}
 
 	for _, tt := range tests {
@@ -1729,7 +1966,8 @@ func TestJSStringifyBooleanValues(t *testing.T) {
 
 // TestJSStringifyAlternativeDelimiter tests alternative delimiter
 func TestJSStringifyAlternativeDelimiter(t *testing.T) {
-	result, err := Stringify(map[string]any{"a": "b", "c": "d"}, WithStringifyDelimiter(";"), WithSort(func(a, b string) bool { return a < b }))
+	result, err := Stringify(map[string]any{"a": "b", "c": "d"}, WithStringifyDelimiter(";"),
+		WithSort(func(a, b string) bool { return a < b }))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1777,7 +2015,8 @@ func TestJSStringifyNonCircularDuplicatedReferences(t *testing.T) {
 	sortAsc := func(a, b string) bool { return a < b }
 
 	t.Run("indices", func(t *testing.T) {
-		result, err := Stringify(input, WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatIndices), WithSort(sortAsc))
+		result, err := Stringify(input, WithEncodeValuesOnly(true),
+			WithArrayFormat(ArrayFormatIndices), WithSort(sortAsc))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -1789,7 +2028,8 @@ func TestJSStringifyNonCircularDuplicatedReferences(t *testing.T) {
 	})
 
 	t.Run("brackets", func(t *testing.T) {
-		result, err := Stringify(input, WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatBrackets), WithSort(sortAsc))
+		result, err := Stringify(input, WithEncodeValuesOnly(true),
+			WithArrayFormat(ArrayFormatBrackets), WithSort(sortAsc))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -1801,7 +2041,8 @@ func TestJSStringifyNonCircularDuplicatedReferences(t *testing.T) {
 	})
 
 	t.Run("repeat", func(t *testing.T) {
-		result, err := Stringify(input, WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatRepeat), WithSort(sortAsc))
+		result, err := Stringify(input, WithEncodeValuesOnly(true),
+			WithArrayFormat(ArrayFormatRepeat), WithSort(sortAsc))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -1883,7 +2124,9 @@ func TestJSStringifyFilterArray(t *testing.T) {
 // TestJSStringifyFilterFunction tests filter with function
 func TestJSStringifyFilterFunction(t *testing.T) {
 	calls := 0
-	obj := map[string]any{"a": "b", "c": "d", "e": map[string]any{"f": time.Date(2009, 11, 10, 23, 0, 0, 0, time.UTC)}}
+	obj := map[string]any{"a": "b", "c": "d", "e": map[string]any{
+		"f": time.Date(2009, 11, 10, 23, 0, 0, 0, time.UTC),
+	}}
 
 	filter := FilterFunc(func(prefix string, value any) any {
 		calls++
@@ -1901,7 +2144,8 @@ func TestJSStringifyFilterFunction(t *testing.T) {
 		return value
 	})
 
-	result, err := Stringify(obj, WithFilter(filter), WithSort(func(a, b string) bool { return a < b }))
+	result, err := Stringify(obj, WithFilter(filter),
+		WithSort(func(a, b string) bool { return a < b }))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1920,8 +2164,13 @@ func TestJSStringifyDisableEncoding(t *testing.T) {
 		expected string
 	}{
 		{"simple", map[string]any{"a": "b"}, []StringifyOption{WithEncode(false)}, "a=b"},
-		{"nested", map[string]any{"a": map[string]any{"b": "c"}}, []StringifyOption{WithEncode(false)}, "a[b]=c"},
-		{"null strictNullHandling", map[string]any{"a": "b", "c": nil}, []StringifyOption{WithStringifyStrictNullHandling(true), WithEncode(false), WithSort(func(a, b string) bool { return a < b })}, "a=b&c"},
+		{"nested", map[string]any{"a": map[string]any{"b": "c"}}, []StringifyOption{
+			WithEncode(false),
+		}, "a[b]=c"},
+		{"null strictNullHandling", map[string]any{"a": "b", "c": nil}, []StringifyOption{
+			WithStringifyStrictNullHandling(true), WithEncode(false),
+			WithSort(func(a, b string) bool { return a < b }),
+		}, "a=b&c"},
 	}
 
 	for _, tt := range tests {
@@ -1956,7 +2205,10 @@ func TestJSStringifySort(t *testing.T) {
 	})
 
 	t.Run("nested sort", func(t *testing.T) {
-		result, err := Stringify(map[string]any{"a": "c", "z": map[string]any{"j": "a", "i": "b"}, "b": "f"}, WithSort(sort))
+		result, err := Stringify(map[string]any{
+			"a": "c",
+			"z": map[string]any{"j": "a", "i": "b"}, "b": "f",
+		}, WithSort(sort))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -2263,7 +2515,8 @@ func TestJSStringifyUTF8Explicit(t *testing.T) {
 // TestJSStringifyCharsetSentinel tests charsetSentinel option
 func TestJSStringifyCharsetSentinel(t *testing.T) {
 	t.Run("UTF-8 sentinel", func(t *testing.T) {
-		result, err := Stringify(map[string]any{"a": "æ"}, WithStringifyCharsetSentinel(true), WithStringifyCharset(CharsetUTF8))
+		result, err := Stringify(map[string]any{"a": "æ"},
+			WithStringifyCharsetSentinel(true), WithStringifyCharset(CharsetUTF8))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -2274,7 +2527,8 @@ func TestJSStringifyCharsetSentinel(t *testing.T) {
 	})
 
 	t.Run("ISO-8859-1 sentinel", func(t *testing.T) {
-		result, err := Stringify(map[string]any{"a": "æ"}, WithStringifyCharsetSentinel(true), WithStringifyCharset(CharsetISO88591))
+		result, err := Stringify(map[string]any{"a": "æ"},
+			WithStringifyCharsetSentinel(true), WithStringifyCharset(CharsetISO88591))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -2352,11 +2606,29 @@ func TestJSStringifyObjectsInsideArrays(t *testing.T) {
 			opts     []StringifyOption
 			expected string
 		}{
-			{"no arrayFormat", []StringifyOption{WithEncode(false), WithSort(func(a, b string) bool { return a < b })}, "a[b][c]=d&a[b][e]=f"},
-			{"brackets", []StringifyOption{WithEncode(false), WithArrayFormat(ArrayFormatBrackets), WithSort(func(a, b string) bool { return a < b })}, "a[b][c]=d&a[b][e]=f"},
-			{"indices", []StringifyOption{WithEncode(false), WithArrayFormat(ArrayFormatIndices), WithSort(func(a, b string) bool { return a < b })}, "a[b][c]=d&a[b][e]=f"},
-			{"repeat", []StringifyOption{WithEncode(false), WithArrayFormat(ArrayFormatRepeat), WithSort(func(a, b string) bool { return a < b })}, "a[b][c]=d&a[b][e]=f"},
-			{"comma", []StringifyOption{WithEncode(false), WithArrayFormat(ArrayFormatComma), WithSort(func(a, b string) bool { return a < b })}, "a[b][c]=d&a[b][e]=f"},
+			{"no arrayFormat", []StringifyOption{
+				WithEncode(false),
+				WithSort(func(a, b string) bool { return a < b }),
+			}, "a[b][c]=d&a[b][e]=f"},
+			{"brackets", []StringifyOption{
+				WithEncode(false),
+				WithArrayFormat(ArrayFormatBrackets), WithSort(
+					func(a, b string) bool { return a < b }),
+			}, "a[b][c]=d&a[b][e]=f"},
+			{"indices", []StringifyOption{
+				WithEncode(false),
+				WithArrayFormat(ArrayFormatIndices), WithSort(func(a, b string) bool {
+					return a < b
+				}),
+			}, "a[b][c]=d&a[b][e]=f"},
+			{"repeat", []StringifyOption{
+				WithEncode(false), WithArrayFormat(ArrayFormatRepeat),
+				WithSort(func(a, b string) bool { return a < b }),
+			}, "a[b][c]=d&a[b][e]=f"},
+			{"comma", []StringifyOption{
+				WithEncode(false), WithArrayFormat(ArrayFormatComma),
+				WithSort(func(a, b string) bool { return a < b }),
+			}, "a[b][c]=d&a[b][e]=f"},
 		}
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
@@ -2378,10 +2650,25 @@ func TestJSStringifyObjectsInsideArrays(t *testing.T) {
 			opts     []StringifyOption
 			expected string
 		}{
-			{"no arrayFormat", []StringifyOption{WithEncode(false), WithSort(func(a, b string) bool { return a < b })}, "a[b][0][c]=d&a[b][0][e]=f"},
-			{"brackets", []StringifyOption{WithEncode(false), WithArrayFormat(ArrayFormatBrackets), WithSort(func(a, b string) bool { return a < b })}, "a[b][][c]=d&a[b][][e]=f"},
-			{"indices", []StringifyOption{WithEncode(false), WithArrayFormat(ArrayFormatIndices), WithSort(func(a, b string) bool { return a < b })}, "a[b][0][c]=d&a[b][0][e]=f"},
-			{"repeat", []StringifyOption{WithEncode(false), WithArrayFormat(ArrayFormatRepeat), WithSort(func(a, b string) bool { return a < b })}, "a[b][c]=d&a[b][e]=f"},
+			{"no arrayFormat", []StringifyOption{
+				WithEncode(false),
+				WithSort(func(a, b string) bool { return a < b }),
+			}, "a[b][0][c]=d&a[b][0][e]=f"},
+			{"brackets", []StringifyOption{
+				WithEncode(false),
+				WithArrayFormat(ArrayFormatBrackets), WithSort(
+					func(a, b string) bool { return a < b }),
+			}, "a[b][][c]=d&a[b][][e]=f"},
+			{"indices", []StringifyOption{
+				WithEncode(false),
+				WithArrayFormat(ArrayFormatIndices), WithSort(func(a, b string) bool {
+					return a < b
+				}),
+			}, "a[b][0][c]=d&a[b][0][e]=f"},
+			{"repeat", []StringifyOption{
+				WithEncode(false), WithArrayFormat(ArrayFormatRepeat),
+				WithSort(func(a, b string) bool { return a < b }),
+			}, "a[b][c]=d&a[b][e]=f"},
 		}
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
@@ -2488,7 +2775,8 @@ func TestJSStringifyEmptyKeysEdgeCases(t *testing.T) {
 	})
 
 	t.Run("empty string key with nested array and value", func(t *testing.T) {
-		result, err := Stringify(map[string]any{"": map[string]any{"": []any{2, 3}, "a": 2}}, WithEncode(false), WithSort(func(a, b string) bool { return a < b }))
+		result, err := Stringify(map[string]any{"": map[string]any{"": []any{2, 3}, "a": 2}},
+			WithEncode(false), WithSort(func(a, b string) bool { return a < b }))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -2499,7 +2787,8 @@ func TestJSStringifyEmptyKeysEdgeCases(t *testing.T) {
 	})
 
 	t.Run("empty string key with nested empty array indices", func(t *testing.T) {
-		result, err := Stringify(map[string]any{"": map[string]any{"": []any{2, 3}}}, WithEncode(false), WithArrayFormat(ArrayFormatIndices))
+		result, err := Stringify(map[string]any{"": map[string]any{"": []any{2, 3}}},
+			WithEncode(false), WithArrayFormat(ArrayFormatIndices))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -2510,7 +2799,9 @@ func TestJSStringifyEmptyKeysEdgeCases(t *testing.T) {
 	})
 
 	t.Run("empty string key with nested array and value indices", func(t *testing.T) {
-		result, err := Stringify(map[string]any{"": map[string]any{"": []any{2, 3}, "a": 2}}, WithEncode(false), WithArrayFormat(ArrayFormatIndices), WithSort(func(a, b string) bool { return a < b }))
+		result, err := Stringify(map[string]any{"": map[string]any{"": []any{2, 3}, "a": 2}},
+			WithEncode(false), WithArrayFormat(ArrayFormatIndices),
+			WithSort(func(a, b string) bool { return a < b }))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -2664,7 +2955,9 @@ func TestJSStringifySparseArrays(t *testing.T) {
 	t.Run("deeply nested sparse arrays with sparse value indices", func(t *testing.T) {
 		// st.equal(qs.stringify({ a: [, [, , [, , , { c: [, '1'] }]]] }, { encodeValuesOnly: true, arrayFormat: 'indices' }), 'a[1][2][3][c][1]=1');
 		result, err := Stringify(map[string]any{
-			"a": []any{nil, []any{nil, nil, []any{nil, nil, nil, map[string]any{"c": []any{nil, "1"}}}}},
+			"a": []any{nil, []any{nil, nil, []any{nil, nil, nil, map[string]any{
+				"c": []any{nil, "1"},
+			}}}},
 		}, WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatIndices))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -2677,7 +2970,9 @@ func TestJSStringifySparseArrays(t *testing.T) {
 	t.Run("deeply nested sparse arrays with sparse value brackets", func(t *testing.T) {
 		// st.equal(qs.stringify({ a: [, [, , [, , , { c: [, '1'] }]]] }, { encodeValuesOnly: true, arrayFormat: 'brackets' }), 'a[][][][c][]=1');
 		result, err := Stringify(map[string]any{
-			"a": []any{nil, []any{nil, nil, []any{nil, nil, nil, map[string]any{"c": []any{nil, "1"}}}}},
+			"a": []any{nil, []any{nil, nil, []any{nil, nil, nil, map[string]any{
+				"c": []any{nil, "1"},
+			}}}},
 		}, WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatBrackets))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -2690,7 +2985,9 @@ func TestJSStringifySparseArrays(t *testing.T) {
 	t.Run("deeply nested sparse arrays with sparse value repeat", func(t *testing.T) {
 		// st.equal(qs.stringify({ a: [, [, , [, , , { c: [, '1'] }]]] }, { encodeValuesOnly: true, arrayFormat: 'repeat' }), 'a[c]=1');
 		result, err := Stringify(map[string]any{
-			"a": []any{nil, []any{nil, nil, []any{nil, nil, nil, map[string]any{"c": []any{nil, "1"}}}}},
+			"a": []any{nil, []any{nil, nil, []any{nil, nil, nil, map[string]any{
+				"c": []any{nil, "1"},
+			}}}},
 		}, WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatRepeat))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -2714,12 +3011,11 @@ func TestJSStringifyNonStringKeys(t *testing.T) {
 
 	// In Go, we need to use string keys
 	result, err := Stringify(map[string]any{
-		"a":       "b",
-		"false":   map[string]any{},
-		"1e+22":   "c",
-		"d":       "e",
+		"a":     "b",
+		"false": map[string]any{},
+		"1e+22": "c",
+		"d":     "e",
 	}, WithFilter([]string{"a", "1e+22", "d"}), WithStringifyAllowDots(true), WithEncodeDotInKeys(true))
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

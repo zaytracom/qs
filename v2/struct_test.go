@@ -24,13 +24,13 @@ type UserWithDefaults struct {
 }
 
 type UserWithAllTypes struct {
-	Name     string  `query:"name"`
-	Age      int     `query:"age"`
-	Score    float64 `query:"score"`
-	Active   bool    `query:"active"`
-	Count    int64   `query:"count"`
-	ID       uint    `query:"id"`
-	Rating   float32 `query:"rating"`
+	Name   string  `query:"name"`
+	Age    int     `query:"age"`
+	Score  float64 `query:"score"`
+	Active bool    `query:"active"`
+	Count  int64   `query:"count"`
+	ID     uint    `query:"id"`
+	Rating float32 `query:"rating"`
 }
 
 type NestedAddress struct {
@@ -1111,8 +1111,8 @@ func TestMarshalWithStrictNullHandling(t *testing.T) {
 	}
 }
 
-// TestMarshalWithAddQueryPrefix tests query prefix
-func TestMarshalWithAddQueryPrefix(t *testing.T) {
+// TestMarshalWithStringifyQueryPrefix tests query prefix
+func TestMarshalWithStringifyQueryPrefix(t *testing.T) {
 	type Query struct {
 		Search string `query:"search"`
 	}
@@ -1341,7 +1341,8 @@ func TestComplexNestedStructWithAllOptions(t *testing.T) {
 	}
 	if result.Profile.Settings.Notifications.Email != original.Profile.Settings.Notifications.Email {
 		t.Errorf("Notifications.Email = %v, want %v",
-			result.Profile.Settings.Notifications.Email, original.Profile.Settings.Notifications.Email)
+			result.Profile.Settings.Notifications.Email,
+			original.Profile.Settings.Notifications.Email)
 	}
 }
 
