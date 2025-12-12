@@ -314,7 +314,7 @@ func TestStringifyFilter(t *testing.T) {
 		input := map[string]any{"a": "1", "b": "2"}
 		filter := FilterFunc(func(prefix string, value any) any {
 			if prefix == "b" {
-				return nil // Remove 'b' - but in JS this actually results in key=
+				return nil // Remove 'b' - in JS, undefined is skipped entirely
 			}
 			return value
 		})
@@ -322,10 +322,10 @@ func TestStringifyFilter(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		// In JS, returning undefined from filter just means the value becomes undefined
-		// which still gets stringified as key= (or key with strictNullHandling)
-		if result != "a=1&b=" {
-			t.Errorf("expected 'a=1&b=', got %q", result)
+		// In JS, returning undefined from filter skips the key entirely
+		// (see lib/stringify.js:137-139: "if (typeof obj === 'undefined') return values")
+		if result != "a=1" {
+			t.Errorf("expected 'a=1', got %q", result)
 		}
 	})
 }

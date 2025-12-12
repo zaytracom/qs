@@ -1012,7 +1012,9 @@ func TestJSStringifyEmptyValue(t *testing.T) {
 
 // TestJSStringifyEmptyArrayDifferentFormats tests empty array in different formats
 func TestJSStringifyEmptyArrayDifferentFormats(t *testing.T) {
-	input := map[string]any{"a": []any{}, "b": []any{nil}, "c": "c"}
+	// Use ExplicitNullValue to represent JS null (not undefined/sparse slot)
+	// In Go: nil = undefined (sparse), ExplicitNullValue = null
+	input := map[string]any{"a": []any{}, "b": []any{ExplicitNullValue}, "c": "c"}
 
 	tests := []struct {
 		name     string
@@ -1227,34 +1229,40 @@ func TestJSStringifyNonCircularDuplicatedReferences(t *testing.T) {
 
 	input := map[string]any{"filters": map[string]any{"$and": []any{p1, p2}}}
 
+	// Sort to ensure deterministic order: "arguments" < "function"
+	sortAsc := func(a, b string) bool { return a < b }
+
 	t.Run("indices", func(t *testing.T) {
-		result, err := Stringify(input, WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatIndices))
+		result, err := Stringify(input, WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatIndices), WithSort(sortAsc))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		expected := "filters[$and][0][function]=gte&filters[$and][0][arguments][0][function]=hour_of_day&filters[$and][0][arguments][1]=0&filters[$and][1][function]=lte&filters[$and][1][arguments][0][function]=hour_of_day&filters[$and][1][arguments][1]=23"
+		// With sort: arguments comes before function
+		expected := "filters[$and][0][arguments][0][function]=hour_of_day&filters[$and][0][arguments][1]=0&filters[$and][0][function]=gte&filters[$and][1][arguments][0][function]=hour_of_day&filters[$and][1][arguments][1]=23&filters[$and][1][function]=lte"
 		if result != expected {
 			t.Errorf("expected %q, got %q", expected, result)
 		}
 	})
 
 	t.Run("brackets", func(t *testing.T) {
-		result, err := Stringify(input, WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatBrackets))
+		result, err := Stringify(input, WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatBrackets), WithSort(sortAsc))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		expected := "filters[$and][][function]=gte&filters[$and][][arguments][][function]=hour_of_day&filters[$and][][arguments][]=0&filters[$and][][function]=lte&filters[$and][][arguments][][function]=hour_of_day&filters[$and][][arguments][]=23"
+		// With sort: arguments comes before function
+		expected := "filters[$and][][arguments][][function]=hour_of_day&filters[$and][][arguments][]=0&filters[$and][][function]=gte&filters[$and][][arguments][][function]=hour_of_day&filters[$and][][arguments][]=23&filters[$and][][function]=lte"
 		if result != expected {
 			t.Errorf("expected %q, got %q", expected, result)
 		}
 	})
 
 	t.Run("repeat", func(t *testing.T) {
-		result, err := Stringify(input, WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatRepeat))
+		result, err := Stringify(input, WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatRepeat), WithSort(sortAsc))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		expected := "filters[$and][function]=gte&filters[$and][arguments][function]=hour_of_day&filters[$and][arguments]=0&filters[$and][function]=lte&filters[$and][arguments][function]=hour_of_day&filters[$and][arguments]=23"
+		// With sort: arguments comes before function
+		expected := "filters[$and][arguments][function]=hour_of_day&filters[$and][arguments]=0&filters[$and][function]=gte&filters[$and][arguments][function]=hour_of_day&filters[$and][arguments]=23&filters[$and][function]=lte"
 		if result != expected {
 			t.Errorf("expected %q, got %q", expected, result)
 		}
@@ -1589,6 +1597,7 @@ func TestJSStringifyInvalidFormat(t *testing.T) {
 
 // TestJSStringifyEncodeValuesOnly tests encodeValuesOnly option
 func TestJSStringifyEncodeValuesOnly(t *testing.T) {
+	sortAsc := func(a, b string) bool { return a < b }
 	tests := []struct {
 		name     string
 		input    map[string]any
@@ -1598,37 +1607,37 @@ func TestJSStringifyEncodeValuesOnly(t *testing.T) {
 		{
 			"encodeValuesOnly indices",
 			map[string]any{"a": "b", "c": []any{"d", "e=f"}, "f": []any{[]any{"g"}, []any{"h"}}},
-			[]StringifyOption{WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatIndices)},
+			[]StringifyOption{WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatIndices), WithSort(sortAsc)},
 			"a=b&c[0]=d&c[1]=e%3Df&f[0][0]=g&f[1][0]=h",
 		},
 		{
 			"encodeValuesOnly brackets",
 			map[string]any{"a": "b", "c": []any{"d", "e=f"}, "f": []any{[]any{"g"}, []any{"h"}}},
-			[]StringifyOption{WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatBrackets)},
+			[]StringifyOption{WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatBrackets), WithSort(sortAsc)},
 			"a=b&c[]=d&c[]=e%3Df&f[][]=g&f[][]=h",
 		},
 		{
 			"encodeValuesOnly repeat",
 			map[string]any{"a": "b", "c": []any{"d", "e=f"}, "f": []any{[]any{"g"}, []any{"h"}}},
-			[]StringifyOption{WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatRepeat)},
+			[]StringifyOption{WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatRepeat), WithSort(sortAsc)},
 			"a=b&c=d&c=e%3Df&f=g&f=h",
 		},
 		{
 			"no encodeValuesOnly indices",
 			map[string]any{"a": "b", "c": []any{"d", "e"}, "f": []any{[]any{"g"}, []any{"h"}}},
-			[]StringifyOption{WithArrayFormat(ArrayFormatIndices)},
+			[]StringifyOption{WithArrayFormat(ArrayFormatIndices), WithSort(sortAsc)},
 			"a=b&c%5B0%5D=d&c%5B1%5D=e&f%5B0%5D%5B0%5D=g&f%5B1%5D%5B0%5D=h",
 		},
 		{
 			"no encodeValuesOnly brackets",
 			map[string]any{"a": "b", "c": []any{"d", "e"}, "f": []any{[]any{"g"}, []any{"h"}}},
-			[]StringifyOption{WithArrayFormat(ArrayFormatBrackets)},
+			[]StringifyOption{WithArrayFormat(ArrayFormatBrackets), WithSort(sortAsc)},
 			"a=b&c%5B%5D=d&c%5B%5D=e&f%5B%5D%5B%5D=g&f%5B%5D%5B%5D=h",
 		},
 		{
 			"no encodeValuesOnly repeat",
 			map[string]any{"a": "b", "c": []any{"d", "e"}, "f": []any{[]any{"g"}, []any{"h"}}},
-			[]StringifyOption{WithArrayFormat(ArrayFormatRepeat)},
+			[]StringifyOption{WithArrayFormat(ArrayFormatRepeat), WithSort(sortAsc)},
 			"a=b&c=d&c=e&f=g&f=h",
 		},
 	}

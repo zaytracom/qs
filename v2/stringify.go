@@ -512,15 +512,25 @@ func stringify(
 	}
 
 	// Apply filter function if provided
+	// Note: In JS, returning undefined from filter skips the key.
+	// In Go, we use a special convention: filter should return the special
+	// value SkipValue (a sentinel) to skip, not nil.
+	// For backwards compatibility and JS parity, we skip only if:
+	// 1. Filter returns nil AND original value was NOT nil (filter explicitly removed it)
+	// 2. Filter returns SkipValue marker
 	if filterFunc, ok := filter.(FilterFunc); ok {
+		origObj := obj
 		obj = filterFunc(prefix, obj)
-		if obj == nil {
-			return []string{}, nil // Skip this key entirely
+		// Skip only if filter explicitly returns nil for non-nil input (JS undefined behavior)
+		// If input was nil and output is nil, it's "keep null", not "skip"
+		if obj == nil && origObj != nil {
+			return []string{}, nil
 		}
 	} else if fn, ok := filter.(func(string, any) any); ok {
+		origObj := obj
 		obj = fn(prefix, obj)
-		if obj == nil {
-			return []string{}, nil // Skip this key entirely
+		if obj == nil && origObj != nil {
+			return []string{}, nil
 		}
 	}
 
@@ -586,8 +596,9 @@ func stringify(
 			if len(encodedSlice) > 0 {
 				joined := strings.Join(encodedSlice, ",")
 				// JS: obj.join(',') || null - if result is empty string, use null
+				// Use ExplicitNullValue (not nil) so it's not skipped as sparse array
 				if joined == "" {
-					objKeys = []any{map[string]any{"value": nil}}
+					objKeys = []any{map[string]any{"value": ExplicitNullValue}}
 				} else {
 					objKeys = []any{map[string]any{"value": joined}}
 				}
@@ -600,28 +611,26 @@ func stringify(
 				}
 				joined := strings.Join(strSlice, ",")
 				// JS: obj.join(',') || null - if result is empty string, use null
+				// Use ExplicitNullValue (not nil) so it's not skipped as sparse array
 				if joined == "" {
-					objKeys = []any{map[string]any{"value": nil}}
+					objKeys = []any{map[string]any{"value": ExplicitNullValue}}
 				} else {
 					objKeys = []any{map[string]any{"value": joined}}
 				}
 			}
 		}
-	} else if slice, ok := obj.([]any); ok {
-		// Array: use indices, NOT filter array
-		objKeys = make([]any, len(slice))
-		for i := range slice {
-			objKeys[i] = i
-		}
 	} else if filterSlice, ok := filter.([]string); ok {
-		// Object with filter array: use filter keys
+		// Filter is array of keys - applies to both arrays and objects
+		// For arrays: filter acts as array of indices (strings that can convert to int)
+		// For objects: filter acts as array of keys
 		objKeys = make([]any, len(filterSlice))
 		for i, k := range filterSlice {
 			objKeys[i] = k
 		}
 	} else {
-		// Get keys from object (map)
-		if v, ok := obj.(map[string]any); ok {
+		// No filter array - get keys from object
+		switch v := obj.(type) {
+		case map[string]any:
 			keys := make([]string, 0, len(v))
 			for k := range v {
 				keys = append(keys, k)
@@ -632,6 +641,11 @@ func stringify(
 			objKeys = make([]any, len(keys))
 			for i, k := range keys {
 				objKeys[i] = k
+			}
+		case []any:
+			objKeys = make([]any, len(v))
+			for i := range v {
+				objKeys[i] = i
 			}
 		}
 	}
@@ -667,28 +681,50 @@ func stringify(
 			}
 		} else {
 			keyStr = toString(key)
+			var keyExists bool
 			switch v := obj.(type) {
 			case map[string]any:
-				value = v[keyStr]
+				value, keyExists = v[keyStr]
+				if !keyExists {
+					// Key doesn't exist in map - treat as undefined, skip
+					continue
+				}
 			case []any:
-				idx, _ := toInt(key)
-				if idx >= 0 && idx < len(v) {
+				idx, ok := toInt(key)
+				if ok && idx >= 0 && idx < len(v) {
 					value = v[idx]
+					keyExists = true
+				}
+				// If key is not a valid index, skip (undefined)
+				if !keyExists {
+					continue
 				}
 			}
 		}
 
-		// Skip nulls if requested (nil in Go represents null in JS)
+		// In Go: nil represents undefined (sparse array slot), ExplicitNullValue represents null
+		// undefined in arrays is always skipped (JS behavior: typeof obj === 'undefined' returns [])
+		if value == nil && isSlice(obj) {
+			continue
+		}
+		// Skip nulls if skipNulls is requested
 		if skipNulls && (value == nil || IsExplicitNull(value)) {
 			continue
 		}
 
 		// Generate key prefix
 		var keyPrefix string
-		if keyStr == "" {
-			// Comma format - value is already joined
-			keyPrefix = adjustedPrefix
-		} else {
+
+		// Check if this is a comma format special case (keyStr="" for joined value)
+		if keyMap, ok := key.(map[string]any); ok && keyStr == "" {
+			if _, hasValue := keyMap["value"]; hasValue {
+				// Comma format - value is already joined, use adjustedPrefix directly
+				keyPrefix = adjustedPrefix
+			}
+		}
+
+		// If keyPrefix wasn't set by comma format handling, generate it normally
+		if keyPrefix == "" && key != nil {
 			encodedKey := keyStr
 			if allowDots && encodeDotInKeys {
 				encodedKey = strings.ReplaceAll(keyStr, ".", "%2E")
@@ -828,7 +864,12 @@ func Stringify(obj any, opts ...StringifyOption) (string, error) {
 
 	var keys []string
 	for _, key := range objKeys {
-		value := objMap[key]
+		value, exists := objMap[key]
+
+		// Skip non-existent keys (undefined in JS)
+		if !exists {
+			continue
+		}
 
 		// Skip nulls if requested
 		if normalizedOpts.SkipNulls && (value == nil || IsExplicitNull(value)) {
