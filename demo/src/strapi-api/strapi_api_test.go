@@ -84,13 +84,14 @@ func TestStrapiAPI_ReadmeExamples(t *testing.T) {
 			t.Fatalf("README.md missing pagination example")
 		}
 
-		goQS, err := qs.Stringify(
-			map[string]any{"pagination": map[string]any{"page": 1, "pageSize": 10}},
-			qs.WithEncodeValuesOnly(true),
-		)
-		if err != nil {
-			t.Fatalf("go stringify: %v", err)
-		}
+			goQS, err := qs.Stringify(
+				map[string]any{"pagination": map[string]any{"page": 1, "pageSize": 10}},
+				qs.WithEncodeValuesOnly(true),
+				qs.WithSort(func(a, b string) bool { return a < b }),
+			)
+			if err != nil {
+				t.Fatalf("go stringify: %v", err)
+			}
 
 		jsQS := demojs.Run(t, `
 			console.log(qs.stringify(

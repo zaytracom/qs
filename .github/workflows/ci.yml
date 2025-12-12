@@ -52,6 +52,18 @@ jobs:
         cd demo
         go mod download
 
+    - name: Set up Node (for demo JS compat)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: demo/package-lock.json
+
+    - name: Install demo JS dependencies
+      run: |
+        cd demo
+        npm ci
+
     - name: Run tests (v1)
       run: go test -v -race -coverprofile=coverage-v1.out ./...
 
