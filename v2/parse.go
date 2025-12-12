@@ -145,6 +145,14 @@ const (
 	DefaultDelimiter      = "&"
 )
 
+// Sentinel values indicating "not explicitly set" (used to distinguish from explicit 0)
+// Using very negative values to avoid conflict with valid negative values (e.g., arrayLimit: -1 disables arrays)
+const (
+	notSetArrayLimit     = -999999
+	notSetDepth          = -999999
+	notSetParameterLimit = -999999
+)
+
 // DefaultParseOptions returns ParseOptions with default values.
 func DefaultParseOptions() ParseOptions {
 	return ParseOptions{
@@ -219,14 +227,15 @@ func normalizeParseOptions(opts *ParseOptions) (ParseOptions, error) {
 		return result, ErrInvalidDuplicates
 	}
 
-	// Set defaults for numeric fields if they are zero
-	if result.ArrayLimit == 0 {
+	// Set defaults for numeric fields if they are not explicitly set (sentinel value)
+	// This allows explicit 0 values to be preserved
+	if result.ArrayLimit == notSetArrayLimit {
 		result.ArrayLimit = DefaultArrayLimit
 	}
-	if result.Depth == 0 {
+	if result.Depth == notSetDepth {
 		result.Depth = DefaultDepth
 	}
-	if result.ParameterLimit == 0 {
+	if result.ParameterLimit == notSetParameterLimit {
 		result.ParameterLimit = DefaultParameterLimit
 	}
 
@@ -407,7 +416,12 @@ func WithThrowOnLimitExceeded(v bool) ParseOption {
 
 // applyParseOptions applies functional options to a ParseOptions struct.
 func applyParseOptions(opts ...ParseOption) ParseOptions {
+	// Start with defaults but use sentinel values for numeric fields
+	// so we can distinguish "not set" from "explicitly set to 0"
 	o := DefaultParseOptions()
+	o.ArrayLimit = notSetArrayLimit
+	o.Depth = notSetDepth
+	o.ParameterLimit = notSetParameterLimit
 	for _, opt := range opts {
 		opt(&o)
 	}
@@ -450,34 +464,30 @@ func parseArrayValue(val string, opts *ParseOptions, currentArrayLength int) (an
 }
 
 // splitByDelimiter splits a string by either a string delimiter or regexp.
+// Unlike Go's SplitN (which keeps remainder in last element), this matches JS behavior:
+// JS "a&b&c".split("&", 2) returns ["a", "b"] - exactly limit parts, remainder discarded.
 func splitByDelimiter(str string, delimiter string, delimiterRegexp *regexp.Regexp, limit int) []string {
-	if delimiterRegexp != nil {
-		// Use regexp split
-		if limit <= 0 {
+	if limit <= 0 {
+		// No limit - split all
+		if delimiterRegexp != nil {
 			return delimiterRegexp.Split(str, -1)
 		}
-		return delimiterRegexp.Split(str, limit)
-	}
-
-	// Use string split
-	if limit <= 0 {
 		return strings.Split(str, delimiter)
 	}
 
-	// Manual split with limit
+	// Split with limit+1 to detect if there are more parts
 	var parts []string
-	remaining := str
-	for i := 0; i < limit-1 && remaining != ""; i++ {
-		idx := strings.Index(remaining, delimiter)
-		if idx == -1 {
-			break
-		}
-		parts = append(parts, remaining[:idx])
-		remaining = remaining[idx+len(delimiter):]
+	if delimiterRegexp != nil {
+		parts = delimiterRegexp.Split(str, limit+1)
+	} else {
+		parts = strings.SplitN(str, delimiter, limit+1)
 	}
-	if remaining != "" || len(parts) < limit {
-		parts = append(parts, remaining)
+
+	// Truncate to limit (discard remainder like JS)
+	if len(parts) > limit {
+		parts = parts[:limit]
 	}
+
 	return parts
 }
 
@@ -615,11 +625,9 @@ func parseKeys(givenKey string, val any, opts *ParseOptions, valuesParsed bool) 
 	// Loop through bracket segments up to depth limit
 	i := 0
 	child := regexp.MustCompile(`(\[[^\[\]]*\])`)
-	remaining := key
-	if segment != nil {
+	remaining := ""
+	if segment != nil && opts.Depth > 0 {
 		remaining = key[segment[0]:]
-	} else {
-		remaining = ""
 	}
 
 	for opts.Depth > 0 && i < opts.Depth {
@@ -660,10 +668,21 @@ func parseKeys(givenKey string, val any, opts *ParseOptions, valuesParsed bool) 
 	return parseObject(keys, val, opts, valuesParsed), nil
 }
 
+// orderedResult holds parsed values with insertion order preserved.
+// This is needed because Go map iteration is randomized, but JS Object.keys()
+// returns keys in insertion order, which affects merge behavior.
+type orderedResult struct {
+	keys   []string       // keys in insertion order
+	values map[string]any // key-value pairs
+}
+
 // parseValues parses a query string into a flat map of key-value pairs.
 // This is the first stage of parsing before nested object reconstruction.
-func parseValues(str string, opts *ParseOptions) (map[string]any, error) {
-	obj := make(map[string]any)
+func parseValues(str string, opts *ParseOptions) (orderedResult, error) {
+	result := orderedResult{
+		keys:   make([]string, 0),
+		values: make(map[string]any),
+	}
 
 	// Strip query prefix if requested
 	cleanStr := str
@@ -688,7 +707,7 @@ func parseValues(str string, opts *ParseOptions) (map[string]any, error) {
 
 	// Check parameter limit
 	if opts.ThrowOnLimitExceeded && len(parts) > opts.ParameterLimit {
-		return nil, ErrParameterLimitExceeded
+		return orderedResult{}, ErrParameterLimitExceeded
 	}
 
 	// Detect charset from sentinel
@@ -744,7 +763,7 @@ func parseValues(str string, opts *ParseOptions) (map[string]any, error) {
 			// No = sign, key only
 			decoded, err := decoder(part, charset, "key")
 			if err != nil {
-				return nil, err
+				return orderedResult{}, err
 			}
 			key = decoded
 			if opts.StrictNullHandling {
@@ -759,7 +778,7 @@ func parseValues(str string, opts *ParseOptions) (map[string]any, error) {
 
 			decoded, err := decoder(keyPart, charset, "key")
 			if err != nil {
-				return nil, err
+				return orderedResult{}, err
 			}
 			key = decoded
 
@@ -769,7 +788,7 @@ func parseValues(str string, opts *ParseOptions) (map[string]any, error) {
 
 			// Get current array length for limit checking
 			currentLen := 0
-			if existing, ok := obj[key]; ok {
+			if existing, ok := result.values[key]; ok {
 				if arr, isArr := existing.([]any); isArr {
 					currentLen = len(arr)
 				}
@@ -778,7 +797,7 @@ func parseValues(str string, opts *ParseOptions) (map[string]any, error) {
 			// Handle comma-separated values and array limit
 			parsedVal, err := parseArrayValue(valPart, opts, currentLen)
 			if err != nil {
-				return nil, err
+				return orderedResult{}, err
 			}
 
 			// Decode the value(s)
@@ -813,24 +832,26 @@ func parseValues(str string, opts *ParseOptions) (map[string]any, error) {
 
 		// Handle duplicate keys
 		if key != "" {
-			if existing, exists := obj[key]; exists {
+			if existing, exists := result.values[key]; exists {
 				switch opts.Duplicates {
 				case DuplicateCombine:
-					obj[key] = Combine(existing, val)
+					result.values[key] = Combine(existing, val)
 				case DuplicateFirst:
 					// Keep existing, do nothing
 				case DuplicateLast:
-					obj[key] = val
+					result.values[key] = val
 				default:
-					obj[key] = Combine(existing, val)
+					result.values[key] = Combine(existing, val)
 				}
 			} else {
-				obj[key] = val
+				// New key - track insertion order
+				result.keys = append(result.keys, key)
+				result.values[key] = val
 			}
 		}
 	}
 
-	return obj, nil
+	return result, nil
 }
 
 // Parse parses a URL query string into a map.
@@ -867,9 +888,11 @@ func Parse(str string, opts ...ParseOption) (map[string]any, error) {
 	}
 
 	// Build nested structure using parseKeys
+	// Iterate in insertion order (like JS Object.keys())
 	result := make(map[string]any)
 
-	for key, val := range tempObj {
+	for _, key := range tempObj.keys {
+		val := tempObj.values[key]
 		// Parse nested keys and build object structure
 		newObj, err := parseKeys(key, val, &normalizedOpts, true)
 		if err != nil {
