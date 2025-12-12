@@ -75,12 +75,12 @@ jobs:
     - name: Run tests (demo)
       run: |
         cd demo
-        go test -v -race -coverprofile=coverage-demo.out ./...
+        go test -v -race ./...
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       with:
-        files: ./coverage-v1.out,./v2/coverage-v2.out,./demo/coverage-demo.out
+        files: ./coverage-v1.out,./v2/coverage-v2.out
         flags: unittests
         name: codecov-umbrella
         fail_ci_if_error: false
