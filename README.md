@@ -1,4 +1,4 @@
-# QS — Query String library for Go (v2)
+# QS — Query String library for Go (v2-beta)
 
 [![Go Reference (v2)](https://pkg.go.dev/badge/github.com/zaytracom/qs/v2.svg)](https://pkg.go.dev/github.com/zaytracom/qs/v2)
 [![Go Reference (v1)](https://pkg.go.dev/badge/github.com/zaytracom/qs/v1.svg)](https://pkg.go.dev/github.com/zaytracom/qs/v1)
@@ -7,7 +7,9 @@
 [![GitHub release](https://img.shields.io/github/release/zaytracom/qs.svg)](https://github.com/zaytracom/qs/releases)
 [![CI](https://github.com/zaytracom/qs/actions/workflows/ci.yml/badge.svg)](https://github.com/zaytracom/qs/actions/workflows/ci.yml)
 
-**QS v2** is a production-ready Go port of the popular JavaScript [`qs`](https://github.com/ljharb/qs) library for parsing and stringifying URL query strings (nested objects, arrays, and all the tricky edge cases).
+**QS v2-beta** is a production-ready Go port of the popular JavaScript [`qs`](https://github.com/ljharb/qs) library for parsing and stringifying URL query strings (nested objects, arrays, and all the tricky edge cases).
+
+**Status: beta.** The v2 API is considered stable enough for testing, but may still change before the final v2 release.
 
 **v2 is a full port from JS** and is validated against the real npm `qs` via the JS compatibility suite in `demo/`.
 
@@ -20,9 +22,9 @@
 - 🎯 **Strapi-style API support** for CMS and API applications
 - 🧪 **Extensive tests** + Go/JS parity demos in `demo/src/*`
 
-## 🆕 v2 vs v1
+## 🆕 v2-beta vs v1
 
-- **v2 (recommended)**: `github.com/zaytracom/qs/v2` (Go 1.21+)
+- **v2-beta (recommended for new users)**: `github.com/zaytracom/qs/v2` (Go 1.21+)
 - **v1 (legacy)**: `github.com/zaytracom/qs/v1` (kept for compatibility)
 
 Key v2 API changes:
@@ -49,10 +51,10 @@ go test ./...
 
 ## 📦 Installation
 
-### v2 (recommended)
+### v2-beta (recommended)
 
 ```bash
-go get github.com/zaytracom/qs/v2
+go get github.com/zaytracom/qs/v2@v2.0.0-beta.1
 ```
 
 ### v1 (legacy)
@@ -61,7 +63,7 @@ go get github.com/zaytracom/qs/v2
 go get github.com/zaytracom/qs/v1
 ```
 
-## 🚀 Get started (v2)
+## 🚀 Get started (v2-beta)
 
 ### Basic Usage
 
