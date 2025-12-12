@@ -1,0 +1,49 @@
+{
+  "name": "@zaytra/qs-wasm",
+  "version": "2.0.0-beta.1",
+  "description": "WebAssembly build of the QS query string library",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "browser": "./dist/browser.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "browser": "./dist/browser.js",
+      "node": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build:wasm": "GOOS=js GOARCH=wasm go build -ldflags=\"-s -w\" -o dist/qs.wasm .",
+    "build:js": "node scripts/build.js",
+    "build": "npm run build:wasm && npm run build:js",
+    "test": "node test/test.mjs",
+    "test:compat": "node test/jscompat.test.mjs",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "qs": "^6.13.0"
+  },
+  "keywords": [
+    "querystring",
+    "qs",
+    "query",
+    "string",
+    "parse",
+    "stringify",
+    "wasm",
+    "webassembly"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zaytracom/qs"
+  },
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=16"
+  }
+}
