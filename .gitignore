@@ -54,3 +54,4 @@ coverage.html
 
 .ref/
 .gocache/
+*.prof
