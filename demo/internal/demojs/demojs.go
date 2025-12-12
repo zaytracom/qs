@@ -38,7 +38,9 @@ func Run(t *testing.T, code string) string {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "node", "-e", fullCode)
+		// #nosec G204 -- executing a fixed binary ("node") with fixed args ("-e");
+		// the code is test-controlled and run in a sandboxed CI context.
+		cmd := exec.CommandContext(ctx, "node", "-e", fullCode)
 	cmd.Dir = demoDir
 	out, err := cmd.CombinedOutput()
 	if ctx.Err() != nil {
@@ -49,4 +51,3 @@ func Run(t *testing.T, code string) string {
 	}
 	return strings.TrimSpace(string(out))
 }
-
