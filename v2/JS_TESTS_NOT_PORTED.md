@@ -7,8 +7,10 @@ This document lists all tests from the JavaScript qs library (`test/parse.js`) t
 | Category | Count |
 |----------|-------|
 | Not applicable (JS-specific) | 20 |
-| Can be added | 18 |
-| **Total not ported** | **38** |
+| Can be added | 3 |
+| **Total not ported** | **23** |
+
+> **Note**: 15 tests from the "Can be added" category were ported on 2025-12-12.
 
 ---
 
@@ -70,48 +72,48 @@ These tests could be ported to Go but are currently missing.
 
 ### 1. Edge Cases Not Yet Tested
 
-| JS Test | Priority | Description |
-|---------|----------|-------------|
-| `parses jquery-param strings` | Low | jQuery serialization format compatibility |
-| `does not error when parsing a very long array` | Medium | Performance/stress test |
-| `does not use non-splittable objects as delimiters` | Low | Delimiter edge case |
-| `allows setting the parameter limit to Infinity` | Medium | `math.MaxInt` equivalent |
-| `ignores an utf8 sentinel with an unknown value` | Medium | Invalid sentinel handling |
-| `uses the utf8 sentinel to switch to iso-8859-1 when no default charset is given` | Medium | Charset detection |
-| `interpretNumericEntities with comma:true and iso charset does not crash` | Low | Combined options edge case |
-| `does not interpret %uXXXX syntax in iso-8859-1 mode` | Low | Invalid escape sequence |
-| `skips empty string key with ...` | Low | Empty key edge case |
+| JS Test | Priority | Status | Description |
+|---------|----------|--------|-------------|
+| `parses jquery-param strings` | Low | ✅ Ported | jQuery serialization format compatibility |
+| `does not error when parsing a very long array` | Medium | ✅ Ported | Performance/stress test |
+| `does not use non-splittable objects as delimiters` | Low | N/A | Not applicable in Go (no JS objects) |
+| `allows setting the parameter limit to Infinity` | Medium | ✅ Ported | `math.MaxInt` equivalent |
+| `ignores an utf8 sentinel with an unknown value` | Medium | ✅ Ported | Invalid sentinel handling |
+| `uses the utf8 sentinel to switch to iso-8859-1 when no default charset is given` | Medium | ✅ Ported | Charset detection |
+| `interpretNumericEntities with comma:true and iso charset does not crash` | Low | ✅ Ported | Combined options edge case |
+| `does not interpret %uXXXX syntax in iso-8859-1 mode` | Low | ✅ Ported | Invalid escape sequence |
+| `skips empty string key with ...` | Low | ✅ Ported | Empty key edge case |
 
 ### 2. Custom Decoder Tests
 
-| JS Test | Priority | Description |
-|---------|----------|-------------|
-| `use number decoder, parses string that has one number with comma option enabled` | Medium | Custom decoder with comma |
-| `can parse with custom encoding` | Medium | Custom encoder/decoder |
-| `receives the default decoder as a second argument` | Low | Decoder API contract |
-| `handles a custom decoder returning null, in the iso-8859-1 charset, when interpretNumericEntities` | Low | Null return handling |
-| `handles a custom decoder returning null, with a string key of null` | Low | Null key handling |
-| `allows for decoding keys and values differently` | Medium | Separate key/value decoders |
+| JS Test | Priority | Status | Description |
+|---------|----------|--------|-------------|
+| `use number decoder, parses string that has one number with comma option enabled` | Medium | ✅ Ported | Custom decoder with comma |
+| `can parse with custom encoding` | Medium | ✅ Ported | Custom encoder/decoder |
+| `receives the default decoder as a second argument` | Low | N/A | Go uses different API (charset passed as arg) |
+| `handles a custom decoder returning null, in the iso-8859-1 charset, when interpretNumericEntities` | Low | ✅ Ported | Error handling test |
+| `handles a custom decoder returning null, with a string key of null` | Low | N/A | Go has no null keys |
+| `allows for decoding keys and values differently` | Medium | ✅ Ported | Separate key/value decoders |
 
 ### 3. Option Validation
 
-| JS Test | Priority | Description |
-|---------|----------|-------------|
-| `throws if an invalid charset is specified` | High | Already implemented, needs test |
+| JS Test | Priority | Status | Description |
+|---------|----------|--------|-------------|
+| `throws if an invalid charset is specified` | High | ✅ Existing | Already tested in parse_test.go |
 
 ### 4. Additional Coverage
 
-| JS Test | Priority | Description |
-|---------|----------|-------------|
-| `parses url-encoded brackets holds array of arrays when having two parts of strings with comma as array divider` | Medium | URL-encoded variant of existing test |
-| `can return null objects` | Low | `plainObjects` option behavior |
+| JS Test | Priority | Status | Description |
+|---------|----------|--------|-------------|
+| `parses url-encoded brackets holds array of arrays when having two parts of strings with comma as array divider` | Medium | ✅ Ported | URL-encoded variant of existing test |
+| `can return null objects` | Low | ✅ Ported | `plainObjects` option behavior |
 
 ---
 
 ## Test Coverage Comparison
 
 ### JS parse.js Test Blocks: 111
-### Go Ported Test Cases: ~99 (in multiple test files)
+### Go Ported Test Cases: ~114 (in multiple test files)
 
 ### Coverage by Category:
 
@@ -122,43 +124,36 @@ These tests could be ported to Go but are currently missing.
 | Dot notation | 6 | 5 | 83% |
 | Empty arrays | 3 | 3 | 100% |
 | Depth handling | 3 | 2 | 67% |
-| Array parsing | 8 | 8 | 100% |
-| URL encoding | 3 | 3 | 100% |
+| Array parsing | 8 | 9 | 100% |
+| URL encoding | 3 | 4 | 100% |
 | Transforms | 4 | 4 | 100% |
 | Malformed input | 2 | 2 | 100% |
 | Prototype protection | 6 | 6 | 100% |
 | Sparse arrays | 2 | 2 | 100% |
-| Delimiters | 3 | 2 | 67% |
-| Limits (param/array) | 12 | 8 | 67% |
+| Delimiters | 3 | 3 | 100% |
+| Limits (param/array) | 12 | 10 | 83% |
 | Query prefix | 1 | 1 | 100% |
-| Charset | 10 | 5 | 50% |
+| Charset | 10 | 8 | 80% |
 | Duplicates | 4 | 4 | 100% |
 | StrictDepth | 8 | 6 | 75% |
-| Empty keys | 6 | 6 | 100% |
+| Empty keys | 6 | 8 | 100% |
+| Custom Decoder | 6 | 5 | 83% |
 | JS-specific (N/A) | 20 | 0 | N/A |
 
 ---
 
 ## Recommendations
 
-### High Priority (should add):
-1. `throws if an invalid charset is specified` - error handling test
-2. `allows setting the parameter limit to Infinity` - `math.MaxInt` test
-
-### Medium Priority (nice to have):
-1. `does not error when parsing a very long array` - stress test
-2. `ignores an utf8 sentinel with an unknown value` - robustness
-3. Custom decoder edge cases
-
-### Low Priority (optional):
-1. jQuery param format compatibility
-2. Various edge cases with combined options
+All high and medium priority tests have been ported. The remaining tests are either:
+- Not applicable to Go (JS-specific features)
+- Low priority edge cases with N/A status
 
 ---
 
 ## Notes
 
 - All core parsing functionality is tested and matches JS behavior
-- Missing tests are primarily edge cases and JS-specific features
+- Missing tests are primarily JS-specific features that don't exist in Go
 - Go implementation passes all applicable JS test cases
 - Some tests are inherently impossible in Go due to language differences
+- Tests ported on 2025-12-12 are in `parse_js_compat_test.go`

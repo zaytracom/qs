@@ -718,10 +718,12 @@ func parseValues(str string, opts *ParseOptions) (orderedResult, error) {
 			if strings.HasPrefix(part, "utf8=") {
 				if part == charsetSentinel {
 					charset = CharsetUTF8
+					skipIndex = i // Only skip if valid sentinel
 				} else if part == isoSentinel {
 					charset = CharsetISO88591
+					skipIndex = i // Only skip if valid sentinel
 				}
-				skipIndex = i
+				// If utf8= has unknown value, don't skip - treat as regular param
 				break
 			}
 		}
@@ -801,14 +803,30 @@ func parseValues(str string, opts *ParseOptions) (orderedResult, error) {
 				return orderedResult{}, err
 			}
 
-			// Decode the value(s)
-			val = MaybeMap(parsedVal, func(v any) any {
-				if s, ok := v.(string); ok {
-					decoded, _ := decoder(s, charset, "value")
-					return decoded
+			// Decode the value(s) with error handling
+			if slice, ok := parsedVal.([]any); ok {
+				decodedSlice := make([]any, len(slice))
+				for i, v := range slice {
+					if s, ok := v.(string); ok {
+						decoded, err := decoder(s, charset, "value")
+						if err != nil {
+							return orderedResult{}, err
+						}
+						decodedSlice[i] = decoded
+					} else {
+						decodedSlice[i] = v
+					}
 				}
-				return v
-			})
+				val = decodedSlice
+			} else if s, ok := parsedVal.(string); ok {
+				decoded, err := decoder(s, charset, "value")
+				if err != nil {
+					return orderedResult{}, err
+				}
+				val = decoded
+			} else {
+				val = parsedVal
+			}
 		}
 
 		// Interpret numeric entities if enabled

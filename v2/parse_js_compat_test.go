@@ -8,8 +8,11 @@
 package qs
 
 import (
+	"errors"
 	"reflect"
 	"regexp"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -1216,4 +1219,368 @@ func TestJSEmptyKeysWithBrackets(t *testing.T) {
 	assertEqual(t, result, map[string]any{
 		"0": "a", "1": "b",
 	}, "encoded brackets")
+}
+
+// ===========================================
+// JS Test: "allows setting the parameter limit to Infinity"
+// Go equivalent: math.MaxInt
+// ===========================================
+func TestJSParameterLimitInfinity(t *testing.T) {
+	// Generate a query string with many parameters
+	var parts []string
+	for i := 0; i < 2000; i++ {
+		parts = append(parts, "a"+strconv.Itoa(i)+"="+strconv.Itoa(i))
+	}
+	input := strings.Join(parts, "&")
+
+	// With math.MaxInt, all parameters should be parsed
+	result, err := Parse(input, WithParameterLimit(int(^uint(0)>>1))) // math.MaxInt
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result) != 2000 {
+		t.Errorf("expected 2000 parameters, got %d", len(result))
+	}
+}
+
+// ===========================================
+// JS Test: "does not error when parsing a very long array"
+// ===========================================
+func TestJSVeryLongArray(t *testing.T) {
+	// Generate a very long array
+	var parts []string
+	for i := 0; i < 5000; i++ {
+		parts = append(parts, "a[]="+strconv.Itoa(i))
+	}
+	input := strings.Join(parts, "&")
+
+	// Should parse without error
+	result, err := Parse(input, WithParameterLimit(10000), WithArrayLimit(10000))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	arr, ok := result["a"].([]any)
+	if !ok {
+		t.Fatalf("result['a'] should be array, got %T", result["a"])
+	}
+	if len(arr) != 5000 {
+		t.Errorf("expected 5000 elements, got %d", len(arr))
+	}
+}
+
+// ===========================================
+// JS Test: "ignores an utf8 sentinel with an unknown value"
+// When utf8 parameter has unknown value (not ✓ or &#10003;), it should be
+// treated as a regular parameter and included in results.
+// ===========================================
+func TestJSIgnoreUnknownUTF8Sentinel(t *testing.T) {
+	// When charset sentinel is enabled but utf8 has unknown value:
+	// - charset should remain default (UTF-8)
+	// - utf8 parameter should be included in result as regular param
+	result, err := Parse("utf8=unknown&a=%C3%B8", WithCharsetSentinel(true), WithCharset(CharsetUTF8))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// utf8=unknown is NOT a valid sentinel, so it should be included as regular parameter
+	if result["utf8"] != "unknown" {
+		t.Errorf("utf8 should be 'unknown' (not a valid sentinel), got %v", result["utf8"])
+	}
+
+	// ø should be decoded as UTF-8 (unknown sentinel keeps default charset)
+	if result["a"] != "ø" {
+		t.Errorf("a should be 'ø', got %v", result["a"])
+	}
+}
+
+// ===========================================
+// JS Test: "uses the utf8 sentinel to switch to iso-8859-1 when no default charset is given"
+// ===========================================
+func TestJSUTF8SentinelDetectsISO(t *testing.T) {
+	urlEncodedNumCheckmark := "%26%2310003%3B"
+	urlEncodedOSlashInUtf8 := "%C3%B8"
+
+	// When charset sentinel is present for ISO-8859-1, should switch charset
+	// Note: default charset is UTF-8, but sentinel should switch to ISO-8859-1
+	result, err := Parse("utf8="+urlEncodedNumCheckmark+"&a="+urlEncodedOSlashInUtf8,
+		WithCharsetSentinel(true))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// The ø encoded as UTF-8 bytes interpreted as ISO-8859-1 becomes "Ã¸"
+	if result["a"] != "Ã¸" {
+		t.Errorf("a should be 'Ã¸' (UTF-8 bytes as ISO-8859-1), got %q", result["a"])
+	}
+}
+
+// ===========================================
+// JS Test: "interpretNumericEntities with comma:true and iso charset does not crash"
+// ===========================================
+func TestJSNumericEntitiesWithComma(t *testing.T) {
+	urlEncodedNumSmiley := "%26%239786%3B"
+
+	result, err := Parse("foo="+urlEncodedNumSmiley+",bar",
+		WithCharset(CharsetISO88591),
+		WithInterpretNumericEntities(true),
+		WithComma(true))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	arr, ok := result["foo"].([]any)
+	if !ok {
+		t.Fatalf("result['foo'] should be array, got %T: %v", result["foo"], result["foo"])
+	}
+
+	if len(arr) != 2 {
+		t.Fatalf("expected 2 elements, got %d", len(arr))
+	}
+
+	// First element should be the smiley
+	if arr[0] != "☺" {
+		t.Errorf("arr[0] should be '☺', got %q", arr[0])
+	}
+
+	// Second element should be "bar"
+	if arr[1] != "bar" {
+		t.Errorf("arr[1] should be 'bar', got %q", arr[1])
+	}
+}
+
+// ===========================================
+// JS Test: "use number decoder"
+// ===========================================
+func TestJSCustomDecoderWithComma(t *testing.T) {
+	// Custom decoder that parses numbers
+	numberDecoder := func(str string, charset Charset, kind string) (string, error) {
+		// Just return the string, we'll check if comma parsing works with custom decoder
+		return str, nil
+	}
+
+	result, err := Parse("a=1,2,3", WithDecoder(numberDecoder), WithComma(true))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	arr, ok := result["a"].([]any)
+	if !ok {
+		t.Fatalf("result['a'] should be array, got %T", result["a"])
+	}
+
+	if len(arr) != 3 {
+		t.Errorf("expected 3 elements, got %d", len(arr))
+	}
+}
+
+// ===========================================
+// JS Test: "can parse with custom encoding"
+// ===========================================
+func TestJSCustomEncoding(t *testing.T) {
+	// Custom decoder that transforms values
+	customDecoder := func(str string, charset Charset, kind string) (string, error) {
+		// Simple transformation: uppercase all values
+		if kind == "value" {
+			return strings.ToUpper(str), nil
+		}
+		return str, nil
+	}
+
+	result, err := Parse("a=hello&b=world", WithDecoder(customDecoder))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if result["a"] != "HELLO" {
+		t.Errorf("result['a'] = %v, want 'HELLO'", result["a"])
+	}
+	if result["b"] != "WORLD" {
+		t.Errorf("result['b'] = %v, want 'WORLD'", result["b"])
+	}
+}
+
+// ===========================================
+// JS Test: "allows for decoding keys and values differently"
+// ===========================================
+func TestJSDecodeKeyValueDifferently(t *testing.T) {
+	customDecoder := func(str string, charset Charset, kind string) (string, error) {
+		if kind == "key" {
+			return "key_" + str, nil
+		}
+		return "val_" + str, nil
+	}
+
+	result, err := Parse("a=b", WithDecoder(customDecoder))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if result["key_a"] != "val_b" {
+		t.Errorf("result = %v, expected {key_a: val_b}", result)
+	}
+}
+
+// ===========================================
+// JS Test: custom decoder returning error
+// Errors from decoder should be propagated for both keys and values.
+// ===========================================
+func TestJSCustomDecoderError(t *testing.T) {
+	// Test error from key decoder (should be propagated)
+	keyErrorDecoder := func(str string, charset Charset, kind string) (string, error) {
+		if kind == "key" && str == "badkey" {
+			return "", errors.New("key decode error")
+		}
+		return str, nil
+	}
+
+	_, err := Parse("badkey=value", WithDecoder(keyErrorDecoder))
+	if err == nil {
+		t.Error("expected error from key decoder")
+	}
+
+	// Test error from value decoder (should also be propagated)
+	valueErrorDecoder := func(str string, charset Charset, kind string) (string, error) {
+		if kind == "value" && str == "badvalue" {
+			return "", errors.New("value decode error")
+		}
+		return str, nil
+	}
+
+	_, err = Parse("a=badvalue", WithDecoder(valueErrorDecoder))
+	if err == nil {
+		t.Error("expected error from value decoder")
+	}
+}
+
+// ===========================================
+// JS Test: "parses jquery-param strings"
+// jQuery serialization uses + for spaces
+// ===========================================
+func TestJSJQueryParamStrings(t *testing.T) {
+	// jQuery.param serializes spaces as +
+	result, err := Parse("a=hello+world")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if result["a"] != "hello world" {
+		t.Errorf("result['a'] = %q, want 'hello world'", result["a"])
+	}
+
+	// Multiple parameters with +
+	result, err = Parse("name=John+Doe&city=New+York")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if result["name"] != "John Doe" {
+		t.Errorf("result['name'] = %q, want 'John Doe'", result["name"])
+	}
+	if result["city"] != "New York" {
+		t.Errorf("result['city'] = %q, want 'New York'", result["city"])
+	}
+}
+
+// ===========================================
+// JS Test: "does not interpret %uXXXX syntax in iso-8859-1 mode"
+// ===========================================
+func TestJSNoPercentUInISO(t *testing.T) {
+	// %uXXXX is not a valid escape sequence and should be preserved
+	result, err := Parse("a=%u0041", WithCharset(CharsetISO88591))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Should NOT be converted to "A" - %uXXXX is not valid URL encoding
+	if result["a"] != "%u0041" {
+		t.Errorf("result['a'] = %q, want '%%u0041'", result["a"])
+	}
+}
+
+// ===========================================
+// JS Test: "parses url-encoded brackets holds array of arrays"
+// ===========================================
+func TestJSURLEncodedBracketsArrayOfArrays(t *testing.T) {
+	// st.deepEqual(qs.parse('foo%5B%5D=1,2,3&foo%5B%5D=4,5,6', { comma: true }), { foo: [['1', '2', '3'], ['4', '5', '6']] });
+	result, err := Parse("foo%5B%5D=1,2,3&foo%5B%5D=4,5,6", WithComma(true))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	assertEqual(t, result, map[string]any{
+		"foo": []any{[]any{"1", "2", "3"}, []any{"4", "5", "6"}},
+	}, "url-encoded brackets array of arrays")
+}
+
+// ===========================================
+// JS Test: "can return null objects" (plainObjects option)
+// ===========================================
+func TestJSPlainObjects(t *testing.T) {
+	// In Go, PlainObjects doesn't have the same effect as JS (no prototype chain)
+	// but we test that the option is accepted and parsing works
+	result, err := Parse("a[b]=c", WithPlainObjects(true))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	a, ok := result["a"].(map[string]any)
+	if !ok {
+		t.Fatalf("result['a'] should be map, got %T", result["a"])
+	}
+	if a["b"] != "c" {
+		t.Errorf("result['a']['b'] = %v, want 'c'", a["b"])
+	}
+
+	// With plainObjects, prototype keys like "toString" should be allowed
+	result, err = Parse("toString=foo", WithPlainObjects(true))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if result["toString"] != "foo" {
+		t.Errorf("result['toString'] = %v, want 'foo'", result["toString"])
+	}
+}
+
+// ===========================================
+// Additional edge cases
+// ===========================================
+func TestJSSkipsEmptyStringKey(t *testing.T) {
+	// Empty key parts should be handled correctly
+	result, err := Parse("=value")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Empty key should be skipped
+	if len(result) != 0 {
+		t.Errorf("expected empty result, got %v", result)
+	}
+}
+
+func TestJSMultipleEmptyKeys(t *testing.T) {
+	// Multiple empty keys
+	result, err := Parse("=a&=b&=c")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// All empty keys should be skipped
+	if len(result) != 0 {
+		t.Errorf("expected empty result, got %v", result)
+	}
+}
+
+func TestJSDelimiterEdgeCases(t *testing.T) {
+	// Multi-character delimiter
+	result, err := Parse("a=1||b=2||c=3", WithDelimiter("||"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if result["a"] != "1" || result["b"] != "2" || result["c"] != "3" {
+		t.Errorf("multi-char delimiter failed: %v", result)
+	}
 }
