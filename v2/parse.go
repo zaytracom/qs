@@ -934,6 +934,9 @@ func Parse(str string, opts ...ParseOption) (map[string]any, error) {
 		if m, ok := compacted.(map[string]any); ok {
 			return m, nil
 		}
+	} else {
+		// Even with AllowSparse, we need to convert ExplicitNullValue markers to nil
+		convertExplicitNulls(result)
 	}
 
 	return result, nil

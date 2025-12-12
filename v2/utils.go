@@ -457,6 +457,29 @@ func compactMap(m map[string]any) {
 	}
 }
 
+// convertExplicitNulls recursively converts ExplicitNullValue markers to nil in-place.
+// This is used when AllowSparse is true to convert null markers without removing sparse slots.
+func convertExplicitNulls(v any) {
+	switch val := v.(type) {
+	case map[string]any:
+		for k, v := range val {
+			if IsExplicitNull(v) {
+				val[k] = nil
+			} else {
+				convertExplicitNulls(v)
+			}
+		}
+	case []any:
+		for i, v := range val {
+			if IsExplicitNull(v) {
+				val[i] = nil
+			} else {
+				convertExplicitNulls(v)
+			}
+		}
+	}
+}
+
 // Combine concatenates two values into a slice.
 // If either value is already a slice, its elements are flattened into the result.
 func Combine(a, b any) []any {
