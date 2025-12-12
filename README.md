@@ -385,6 +385,8 @@ cd demo && npm ci && go test ./...
 
 ## 🤝 Contributing
 
+Please review `CODE_OF_CONDUCT.md` before participating.
+
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
 3. Commit your changes (`git commit -m 'Add some amazing feature'`)
