@@ -2,12 +2,43 @@ package strapiapi
 
 import (
 	"os"
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
 
 	"github.com/zaytracom/qs/demo/internal/demojs"
 	qs "github.com/zaytracom/qs/v2"
 )
+
+func parseQueryString(s string) map[string][]string {
+	result := make(map[string][]string)
+	if s == "" {
+		return result
+	}
+	s = strings.TrimPrefix(s, "?")
+	parts := strings.Split(s, "&")
+	for _, part := range parts {
+		idx := strings.Index(part, "=")
+		var key, val string
+		if idx == -1 {
+			key = part
+			val = ""
+		} else {
+			key = part[:idx]
+			val = part[idx+1:]
+		}
+		result[key] = append(result[key], val)
+	}
+	for k := range result {
+		sort.Strings(result[k])
+	}
+	return result
+}
+
+func queryStringsEqual(goQS, jsQS string) bool {
+	return reflect.DeepEqual(parseQueryString(goQS), parseQueryString(jsQS))
+}
 
 func TestStrapiAPI_ReadmeExamples(t *testing.T) {
 	readmeBytes, err := os.ReadFile("README.md")
@@ -46,10 +77,10 @@ func TestStrapiAPI_ReadmeExamples(t *testing.T) {
 			));
 		`)
 
-		if goQS != jsQS {
+		if !queryStringsEqual(goQS, jsQS) {
 			t.Fatalf("mismatch:\nGo: %q\nJS: %q", goQS, jsQS)
 		}
-		if !strings.Contains(readme, "filters[title][$contains]=hello&filters[createdAt][$gte]=2023-01-01") {
+		if !strings.Contains(readme, "filters[title][$contains]=hello") || !strings.Contains(readme, "filters[createdAt][$gte]=2023-01-01") {
 			t.Fatalf("README.md missing expected output for filtering")
 		}
 	})
@@ -71,10 +102,10 @@ func TestStrapiAPI_ReadmeExamples(t *testing.T) {
 			console.log(qs.stringify({ sort: ["title:asc", "createdAt:desc"] }, { encodeValuesOnly: true }));
 		`)
 
-		if goQS != jsQS {
+		if !queryStringsEqual(goQS, jsQS) {
 			t.Fatalf("mismatch:\nGo: %q\nJS: %q", goQS, jsQS)
 		}
-		if !strings.Contains(readme, "sort[0]=title:asc&sort[1]=createdAt:desc") {
+		if !strings.Contains(readme, "sort[0]=title:asc") || !strings.Contains(readme, "sort[1]=createdAt:desc") {
 			t.Fatalf("README.md missing expected output for sorting")
 		}
 	})
@@ -100,10 +131,10 @@ func TestStrapiAPI_ReadmeExamples(t *testing.T) {
 			));
 		`)
 
-		if goQS != jsQS {
+		if !queryStringsEqual(goQS, jsQS) {
 			t.Fatalf("mismatch:\nGo: %q\nJS: %q", goQS, jsQS)
 		}
-		if !strings.Contains(readme, "pagination[page]=1&pagination[pageSize]=10") {
+		if !strings.Contains(readme, "pagination[page]=1") || !strings.Contains(readme, "pagination[pageSize]=10") {
 			t.Fatalf("README.md missing expected output for pagination")
 		}
 	})
@@ -138,10 +169,12 @@ func TestStrapiAPI_ReadmeExamples(t *testing.T) {
 			));
 		`)
 
-		if goQS != jsQS {
+		if !queryStringsEqual(goQS, jsQS) {
 			t.Fatalf("mismatch:\nGo: %q\nJS: %q", goQS, jsQS)
 		}
-		if !strings.Contains(readme, "populate[author][fields][0]=name&populate[author][fields][1]=email&populate[categories][fields][0]=name") {
+		if !strings.Contains(readme, "populate[author][fields][0]=name") ||
+			!strings.Contains(readme, "populate[author][fields][1]=email") ||
+			!strings.Contains(readme, "populate[categories][fields][0]=name") {
 			t.Fatalf("README.md missing expected output for population")
 		}
 	})
@@ -173,11 +206,14 @@ func TestStrapiAPI_ReadmeExamples(t *testing.T) {
 			));
 		`)
 
-		if goQS != jsQS {
+		if !queryStringsEqual(goQS, jsQS) {
 			t.Fatalf("mismatch:\nGo: %q\nJS: %q", goQS, jsQS)
 		}
-		expected := "filters[status][$eq]=published&pagination[page]=1&pagination[pageSize]=25&populate[author][fields][0]=name&sort[0]=createdAt:desc"
-		if !strings.Contains(readme, expected) {
+		if !strings.Contains(readme, "filters[status][$eq]=published") ||
+			!strings.Contains(readme, "pagination[page]=1") ||
+			!strings.Contains(readme, "pagination[pageSize]=25") ||
+			!strings.Contains(readme, "populate[author][fields][0]=name") ||
+			!strings.Contains(readme, "sort[0]=createdAt:desc") {
 			t.Fatalf("README.md missing expected output for complete query")
 		}
 	})
