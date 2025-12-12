@@ -1,11 +1,12 @@
 # QS — Query String library for Go (v2-beta)
 
 [![Go Reference (v2)](https://pkg.go.dev/badge/github.com/zaytracom/qs/v2.svg)](https://pkg.go.dev/github.com/zaytracom/qs/v2)
-[![Go Reference (v1)](https://pkg.go.dev/badge/github.com/zaytracom/qs/v1.svg)](https://pkg.go.dev/github.com/zaytracom/qs/v1)
-[![Go Report Card](https://goreportcard.com/badge/github.com/zaytracom/qs)](https://goreportcard.com/report/github.com/zaytracom/qs)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![GitHub release](https://img.shields.io/github/release/zaytracom/qs.svg)](https://github.com/zaytracom/qs/releases)
 [![CI](https://github.com/zaytracom/qs/actions/workflows/ci.yml/badge.svg)](https://github.com/zaytracom/qs/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/zaytracom/qs/v2)](https://goreportcard.com/report/github.com/zaytracom/qs/v2)
+[![codecov](https://codecov.io/gh/zaytracom/qs/branch/main/graph/badge.svg)](https://codecov.io/gh/zaytracom/qs)
+[![GitHub release](https://img.shields.io/github/v/release/zaytracom/qs?include_prereleases)](https://github.com/zaytracom/qs/releases)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go&logoColor=white)](https://github.com/zaytracom/qs)
 
 **QS v2-beta** is a production-ready Go port of the popular JavaScript [`qs`](https://github.com/ljharb/qs) library for parsing and stringifying URL query strings (nested objects, arrays, and all the tricky edge cases).
 
