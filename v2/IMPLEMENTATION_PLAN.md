@@ -183,7 +183,7 @@ This document outlines the complete implementation plan for porting the JavaScri
 
 ### Phase 3: Stringify Implementation
 
-- [ ] **3.1 Stringify Options (stringify.go)**
+- [x] **3.1 Stringify Options (stringify.go)** ✅ DONE
   ```go
   type StringifyOptions struct {
       AddQueryPrefix     bool
@@ -207,68 +207,76 @@ This document outlines the complete implementation plan for porting the JavaScri
       StrictNullHandling bool
   }
   ```
-  - **Tests**: Same as parse options tests
+  - [x] `ArrayFormat` type with constants (indices, brackets, repeat, comma)
+  - [x] `EncoderFunc`, `FilterFunc`, `SortFunc`, `SerializeDateFunc` types
+  - [x] `DefaultStringifyOptions()` function
+  - [x] `normalizeStringifyOptions()` validation
+  - [x] `With*()` builder methods for fluent API
+  - **Tests**: ✅ All passing (stringify_test.go)
+    - Default options are correct
+    - Custom options override defaults
+    - Invalid option values return errors
 
-- [ ] **3.2 Core Stringify Function**
-  - [ ] `Stringify(obj any, opts ...StringifyOptions) (string, error)`
-  - [ ] Handle nil/empty input → `""`
-  - [ ] Handle primitive values
-  - [ ] Add query prefix when requested
-  - [ ] Join with delimiter
-  - [ ] Add charset sentinel when requested
-  - **Tests**:
+- [x] **3.2 Core Stringify Function** ✅ DONE
+  - [x] `Stringify(obj any, opts ...StringifyOptions) (string, error)`
+  - [x] Handle nil/empty input → `""`
+  - [x] Handle primitive values
+  - [x] Add query prefix when requested
+  - [x] Join with delimiter
+  - [x] Add charset sentinel when requested
+  - **Tests**: ✅ All passing
     - Simple object: `{a: "b"}` → `a=b`
     - Multiple keys: `{a: "b", c: "d"}` → `a=b&c=d`
     - Query prefix: `?a=b`
     - Empty object: `{}` → `""`
 
-- [ ] **3.3 Nested Object Stringify**
-  - [ ] Bracket notation: `{a: {b: "c"}}` → `a[b]=c`
-  - [ ] Dot notation: `{a: {b: "c"}}` → `a.b=c` (with AllowDots)
-  - [ ] EncodeDotInKeys: `{a.b: "c"}` → `a%2Eb=c`
-  - [ ] Deep nesting support
-  - **Tests**:
+- [x] **3.3 Nested Object Stringify** ✅ DONE
+  - [x] Bracket notation: `{a: {b: "c"}}` → `a[b]=c`
+  - [x] Dot notation: `{a: {b: "c"}}` → `a.b=c` (with AllowDots)
+  - [x] EncodeDotInKeys: `{a.b: "c"}` → `a%2Eb=c`
+  - [x] Deep nesting support
+  - **Tests**: ✅ All passing
     - Nested object: `{a: {b: "c"}}` → `a%5Bb%5D=c`
     - Dot notation: `{a: {b: "c"}}` → `a.b=c`
     - EncodeDotInKeys with nested keys
     - Very deep objects
 
-- [ ] **3.4 Array Stringify**
-  - [ ] Indices format: `a[0]=b&a[1]=c`
-  - [ ] Brackets format: `a[]=b&a[]=c`
-  - [ ] Repeat format: `a=b&a=c`
-  - [ ] Comma format: `a=b,c`
-  - [ ] `CommaRoundTrip` for single-element arrays
-  - [ ] `AllowEmptyArrays` option
-  - [ ] Sparse array handling
-  - **Tests**:
+- [x] **3.4 Array Stringify** ✅ DONE
+  - [x] Indices format: `a[0]=b&a[1]=c`
+  - [x] Brackets format: `a[]=b&a[]=c`
+  - [x] Repeat format: `a=b&a=c`
+  - [x] Comma format: `a=b,c`
+  - [x] `CommaRoundTrip` for single-element arrays
+  - [x] `AllowEmptyArrays` option
+  - [x] Sparse array handling
+  - **Tests**: ✅ All passing
     - All array formats
     - Empty arrays with/without AllowEmptyArrays
     - Single element with CommaRoundTrip
     - Arrays of objects
     - Nested arrays
 
-- [ ] **3.5 Encoding Features**
-  - [ ] URL encoding with RFC1738/RFC3986
-  - [ ] `EncodeValuesOnly` option
-  - [ ] Custom encoder function
-  - [ ] ISO-8859-1 charset support
-  - [ ] Numeric entity encoding for non-representable chars
-  - **Tests**:
+- [x] **3.5 Encoding Features** ✅ DONE
+  - [x] URL encoding with RFC1738/RFC3986
+  - [x] `EncodeValuesOnly` option
+  - [x] Custom encoder function
+  - [x] ISO-8859-1 charset support
+  - [x] Numeric entity encoding for non-representable chars
+  - **Tests**: ✅ All passing
     - Space encoding: `%20` vs `+`
     - Special characters
     - EncodeValuesOnly: keys not encoded
     - Custom encoder function
     - ISO-8859-1 characters
 
-- [ ] **3.6 Special Features**
-  - [ ] Filter function/array
-  - [ ] Sort function
-  - [ ] SerializeDate function
-  - [ ] SkipNulls option
-  - [ ] StrictNullHandling
-  - [ ] Cyclic reference detection
-  - **Tests**:
+- [x] **3.6 Special Features** ✅ DONE
+  - [x] Filter function/array
+  - [x] Sort function
+  - [x] SerializeDate function
+  - [x] SkipNulls option
+  - [x] StrictNullHandling
+  - [x] Cyclic reference detection
+  - **Tests**: ✅ All passing
     - Filter with array of keys
     - Filter with function
     - Sort keys
