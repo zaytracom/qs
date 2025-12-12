@@ -2730,3 +2730,33 @@ func TestJSStringifyNonStringKeys(t *testing.T) {
 		t.Errorf("expected 'a=b&1e%%2B22=c&d=e', got %q", result)
 	}
 }
+
+// TestSortArrayIndices tests that array indices are sorted as strings when SortArrayIndices is true
+func TestSortArrayIndices(t *testing.T) {
+	sortAsc := func(a, b string) bool { return a < b }
+
+	// 12 element array - with string sort: 0, 1, 10, 11, 2, 3, 4, 5, 6, 7, 8, 9
+	input := map[string]any{
+		"arr": []any{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l"},
+	}
+
+	// Without SortArrayIndices - numeric order
+	resultNumeric, err := Stringify(input, WithEncode(false), WithSort(sortAsc))
+	if err != nil {
+		t.Fatalf("Stringify failed: %v", err)
+	}
+	expectedNumeric := "arr[0]=a&arr[1]=b&arr[2]=c&arr[3]=d&arr[4]=e&arr[5]=f&arr[6]=g&arr[7]=h&arr[8]=i&arr[9]=j&arr[10]=k&arr[11]=l"
+	if resultNumeric != expectedNumeric {
+		t.Errorf("Without SortArrayIndices:\nGot:      %s\nExpected: %s", resultNumeric, expectedNumeric)
+	}
+
+	// With SortArrayIndices - string sort order (0, 1, 10, 11, 2, 3, ...)
+	resultString, err := Stringify(input, WithEncode(false), WithSort(sortAsc), WithSortArrayIndices(true))
+	if err != nil {
+		t.Fatalf("Stringify failed: %v", err)
+	}
+	expectedString := "arr[0]=a&arr[1]=b&arr[10]=k&arr[11]=l&arr[2]=c&arr[3]=d&arr[4]=e&arr[5]=f&arr[6]=g&arr[7]=h&arr[8]=i&arr[9]=j"
+	if resultString != expectedString {
+		t.Errorf("With SortArrayIndices:\nGot:      %s\nExpected: %s", resultString, expectedString)
+	}
+}

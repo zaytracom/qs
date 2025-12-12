@@ -131,6 +131,12 @@ type StringifyOptions struct {
 	// Default: nil (no sorting)
 	Sort SortFunc
 
+	// SortArrayIndices when true, sorts array indices as strings along with object keys.
+	// This is needed for compatibility with JS qs library which sorts all keys including
+	// array indices when sort option is provided (e.g., "0", "1", "10", "2" order).
+	// Default: false (arrays preserve natural numeric order)
+	SortArrayIndices bool
+
 	// StrictNullHandling serializes null values without = sign.
 	// e.g., {a: null} → "a" instead of "a="
 	// Default: false
@@ -386,6 +392,16 @@ func WithSort(v SortFunc) StringifyOption {
 	}
 }
 
+// WithSortArrayIndices enables sorting array indices as strings.
+// When true, array indices are sorted lexicographically like object keys,
+// producing output like "a[0], a[1], a[10], a[2]" instead of "a[0], a[1], a[2], a[10]".
+// This is needed for compatibility with JS qs library's sort behavior.
+func WithSortArrayIndices(v bool) StringifyOption {
+	return func(o *StringifyOptions) {
+		o.SortArrayIndices = v
+	}
+}
+
 // WithStringifyStrictNullHandling serializes null values without = sign.
 func WithStringifyStrictNullHandling(v bool) StringifyOption {
 	return func(o *StringifyOptions) {
@@ -505,6 +521,7 @@ func stringify(
 	encoder func(string, Charset, string, Format) string,
 	filter any,
 	sort SortFunc,
+	sortArrayIndices bool,
 	allowDots bool,
 	serializeDate SerializeDateFunc,
 	format Format,
@@ -657,9 +674,24 @@ func stringify(
 				objKeys[i] = k
 			}
 		case []any:
-			objKeys = make([]any, len(v))
-			for i := range v {
-				objKeys[i] = i
+			if sortArrayIndices && sort != nil {
+				// Convert indices to strings and sort them lexicographically
+				// This matches JS qs behavior where sort applies to all keys including array indices
+				keys := make([]string, len(v))
+				for i := range v {
+					keys[i] = strconv.Itoa(i)
+				}
+				sortStrings(keys, sort)
+				objKeys = make([]any, len(keys))
+				for i, k := range keys {
+					objKeys[i] = k // Keep as string for sorted order
+				}
+			} else {
+				// Normal numeric order
+				objKeys = make([]any, len(v))
+				for i := range v {
+					objKeys[i] = i
+				}
 			}
 		}
 	}
@@ -783,6 +815,7 @@ func stringify(
 			childEncoder,
 			filter,
 			sort,
+			sortArrayIndices,
 			allowDots,
 			serializeDate,
 			format,
@@ -902,6 +935,7 @@ func Stringify(obj any, opts ...StringifyOption) (string, error) {
 			encoder,
 			filter,
 			normalizedOpts.Sort,
+			normalizedOpts.SortArrayIndices,
 			normalizedOpts.AllowDots,
 			normalizedOpts.SerializeDate,
 			normalizedOpts.Format,

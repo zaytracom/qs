@@ -48,6 +48,10 @@ func stringify(this js.Value, args []js.Value) any {
 	var opts []qs.StringifyOption
 	if len(args) > 1 && !args[1].IsUndefined() && !args[1].IsNull() {
 		opts = stringifyOptionsFromJS(args[1])
+	} else {
+		// Default to alphabetical sort for deterministic output
+		// This is needed because Go maps don't preserve insertion order like JS objects
+		opts = []qs.StringifyOption{qs.WithSort(func(a, b string) bool { return a < b })}
 	}
 
 	result, err := qs.Stringify(obj, opts...)
@@ -103,6 +107,23 @@ func parseOptionsFromJS(jsOpts js.Value) []qs.ParseOption {
 func stringifyOptionsFromJS(jsOpts js.Value) []qs.StringifyOption {
 	var opts []qs.StringifyOption
 
+	// Check if sort option is explicitly set
+	sortSet := false
+	if v := jsOpts.Get("sort"); !v.IsUndefined() {
+		sortSet = true
+		if v.Bool() {
+			// sort: true means alphabetical sort
+			opts = append(opts, qs.WithSort(func(a, b string) bool { return a < b }))
+		}
+		// sort: false means no sort (default Go map iteration order)
+	}
+
+	// If sort is not explicitly set, default to alphabetical sort for deterministic output
+	// This is needed because Go maps don't preserve insertion order like JS objects
+	if !sortSet {
+		opts = append(opts, qs.WithSort(func(a, b string) bool { return a < b }))
+	}
+
 	if v := jsOpts.Get("addQueryPrefix"); !v.IsUndefined() {
 		opts = append(opts, qs.WithStringifyAddQueryPrefix(v.Bool()))
 	}
@@ -138,6 +159,9 @@ func stringifyOptionsFromJS(jsOpts js.Value) []qs.StringifyOption {
 	}
 	if v := jsOpts.Get("delimiter"); !v.IsUndefined() {
 		opts = append(opts, qs.WithStringifyDelimiter(v.String()))
+	}
+	if v := jsOpts.Get("sortArrayIndices"); !v.IsUndefined() {
+		opts = append(opts, qs.WithSortArrayIndices(v.Bool()))
 	}
 
 	return opts

@@ -23,6 +23,8 @@
     "build": "npm run build:wasm && npm run build:js",
     "test": "node test/test.mjs",
     "test:compat": "node test/jscompat.test.mjs",
+    "test:stress": "node test/stress.test.mjs",
+    "test:all": "npm run test && npm run test:compat && npm run test:stress",
     "prepublishOnly": "npm run build"
   },
   "devDependencies": {
