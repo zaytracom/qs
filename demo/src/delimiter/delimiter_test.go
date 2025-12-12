@@ -24,8 +24,8 @@ func TestDelimiter_ReadmeExamples(t *testing.T) {
 		goQS, err := qs.Stringify(
 			map[string]any{"a": "1", "b": "2"},
 			qs.WithStringifyDelimiter(";"),
-			qs.WithEncode(false),
-			qs.WithSort(func(a, b string) bool { return a < b }),
+			qs.WithStringifyEncode(false),
+			qs.WithStringifySort(func(a, b string) bool { return a < b }),
 		)
 		if err != nil {
 			t.Fatalf("go stringify: %v", err)
@@ -48,7 +48,7 @@ func TestDelimiter_ReadmeExamples(t *testing.T) {
 		if !strings.Contains(readme, `qs.parse("a=1;b=2", { delimiter: ";" })`) {
 			t.Fatalf("README.md missing JS example for delimiter parse")
 		}
-		goParsed, err := qs.Parse("a=1;b=2", qs.WithDelimiter(";"))
+		goParsed, err := qs.Parse("a=1;b=2", qs.WithParseDelimiter(";"))
 		if err != nil {
 			t.Fatalf("go parse: %v", err)
 		}

@@ -51,7 +51,7 @@ func stringify(this js.Value, args []js.Value) any {
 	} else {
 		// Default to alphabetical sort for deterministic output
 		// This is needed because Go maps don't preserve insertion order like JS objects
-		opts = []qs.StringifyOption{qs.WithSort(func(a, b string) bool { return a < b })}
+		opts = []qs.StringifyOption{qs.WithStringifySort(func(a, b string) bool { return a < b })}
 	}
 
 	result, err := qs.Stringify(obj, opts...)
@@ -67,37 +67,37 @@ func parseOptionsFromJS(jsOpts js.Value) []qs.ParseOption {
 	var opts []qs.ParseOption
 
 	if v := jsOpts.Get("allowDots"); !v.IsUndefined() {
-		opts = append(opts, qs.WithAllowDots(v.Bool()))
+		opts = append(opts, qs.WithParseAllowDots(v.Bool()))
 	}
 	if v := jsOpts.Get("allowEmptyArrays"); !v.IsUndefined() {
-		opts = append(opts, qs.WithAllowEmptyArrays(v.Bool()))
+		opts = append(opts, qs.WithParseAllowEmptyArrays(v.Bool()))
 	}
 	if v := jsOpts.Get("allowSparse"); !v.IsUndefined() {
-		opts = append(opts, qs.WithAllowSparse(v.Bool()))
+		opts = append(opts, qs.WithParseAllowSparse(v.Bool()))
 	}
 	if v := jsOpts.Get("arrayLimit"); !v.IsUndefined() {
-		opts = append(opts, qs.WithArrayLimit(v.Int()))
+		opts = append(opts, qs.WithParseArrayLimit(v.Int()))
 	}
 	if v := jsOpts.Get("comma"); !v.IsUndefined() {
-		opts = append(opts, qs.WithComma(v.Bool()))
+		opts = append(opts, qs.WithParseComma(v.Bool()))
 	}
 	if v := jsOpts.Get("depth"); !v.IsUndefined() {
-		opts = append(opts, qs.WithDepth(v.Int()))
+		opts = append(opts, qs.WithParseDepth(v.Int()))
 	}
 	if v := jsOpts.Get("ignoreQueryPrefix"); !v.IsUndefined() {
-		opts = append(opts, qs.WithIgnoreQueryPrefix(v.Bool()))
+		opts = append(opts, qs.WithParseIgnoreQueryPrefix(v.Bool()))
 	}
 	if v := jsOpts.Get("parameterLimit"); !v.IsUndefined() {
-		opts = append(opts, qs.WithParameterLimit(v.Int()))
+		opts = append(opts, qs.WithParseParameterLimit(v.Int()))
 	}
 	if v := jsOpts.Get("parseArrays"); !v.IsUndefined() {
 		opts = append(opts, qs.WithParseArrays(v.Bool()))
 	}
 	if v := jsOpts.Get("strictNullHandling"); !v.IsUndefined() {
-		opts = append(opts, qs.WithStrictNullHandling(v.Bool()))
+		opts = append(opts, qs.WithParseStrictNullHandling(v.Bool()))
 	}
 	if v := jsOpts.Get("delimiter"); !v.IsUndefined() {
-		opts = append(opts, qs.WithDelimiter(v.String()))
+		opts = append(opts, qs.WithParseDelimiter(v.String()))
 	}
 
 	return opts
@@ -113,7 +113,7 @@ func stringifyOptionsFromJS(jsOpts js.Value) []qs.StringifyOption {
 		sortSet = true
 		if v.Bool() {
 			// sort: true means alphabetical sort
-			opts = append(opts, qs.WithSort(func(a, b string) bool { return a < b }))
+			opts = append(opts, qs.WithStringifySort(func(a, b string) bool { return a < b }))
 		}
 		// sort: false means no sort (default Go map iteration order)
 	}
@@ -121,7 +121,7 @@ func stringifyOptionsFromJS(jsOpts js.Value) []qs.StringifyOption {
 	// If sort is not explicitly set, default to alphabetical sort for deterministic output
 	// This is needed because Go maps don't preserve insertion order like JS objects
 	if !sortSet {
-		opts = append(opts, qs.WithSort(func(a, b string) bool { return a < b }))
+		opts = append(opts, qs.WithStringifySort(func(a, b string) bool { return a < b }))
 	}
 
 	if v := jsOpts.Get("addQueryPrefix"); !v.IsUndefined() {
@@ -136,23 +136,23 @@ func stringifyOptionsFromJS(jsOpts js.Value) []qs.StringifyOption {
 	if v := jsOpts.Get("arrayFormat"); !v.IsUndefined() {
 		switch v.String() {
 		case "indices":
-			opts = append(opts, qs.WithArrayFormat(qs.ArrayFormatIndices))
+			opts = append(opts, qs.WithStringifyArrayFormat(qs.ArrayFormatIndices))
 		case "brackets":
-			opts = append(opts, qs.WithArrayFormat(qs.ArrayFormatBrackets))
+			opts = append(opts, qs.WithStringifyArrayFormat(qs.ArrayFormatBrackets))
 		case "repeat":
-			opts = append(opts, qs.WithArrayFormat(qs.ArrayFormatRepeat))
+			opts = append(opts, qs.WithStringifyArrayFormat(qs.ArrayFormatRepeat))
 		case "comma":
-			opts = append(opts, qs.WithArrayFormat(qs.ArrayFormatComma))
+			opts = append(opts, qs.WithStringifyArrayFormat(qs.ArrayFormatComma))
 		}
 	}
 	if v := jsOpts.Get("encode"); !v.IsUndefined() {
-		opts = append(opts, qs.WithEncode(v.Bool()))
+		opts = append(opts, qs.WithStringifyEncode(v.Bool()))
 	}
 	if v := jsOpts.Get("encodeValuesOnly"); !v.IsUndefined() {
-		opts = append(opts, qs.WithEncodeValuesOnly(v.Bool()))
+		opts = append(opts, qs.WithStringifyEncodeValuesOnly(v.Bool()))
 	}
 	if v := jsOpts.Get("skipNulls"); !v.IsUndefined() {
-		opts = append(opts, qs.WithSkipNulls(v.Bool()))
+		opts = append(opts, qs.WithStringifySkipNulls(v.Bool()))
 	}
 	if v := jsOpts.Get("strictNullHandling"); !v.IsUndefined() {
 		opts = append(opts, qs.WithStringifyStrictNullHandling(v.Bool()))
@@ -161,7 +161,7 @@ func stringifyOptionsFromJS(jsOpts js.Value) []qs.StringifyOption {
 		opts = append(opts, qs.WithStringifyDelimiter(v.String()))
 	}
 	if v := jsOpts.Get("sortArrayIndices"); !v.IsUndefined() {
-		opts = append(opts, qs.WithSortArrayIndices(v.Bool()))
+		opts = append(opts, qs.WithStringifySortArrayIndices(v.Bool()))
 	}
 
 	return opts

@@ -36,7 +36,7 @@ func TestSortArrayIndices_ReadmeExamples(t *testing.T) {
 	})
 
 	t.Run("Go with Sort (default - numeric order)", func(t *testing.T) {
-		goQS, err := qs.Stringify(input, qs.WithEncode(false), qs.WithSort(sortAsc))
+		goQS, err := qs.Stringify(input, qs.WithStringifyEncode(false), qs.WithStringifySort(sortAsc))
 		if err != nil {
 			t.Fatalf("go stringify: %v", err)
 		}
@@ -50,7 +50,7 @@ func TestSortArrayIndices_ReadmeExamples(t *testing.T) {
 	})
 
 	t.Run("Go with Sort and SortArrayIndices (matches JS)", func(t *testing.T) {
-		goQS, err := qs.Stringify(input, qs.WithEncode(false), qs.WithSort(sortAsc), qs.WithSortArrayIndices(true))
+		goQS, err := qs.Stringify(input, qs.WithStringifyEncode(false), qs.WithStringifySort(sortAsc), qs.WithStringifySortArrayIndices(true))
 		if err != nil {
 			t.Fatalf("go stringify: %v", err)
 		}

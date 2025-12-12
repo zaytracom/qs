@@ -39,7 +39,7 @@ func TestIgnoreQueryPrefix_ReadmeExamples(t *testing.T) {
 		if !strings.Contains(readme, `ignoreQueryPrefix: true`) {
 			t.Fatalf("README.md missing JS example for ignoreQueryPrefix")
 		}
-		goParsed, err := qs.Parse("?a=b&c=d", qs.WithIgnoreQueryPrefix(true))
+		goParsed, err := qs.Parse("?a=b&c=d", qs.WithParseIgnoreQueryPrefix(true))
 		if err != nil {
 			t.Fatalf("go parse: %v", err)
 		}

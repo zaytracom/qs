@@ -42,9 +42,9 @@ func TestStructTags_ReadmeExamples(t *testing.T) {
 		goQS, err := qs.Marshal(
 			in,
 			qs.WithStringifyAllowDots(true),
-			qs.WithArrayFormat(qs.ArrayFormatBrackets),
-			qs.WithEncode(false),
-			qs.WithSort(func(a, b string) bool { return a < b }),
+			qs.WithStringifyArrayFormat(qs.ArrayFormatBrackets),
+			qs.WithStringifyEncode(false),
+			qs.WithStringifySort(func(a, b string) bool { return a < b }),
 		)
 		if err != nil {
 			t.Fatalf("go marshal: %v", err)
@@ -75,7 +75,7 @@ func TestStructTags_ReadmeExamples(t *testing.T) {
 
 	t.Run("unmarshal parity with JS parse", func(t *testing.T) {
 		var out Query
-		if err := qs.Unmarshal(queryString, &out, qs.WithAllowDots(true)); err != nil {
+		if err := qs.Unmarshal(queryString, &out, qs.WithParseAllowDots(true)); err != nil {
 			t.Fatalf("go unmarshal: %v", err)
 		}
 		if out.Filters.Status != "published" || out.Page != 2 || len(out.Filters.Tags) != 2 || out.Filters.Tags[0] != "go" || out.Filters.Tags[1] != "qs" {
