@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2025-12-12
+
+### 💥 Breaking Changes
+
+- New import path: `github.com/zaytracom/qs/v2` (v1 remains available at `github.com/zaytracom/qs/v1`)
+- `Parse` / `Stringify` options switched from `*Options` structs to functional options (`...ParseOption`, `...StringifyOption`)
+- Options are now strongly typed in key places (e.g. `Charset`, `Format`, `ArrayFormat`) instead of plain strings
+
+### ✨ Added
+
+- RFC encoding formats via `FormatRFC3986` (default) and `FormatRFC1738` (space as `+`) with pluggable formatters
+- Charset-aware encoding/decoding with `CharsetUTF8` and `CharsetISO88591`
+- Stringify support for:
+  - `arrayFormat=comma` (`ArrayFormatComma`)
+  - cyclic reference detection (`ErrCyclicReference`)
+  - filtering (`FilterFunc` or whitelist `[]string`) and custom key sorting (`SortFunc`)
+- Parse support for regexp delimiters (`DelimiterRegexp`) and JS-accurate split limit behavior
+- Explicit null sentinel (`ExplicitNullValue`) to preserve strict nulls while still compacting sparse arrays
+
+### 🛠️ Changed
+
+- Defaults are now exposed via `DefaultParseOptions()` / `DefaultStringifyOptions()` and validated/normalized consistently
+- Errors are surfaced as exported vars (e.g. `ErrParameterLimitExceeded`, `ErrArrayLimitExceeded`, `ErrDepthLimitExceeded`) for easier checking
+
 ## [1.0.0] - 2024-12-06
 
 ### 🎉 Initial Release
