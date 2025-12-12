@@ -19,7 +19,7 @@ Go port of the popular JavaScript [`qs`](https://github.com/ljharb/qs) library �
 - ⚙️ Depth control and charset support (UTF-8/ISO-8859-1)
 - 📋 RFC 1738/3986 encoding formats
 
-## 📦 Installation
+## Installation
 
 ```bash
 go get github.com/zaytracom/qs/v2
@@ -79,7 +79,7 @@ qs.Unmarshal("page=2&limit=20&tags[0]=rust", &parsed)
 // Request{Page: 2, Limit: 20, Tags: []string{"rust"}}
 ```
 
-## 📋 Comparison with Other Libraries
+## Comparison with Other Libraries
 
 | Feature | zaytra | [gorilla](https://github.com/gorilla/schema) | [go-playground](https://github.com/go-playground/form) | [ajg](https://github.com/ajg/form) | [google](https://github.com/google/go-querystring) |
 |---------|:------:|:------:|:------:|:------:|:------:|
@@ -94,7 +94,7 @@ qs.Unmarshal("page=2&limit=20&tags[0]=rust", &parsed)
 
 **Array Formats:** `indices` (`a[0]=x`), `brackets` (`a[]=x`), `repeat` (`a=x&a=y`), `comma` (`a=x,y`)
 
-## 📊 Performance
+## Performance
 
 ### Stringify (struct → query string) — lower is better
 
@@ -116,11 +116,11 @@ zaytra is **3-26x faster** than alternatives for encoding.
 | Array struct | 17 μs | — | — | 834 ns | — |
 | Dynamic map | 90 μs | — | — | — | — |
 
-## 📚 Documentation
+## Documentation
 
 - [Go Reference (v2)](https://pkg.go.dev/github.com/zaytracom/qs/v2)
 - [GitHub Issues](https://github.com/zaytracom/qs/issues)
 
-## 📄 License
+## License
 
 Apache 2.0 — see [LICENSE](LICENSE)
