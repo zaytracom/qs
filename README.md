@@ -96,7 +96,7 @@ qs.Unmarshal("page=2&limit=20&tags[0]=rust", &parsed)
 
 ## Performance
 
-Stringify (struct → query string) — lower is better
+**Stringify** (struct → query string) — lower is better
 
 | Benchmark | zaytra | gorilla | google | go-playground | ajg |
 |:----------|-------:|--------:|-------:|--------------:|----:|
@@ -107,7 +107,7 @@ Stringify (struct → query string) — lower is better
 
 zaytra is **3-26x faster** than alternatives for encoding.
 
-Parse (query string → struct) — lower is better
+**Parse** (query string → struct) — lower is better
 
 | Benchmark | zaytra | gorilla | google | go-playground | ajg |
 |:----------|-------:|--------:|-------:|--------------:|----:|
