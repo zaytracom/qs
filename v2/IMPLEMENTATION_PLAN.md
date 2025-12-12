@@ -66,12 +66,12 @@ This document outlines the complete implementation plan for porting the JavaScri
 
 ### Phase 2: Parse Implementation
 
-- [ ] **2.1 Parse Options (parse.go)**
+- [x] **2.1 Parse Options (parse.go)** ✅ DONE
   ```go
   type ParseOptions struct {
       AllowDots                bool
       AllowEmptyArrays         bool
-      AllowPrototypes          bool  // Go: less relevant, but for compatibility
+      AllowPrototypes          bool
       AllowSparse              bool
       ArrayLimit               int   // Default: 20
       Charset                  Charset // utf-8 | iso-8859-1
@@ -79,23 +79,31 @@ This document outlines the complete implementation plan for porting the JavaScri
       Comma                    bool
       DecodeDotInKeys          bool
       Decoder                  DecoderFunc
-      Delimiter                string // Default: &, supports regex
+      Delimiter                string // Default: &
+      DelimiterRegexp          *regexp.Regexp // supports regex
       Depth                    int    // Default: 5
       Duplicates               DuplicateHandling // combine | first | last
       IgnoreQueryPrefix        bool
       InterpretNumericEntities bool
       ParameterLimit           int   // Default: 1000
       ParseArrays              bool  // Default: true
-      PlainObjects             bool  // Go: less relevant
+      PlainObjects             bool
       StrictDepth              bool
       StrictNullHandling       bool
       ThrowOnLimitExceeded     bool
   }
   ```
-  - **Tests**:
+  - [x] `DuplicateHandling` type with constants
+  - [x] `DecoderFunc` type
+  - [x] `DefaultParseOptions()` function
+  - [x] `normalizeParseOptions()` validation
+  - [x] `With*()` builder methods for fluent API
+  - [x] Error types for validation
+  - **Tests**: ✅ All passing (parse_test.go)
     - Default options are correct
     - Custom options override defaults
     - Invalid option values return errors
+    - Builder methods work correctly
 
 - [ ] **2.2 Core Parse Function**
   - [ ] `Parse(str string, opts ...ParseOptions) (map[string]any, error)`
