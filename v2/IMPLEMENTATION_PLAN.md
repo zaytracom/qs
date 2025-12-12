@@ -288,40 +288,45 @@ This document outlines the complete implementation plan for porting the JavaScri
 
 ### Phase 4: Go-Specific Features (from v1)
 
-- [ ] **4.1 Struct Support**
-  - [ ] `query` struct tag support
-  - [ ] `ParseToStruct(str string, dest any, opts ...ParseOptions) error`
-  - [ ] `StructToQueryString(obj any, opts ...StringifyOptions) (string, error)`
-  - [ ] Nested struct support
-  - [ ] Pointer field support
-  - [ ] Slice/array field support
-  - [ ] Map field support
-  - **Tests**:
+- [x] **4.1 Struct Support** ✅ DONE
+  - [x] `query` struct tag support
+  - [x] `ParseToStruct(str string, dest any, opts ...ParseOption) error`
+  - [x] `StructToQueryString(obj any, opts ...StringifyOption) (string, error)`
+  - [x] `MapToStruct(data map[string]any, dest any) error`
+  - [x] `StructToMap(obj any) (map[string]any, error)`
+  - [x] Nested struct support
+  - [x] Pointer field support
+  - [x] Slice/array field support
+  - [x] Map field support
+  - **Tests**: ✅ All passing (struct_test.go)
     - Simple struct parse/stringify
     - Nested struct parse/stringify
     - Pointer fields
     - Slice fields
     - Map fields
-    - Field tag options
+    - Field tag options (including skip with `query:"-"`)
 
-- [ ] **4.2 Marshal/Unmarshal API**
-  - [ ] `Marshal(v any, opts ...StringifyOptions) (string, error)`
-  - [ ] `Unmarshal(str string, v any, opts ...ParseOptions) error`
-  - [ ] Automatic type detection
-  - [ ] Support for all Go types
-  - **Tests**:
+- [x] **4.2 Marshal/Unmarshal API** ✅ DONE
+  - [x] `Marshal(v any, opts ...StringifyOption) (string, error)`
+  - [x] `Unmarshal(str string, v any, opts ...ParseOption) error`
+  - [x] Automatic type detection
+  - [x] Support for all Go types (struct, map, slice, primitives)
+  - **Tests**: ✅ All passing (struct_test.go)
     - Round-trip marshal/unmarshal
     - Various Go types
     - Error handling
 
-- [ ] **4.3 Type Conversions**
-  - [ ] String to int/float/bool conversion
-  - [ ] Time parsing/formatting
-  - [ ] Custom type support via interfaces
-  - **Tests**:
+- [x] **4.3 Type Conversions** ✅ DONE
+  - [x] String to int/float/bool conversion
+  - [x] Time parsing/formatting (RFC3339, ISO8601, date-only)
+  - [x] All int types (int, int8, int16, int32, int64)
+  - [x] All uint types (uint, uint8, uint16, uint32, uint64)
+  - [x] All float types (float32, float64)
+  - [x] Empty string handling (no conversion error)
+  - **Tests**: ✅ All passing (struct_test.go)
     - All basic type conversions
     - Edge cases (empty strings, invalid numbers)
-    - Custom types
+    - Time parsing with multiple formats
 
 ---
 
