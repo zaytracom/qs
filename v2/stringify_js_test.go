@@ -1987,3 +1987,193 @@ func TestJSStringifyLongString(t *testing.T) {
 		t.Errorf("result length mismatch: expected %d, got %d", len(expectedResult), len(result))
 	}
 }
+
+// TestJSStringifySparseArrays tests stringifying sparse arrays
+// JS: t.test('stringifies sparse arrays', ...)
+func TestJSStringifySparseArrays(t *testing.T) {
+	// In Go, we represent sparse arrays with nil elements
+	// [, '2', , , '1'] becomes []any{nil, "2", nil, nil, "1"}
+
+	t.Run("simple sparse array with indices", func(t *testing.T) {
+		// st.equal(qs.stringify({ a: [, '2', , , '1'] }, { encodeValuesOnly: true, arrayFormat: 'indices' }), 'a[1]=2&a[4]=1');
+		result, err := Stringify(map[string]any{"a": []any{nil, "2", nil, nil, "1"}},
+			WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatIndices))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if result != "a[1]=2&a[4]=1" {
+			t.Errorf("expected 'a[1]=2&a[4]=1', got %q", result)
+		}
+	})
+
+	t.Run("simple sparse array with brackets", func(t *testing.T) {
+		// st.equal(qs.stringify({ a: [, '2', , , '1'] }, { encodeValuesOnly: true, arrayFormat: 'brackets' }), 'a[]=2&a[]=1');
+		result, err := Stringify(map[string]any{"a": []any{nil, "2", nil, nil, "1"}},
+			WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatBrackets))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if result != "a[]=2&a[]=1" {
+			t.Errorf("expected 'a[]=2&a[]=1', got %q", result)
+		}
+	})
+
+	t.Run("simple sparse array with repeat", func(t *testing.T) {
+		// st.equal(qs.stringify({ a: [, '2', , , '1'] }, { encodeValuesOnly: true, arrayFormat: 'repeat' }), 'a=2&a=1');
+		result, err := Stringify(map[string]any{"a": []any{nil, "2", nil, nil, "1"}},
+			WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatRepeat))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if result != "a=2&a=1" {
+			t.Errorf("expected 'a=2&a=1', got %q", result)
+		}
+	})
+
+	t.Run("nested sparse array with object indices", func(t *testing.T) {
+		// st.equal(qs.stringify({ a: [, { b: [, , { c: '1' }] }] }, { encodeValuesOnly: true, arrayFormat: 'indices' }), 'a[1][b][2][c]=1');
+		result, err := Stringify(map[string]any{
+			"a": []any{nil, map[string]any{"b": []any{nil, nil, map[string]any{"c": "1"}}}},
+		}, WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatIndices))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if result != "a[1][b][2][c]=1" {
+			t.Errorf("expected 'a[1][b][2][c]=1', got %q", result)
+		}
+	})
+
+	t.Run("nested sparse array with object brackets", func(t *testing.T) {
+		// st.equal(qs.stringify({ a: [, { b: [, , { c: '1' }] }] }, { encodeValuesOnly: true, arrayFormat: 'brackets' }), 'a[][b][][c]=1');
+		result, err := Stringify(map[string]any{
+			"a": []any{nil, map[string]any{"b": []any{nil, nil, map[string]any{"c": "1"}}}},
+		}, WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatBrackets))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if result != "a[][b][][c]=1" {
+			t.Errorf("expected 'a[][b][][c]=1', got %q", result)
+		}
+	})
+
+	t.Run("nested sparse array with object repeat", func(t *testing.T) {
+		// st.equal(qs.stringify({ a: [, { b: [, , { c: '1' }] }] }, { encodeValuesOnly: true, arrayFormat: 'repeat' }), 'a[b][c]=1');
+		result, err := Stringify(map[string]any{
+			"a": []any{nil, map[string]any{"b": []any{nil, nil, map[string]any{"c": "1"}}}},
+		}, WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatRepeat))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if result != "a[b][c]=1" {
+			t.Errorf("expected 'a[b][c]=1', got %q", result)
+		}
+	})
+
+	t.Run("deeply nested sparse arrays indices", func(t *testing.T) {
+		// st.equal(qs.stringify({ a: [, [, , [, , , { c: '1' }]]] }, { encodeValuesOnly: true, arrayFormat: 'indices' }), 'a[1][2][3][c]=1');
+		result, err := Stringify(map[string]any{
+			"a": []any{nil, []any{nil, nil, []any{nil, nil, nil, map[string]any{"c": "1"}}}},
+		}, WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatIndices))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if result != "a[1][2][3][c]=1" {
+			t.Errorf("expected 'a[1][2][3][c]=1', got %q", result)
+		}
+	})
+
+	t.Run("deeply nested sparse arrays brackets", func(t *testing.T) {
+		// st.equal(qs.stringify({ a: [, [, , [, , , { c: '1' }]]] }, { encodeValuesOnly: true, arrayFormat: 'brackets' }), 'a[][][][c]=1');
+		result, err := Stringify(map[string]any{
+			"a": []any{nil, []any{nil, nil, []any{nil, nil, nil, map[string]any{"c": "1"}}}},
+		}, WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatBrackets))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if result != "a[][][][c]=1" {
+			t.Errorf("expected 'a[][][][c]=1', got %q", result)
+		}
+	})
+
+	t.Run("deeply nested sparse arrays repeat", func(t *testing.T) {
+		// st.equal(qs.stringify({ a: [, [, , [, , , { c: '1' }]]] }, { encodeValuesOnly: true, arrayFormat: 'repeat' }), 'a[c]=1');
+		result, err := Stringify(map[string]any{
+			"a": []any{nil, []any{nil, nil, []any{nil, nil, nil, map[string]any{"c": "1"}}}},
+		}, WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatRepeat))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if result != "a[c]=1" {
+			t.Errorf("expected 'a[c]=1', got %q", result)
+		}
+	})
+
+	t.Run("deeply nested sparse arrays with sparse value indices", func(t *testing.T) {
+		// st.equal(qs.stringify({ a: [, [, , [, , , { c: [, '1'] }]]] }, { encodeValuesOnly: true, arrayFormat: 'indices' }), 'a[1][2][3][c][1]=1');
+		result, err := Stringify(map[string]any{
+			"a": []any{nil, []any{nil, nil, []any{nil, nil, nil, map[string]any{"c": []any{nil, "1"}}}}},
+		}, WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatIndices))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if result != "a[1][2][3][c][1]=1" {
+			t.Errorf("expected 'a[1][2][3][c][1]=1', got %q", result)
+		}
+	})
+
+	t.Run("deeply nested sparse arrays with sparse value brackets", func(t *testing.T) {
+		// st.equal(qs.stringify({ a: [, [, , [, , , { c: [, '1'] }]]] }, { encodeValuesOnly: true, arrayFormat: 'brackets' }), 'a[][][][c][]=1');
+		result, err := Stringify(map[string]any{
+			"a": []any{nil, []any{nil, nil, []any{nil, nil, nil, map[string]any{"c": []any{nil, "1"}}}}},
+		}, WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatBrackets))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if result != "a[][][][c][]=1" {
+			t.Errorf("expected 'a[][][][c][]=1', got %q", result)
+		}
+	})
+
+	t.Run("deeply nested sparse arrays with sparse value repeat", func(t *testing.T) {
+		// st.equal(qs.stringify({ a: [, [, , [, , , { c: [, '1'] }]]] }, { encodeValuesOnly: true, arrayFormat: 'repeat' }), 'a[c]=1');
+		result, err := Stringify(map[string]any{
+			"a": []any{nil, []any{nil, nil, []any{nil, nil, nil, map[string]any{"c": []any{nil, "1"}}}}},
+		}, WithEncodeValuesOnly(true), WithArrayFormat(ArrayFormatRepeat))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if result != "a[c]=1" {
+			t.Errorf("expected 'a[c]=1', got %q", result)
+		}
+	})
+}
+
+// TestJSStringifyNonStringKeys tests stringifying with non-string keys in filter
+// JS: t.test('stringifies non-string keys', ...)
+// Note: In Go, map keys are always strings, but filter can contain non-string values
+func TestJSStringifyNonStringKeys(t *testing.T) {
+	// In JS: qs.stringify({ a: 'b', 'false': {}, 1e+22: 'c', d: 'e' }, {
+	//     filter: ['a', false, null, 10000000000000000000000, S],
+	//     allowDots: true,
+	//     encodeDotInKeys: true
+	// });
+	// Result: 'a=b&1e%2B22=c&d=e'
+
+	// In Go, we need to use string keys
+	result, err := Stringify(map[string]any{
+		"a":       "b",
+		"false":   map[string]any{},
+		"1e+22":   "c",
+		"d":       "e",
+	}, WithFilter([]string{"a", "1e+22", "d"}), WithStringifyAllowDots(true), WithEncodeDotInKeys(true))
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Should include a=b, 1e%2B22=c (encoded +), and d=e
+	// 'false' key maps to empty object so it's skipped
+	if result != "a=b&1e%2B22=c&d=e" {
+		t.Errorf("expected 'a=b&1e%%2B22=c&d=e', got %q", result)
+	}
+}
