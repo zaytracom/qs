@@ -529,6 +529,9 @@ func parseObject(chain []string, val any, opts *ParseOptions, valuesParsed bool)
 			// Empty brackets means array
 			if opts.AllowEmptyArrays && (leaf == "" || (opts.StrictNullHandling && leaf == nil)) {
 				obj = []any{}
+			} else if opts.StrictNullHandling && leaf == nil {
+				// With strictNullHandling, null is meaningful - include it explicitly
+				obj = []any{nil}
 			} else {
 				obj = Combine([]any{}, leaf)
 			}

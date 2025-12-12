@@ -276,35 +276,32 @@ func Merge(target, source any, allowPrototypes bool) any {
 
 	// Both are slices
 	if targetIsSlice && sourceIsSlice {
-		// Extend target to match source length if needed
-		for len(targetSlice) < len(sourceSlice) {
-			targetSlice = append(targetSlice, nil)
-		}
-
 		for i, item := range sourceSlice {
 			if item == nil {
 				continue // Skip nil items in source
 			}
 
-			targetItem := targetSlice[i]
-			if targetItem == nil {
-				// Target has no item at this index, use source item
-				targetSlice[i] = item
-			} else {
-				// Both have items, merge recursively
+			if i < len(targetSlice) && targetSlice[i] != nil {
+				// Both have items at this index
+				targetItem := targetSlice[i]
 				_, targetItemIsMap := targetItem.(map[string]any)
 				_, itemIsMap := item.(map[string]any)
 				_, targetItemIsSlice := targetItem.([]any)
 				_, itemIsSlice := item.([]any)
 
-				if targetItemIsMap && itemIsMap {
-					targetSlice[i] = Merge(targetItem, item, allowPrototypes)
-				} else if targetItemIsSlice && itemIsSlice {
+				if (targetItemIsMap && itemIsMap) || (targetItemIsSlice && itemIsSlice) {
+					// Same complex types - merge recursively
 					targetSlice[i] = Merge(targetItem, item, allowPrototypes)
 				} else {
-					// Different types or primitives - source wins for that index
-					targetSlice[i] = item
+					// Different types or primitives - PUSH to end (like JS)
+					targetSlice = append(targetSlice, item)
 				}
+			} else {
+				// Extend target if needed and set item
+				for len(targetSlice) <= i {
+					targetSlice = append(targetSlice, nil)
+				}
+				targetSlice[i] = item
 			}
 		}
 		return targetSlice
@@ -323,6 +320,20 @@ func Merge(target, source any, allowPrototypes bool) any {
 		for key, value := range sourceMap {
 			if existing, exists := mergeTarget[key]; exists {
 				mergeTarget[key] = Merge(existing, value, allowPrototypes)
+			} else {
+				mergeTarget[key] = value
+			}
+		}
+	} else if sourceIsSlice {
+		// Source is a slice - convert indices to string keys (like JS Object.keys on array)
+		// Note: we include nil values because with strictNullHandling, null is meaningful
+		for i, value := range sourceSlice {
+			key := strconv.Itoa(i)
+			if existing, exists := mergeTarget[key]; exists {
+				if value != nil {
+					mergeTarget[key] = Merge(existing, value, allowPrototypes)
+				}
+				// If value is nil and key exists, keep existing (don't overwrite with nil)
 			} else {
 				mergeTarget[key] = value
 			}
