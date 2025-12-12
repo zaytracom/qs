@@ -556,11 +556,6 @@ func stringify(
 
 	var values []string
 
-	// Handle undefined (nil after processing)
-	if obj == nil {
-		return values, nil
-	}
-
 	// Handle objects and arrays
 	var objKeys []any
 
@@ -664,7 +659,11 @@ func stringify(
 			}
 		}
 
-		// Skip nulls if requested
+		// Skip nulls if requested, or skip nil in arrays (sparse array behavior like JS undefined)
+		if value == nil && isSlice(obj) {
+			// In arrays, nil represents undefined (sparse slot) - always skip
+			continue
+		}
 		if skipNulls && (value == nil || IsExplicitNull(value)) {
 			continue
 		}
