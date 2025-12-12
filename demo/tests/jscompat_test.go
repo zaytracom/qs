@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	qs "github.com/phl/qs/v2"
+	qs "github.com/zaytracom/qs/v2"
 )
 
 // runJS executes a JavaScript snippet and returns the output
@@ -24,9 +24,9 @@ func runJS(t *testing.T, code string) string {
 		t.Skipf("node is required for jscompat tests: %v", err)
 	}
 
-	jscompatDir, err := jscompatRootDir()
+	demoDir, err := demoRootDir()
 	if err != nil {
-		t.Fatalf("failed to locate jscompat directory: %v", err)
+		t.Fatalf("failed to locate demo directory: %v", err)
 	}
 
 	fullCode := `const qs = require('qs');` + code
@@ -35,7 +35,7 @@ func runJS(t *testing.T, code string) string {
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "node", "-e", fullCode)
-	cmd.Dir = jscompatDir
+	cmd.Dir = demoDir
 	out, err := cmd.CombinedOutput()
 	if ctx.Err() != nil {
 		t.Fatalf("JS execution timed out: %v\nOutput: %s", ctx.Err(), string(out))
@@ -46,13 +46,13 @@ func runJS(t *testing.T, code string) string {
 	return strings.TrimSpace(string(out))
 }
 
-func jscompatRootDir() (string, error) {
+func demoRootDir() (string, error) {
 	_, thisFile, _, ok := runtime.Caller(0)
 	if !ok {
 		return "", errors.New("runtime.Caller failed")
 	}
-	// This file lives in <repo>/jscompat/jscompat_test.go
-	return filepath.Dir(thisFile), nil
+	// This file lives in <repo>/demo/tests/jscompat_test.go
+	return filepath.Dir(filepath.Dir(thisFile)), nil
 }
 
 // toJSON converts any value to JSON string for comparison
