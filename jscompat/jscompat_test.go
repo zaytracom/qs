@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	qs "github.com/phl/qs/v2"
 )
@@ -1502,5 +1503,72 @@ func TestAllStringifyOptionsCombined(t *testing.T) {
 	// With sort, order should match
 	if goResult != jsResult {
 		t.Errorf("Stringify mismatch:\nGo: %s\nJS: %s", goResult, jsResult)
+	}
+}
+
+// Test 52: Formatter via Format option
+// Note: In Go, Formatter is an internal implementation detail tied to Format.
+// This is already tested via TestRFCFormats. The Format option (RFC1738/RFC3986)
+// determines which formatter is used internally.
+// RFC1738: spaces become +
+// RFC3986: spaces become %20
+
+// Test 52: SerializeDate with time.Time
+func TestSerializeDateWithTime(t *testing.T) {
+	// Use ISO format for date serialization
+	serializeDate := func(t time.Time) string {
+		return t.Format("2006-01-02")
+	}
+
+	// Fixed date: 2024-06-15
+	date := time.Date(2024, 6, 15, 10, 30, 0, 0, time.UTC)
+	input := map[string]any{"date": date}
+
+	goResult, err := qs.Stringify(input, qs.WithSerializeDate(serializeDate))
+	if err != nil {
+		t.Fatalf("Stringify failed: %v", err)
+	}
+
+	jsResult := runJS(t, `
+		const serializeDate = (d) => d.toISOString().split('T')[0];
+		console.log(qs.stringify({ date: new Date('2024-06-15T10:30:00Z') }, { serializeDate }));
+	`)
+
+	if goResult != jsResult {
+		t.Errorf("SerializeDate mismatch:\nGo: %s\nJS: %s", goResult, jsResult)
+	}
+}
+
+// Test 54: SerializeDate with default (RFC3339)
+func TestSerializeDateDefault(t *testing.T) {
+	// Test that default serialization uses RFC3339
+	date := time.Date(2024, 6, 15, 10, 30, 0, 0, time.UTC)
+	input := map[string]any{"date": date}
+
+	goResult, err := qs.Stringify(input)
+	if err != nil {
+		t.Fatalf("Stringify failed: %v", err)
+	}
+
+	// JS default is toISOString which is similar to RFC3339
+	jsResult := runJS(t, `
+		console.log(qs.stringify({ date: new Date('2024-06-15T10:30:00Z') }));
+	`)
+
+	// Compare parsed values since format might differ slightly
+	goParsed, _ := qs.Parse(goResult)
+	jsParsedJSON := runJS(t, `console.log(JSON.stringify(qs.parse(`+"`"+jsResult+"`"+`)));`)
+
+	goDateStr := goParsed["date"].(string)
+	var jsParsed map[string]any
+	json.Unmarshal([]byte(jsParsedJSON), &jsParsed)
+	jsDateStr := jsParsed["date"].(string)
+
+	// Both should represent the same date
+	goTime, _ := time.Parse(time.RFC3339, goDateStr)
+	jsTime, _ := time.Parse(time.RFC3339, jsDateStr)
+
+	if !goTime.Equal(jsTime) {
+		t.Errorf("Date values differ:\nGo: %s (%v)\nJS: %s (%v)", goDateStr, goTime, jsDateStr, jsTime)
 	}
 }
