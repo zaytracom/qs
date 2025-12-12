@@ -22,7 +22,6 @@ node_modules
 go.work
 
 # IDE files
-.vscode/
 .idea/
 *.swp
 *.swo
@@ -52,3 +51,6 @@ build/
 # Coverage reports
 coverage.out
 coverage.html
+
+.ref/
+.gocache/
