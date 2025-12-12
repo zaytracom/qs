@@ -276,22 +276,35 @@ func Merge(target, source any, allowPrototypes bool) any {
 
 	// Both are slices
 	if targetIsSlice && sourceIsSlice {
+		// Extend target to match source length if needed
+		for len(targetSlice) < len(sourceSlice) {
+			targetSlice = append(targetSlice, nil)
+		}
+
 		for i, item := range sourceSlice {
-			if i < len(targetSlice) {
-				targetItem := targetSlice[i]
+			if item == nil {
+				continue // Skip nil items in source
+			}
+
+			targetItem := targetSlice[i]
+			if targetItem == nil {
+				// Target has no item at this index, use source item
+				targetSlice[i] = item
+			} else {
+				// Both have items, merge recursively
 				_, targetItemIsMap := targetItem.(map[string]any)
 				_, itemIsMap := item.(map[string]any)
+				_, targetItemIsSlice := targetItem.([]any)
+				_, itemIsSlice := item.([]any)
+
 				if targetItemIsMap && itemIsMap {
 					targetSlice[i] = Merge(targetItem, item, allowPrototypes)
+				} else if targetItemIsSlice && itemIsSlice {
+					targetSlice[i] = Merge(targetItem, item, allowPrototypes)
 				} else {
-					targetSlice = append(targetSlice, item)
+					// Different types or primitives - source wins for that index
+					targetSlice[i] = item
 				}
-			} else {
-				// Extend slice to accommodate index
-				for len(targetSlice) <= i {
-					targetSlice = append(targetSlice, nil)
-				}
-				targetSlice[i] = item
 			}
 		}
 		return targetSlice

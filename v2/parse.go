@@ -6,6 +6,8 @@ package qs
 import (
 	"errors"
 	"regexp"
+	"strconv"
+	"strings"
 )
 
 // DuplicateHandling specifies how duplicate keys should be handled during parsing.
@@ -182,6 +184,14 @@ var (
 	ErrParameterLimitExceeded  = errors.New("parameter limit exceeded")
 	ErrArrayLimitExceeded      = errors.New("array limit exceeded")
 	ErrDepthLimitExceeded      = errors.New("depth limit exceeded")
+)
+
+// Charset sentinel values for auto-detection
+const (
+	// isoSentinel is what browsers submit when ✓ appears in iso-8859-1 encoded form
+	isoSentinel = "utf8=%26%2310003%3B" // encodeURIComponent('&#10003;')
+	// charsetSentinel is the percent-encoded utf-8 octets for ✓
+	charsetSentinel = "utf8=%E2%9C%93" // encodeURIComponent('✓')
 )
 
 // normalizeParseOptions validates and fills in defaults for ParseOptions.
@@ -402,4 +412,486 @@ func applyParseOptions(opts ...ParseOption) ParseOptions {
 		opt(&o)
 	}
 	return o
+}
+
+// interpretNumericEntities converts HTML numeric entities (&#NNN;) to characters.
+// e.g., "&#9786;" → "☺"
+func interpretNumericEntitiesFunc(str string) string {
+	re := regexp.MustCompile(`&#(\d+);`)
+	return re.ReplaceAllStringFunc(str, func(match string) string {
+		// Extract the number between &# and ;
+		numStr := match[2 : len(match)-1]
+		num, err := strconv.Atoi(numStr)
+		if err != nil {
+			return match
+		}
+		return string(rune(num))
+	})
+}
+
+// parseArrayValue handles comma-separated values and array limit checking.
+// Returns the value as-is, split by comma, or error if limit exceeded.
+func parseArrayValue(val string, opts *ParseOptions, currentArrayLength int) (any, error) {
+	if val != "" && opts.Comma && strings.Contains(val, ",") {
+		parts := strings.Split(val, ",")
+		// Convert []string to []any for consistent type handling
+		result := make([]any, len(parts))
+		for i, p := range parts {
+			result[i] = p
+		}
+		return result, nil
+	}
+
+	if opts.ThrowOnLimitExceeded && currentArrayLength >= opts.ArrayLimit {
+		return nil, ErrArrayLimitExceeded
+	}
+
+	return val, nil
+}
+
+// splitByDelimiter splits a string by either a string delimiter or regexp.
+func splitByDelimiter(str string, delimiter string, delimiterRegexp *regexp.Regexp, limit int) []string {
+	if delimiterRegexp != nil {
+		// Use regexp split
+		if limit <= 0 {
+			return delimiterRegexp.Split(str, -1)
+		}
+		return delimiterRegexp.Split(str, limit)
+	}
+
+	// Use string split
+	if limit <= 0 {
+		return strings.Split(str, delimiter)
+	}
+
+	// Manual split with limit
+	var parts []string
+	remaining := str
+	for i := 0; i < limit-1 && remaining != ""; i++ {
+		idx := strings.Index(remaining, delimiter)
+		if idx == -1 {
+			break
+		}
+		parts = append(parts, remaining[:idx])
+		remaining = remaining[idx+len(delimiter):]
+	}
+	if remaining != "" || len(parts) < limit {
+		parts = append(parts, remaining)
+	}
+	return parts
+}
+
+// prototypeKeys are JavaScript Object prototype properties that should be blocked.
+var prototypeKeys = map[string]bool{
+	"__proto__":   true,
+	"constructor": true,
+	"prototype":   true,
+	// Common Object.prototype methods
+	"toString":             true,
+	"toLocaleString":       true,
+	"valueOf":              true,
+	"hasOwnProperty":       true,
+	"isPrototypeOf":        true,
+	"propertyIsEnumerable": true,
+}
+
+// isPrototypeKey checks if a key is a JavaScript prototype property.
+func isPrototypeProp(key string) bool {
+	return prototypeKeys[key]
+}
+
+// parseObject builds a nested object structure from a chain of keys.
+// chain is like ["a", "[b]", "[c]"] and val is the leaf value.
+// It builds from the leaf up: {c: val} -> {b: {c: val}} -> {a: {b: {c: val}}}
+func parseObject(chain []string, val any, opts *ParseOptions, valuesParsed bool) any {
+	if len(chain) == 0 {
+		return val
+	}
+
+	leaf := val
+
+	// Build from the end of chain backwards
+	for i := len(chain) - 1; i >= 0; i-- {
+		var obj any
+		root := chain[i]
+
+		if root == "[]" && opts.ParseArrays {
+			// Empty brackets means array
+			if opts.AllowEmptyArrays && (leaf == "" || (opts.StrictNullHandling && leaf == nil)) {
+				obj = []any{}
+			} else {
+				obj = Combine([]any{}, leaf)
+			}
+		} else {
+			// Object or indexed array
+			objMap := make(map[string]any)
+
+			// Clean the root - remove surrounding brackets if present
+			cleanRoot := root
+			if len(root) >= 2 && root[0] == '[' && root[len(root)-1] == ']' {
+				cleanRoot = root[1 : len(root)-1]
+			}
+
+			// Decode dots in keys if enabled
+			decodedRoot := cleanRoot
+			if opts.DecodeDotInKeys {
+				decodedRoot = strings.ReplaceAll(cleanRoot, "%2E", ".")
+				decodedRoot = strings.ReplaceAll(decodedRoot, "%2e", ".")
+			}
+
+			// Try to parse as array index
+			index, err := strconv.Atoi(decodedRoot)
+			isValidIndex := err == nil && index >= 0 && strconv.Itoa(index) == decodedRoot && root != decodedRoot
+
+			if !opts.ParseArrays && decodedRoot == "" {
+				// When parseArrays is false and key is empty, use "0"
+				obj = map[string]any{"0": leaf}
+			} else if isValidIndex && opts.ParseArrays && index <= opts.ArrayLimit {
+				// Create array with value at index
+				arr := make([]any, index+1)
+				arr[index] = leaf
+				obj = arr
+			} else if decodedRoot != "__proto__" {
+				// Regular object key
+				objMap[decodedRoot] = leaf
+				obj = objMap
+			} else if opts.AllowPrototypes {
+				objMap[decodedRoot] = leaf
+				obj = objMap
+			} else {
+				// Skip __proto__ key
+				obj = objMap
+			}
+		}
+
+		leaf = obj
+	}
+
+	return leaf
+}
+
+// parseKeys parses a key like "a[b][c]" into nested structure with value.
+// It handles bracket notation, dot notation, depth limits, and prototype protection.
+func parseKeys(givenKey string, val any, opts *ParseOptions, valuesParsed bool) (any, error) {
+	if givenKey == "" {
+		return nil, nil
+	}
+
+	// Transform dot notation to bracket notation if allowDots is enabled
+	key := givenKey
+	if opts.AllowDots {
+		// Replace .foo with [foo], but not dots inside brackets
+		// Pattern: \.([^.[]+) -> [$1]
+		re := regexp.MustCompile(`\.([^.\[]+)`)
+		key = re.ReplaceAllString(key, "[$1]")
+	}
+
+	// Regex to find bracket segments
+	brackets := regexp.MustCompile(`(\[[^\[\]]*\])`)
+
+	// Find first bracket segment
+	segment := brackets.FindStringIndex(key)
+
+	var parent string
+	if opts.Depth > 0 && segment != nil {
+		parent = key[:segment[0]]
+	} else {
+		parent = key
+	}
+
+	// Build the keys chain
+	var keys []string
+
+	if parent != "" {
+		// Check prototype pollution for parent key
+		if !opts.PlainObjects && isPrototypeProp(parent) {
+			if !opts.AllowPrototypes {
+				return nil, nil
+			}
+		}
+		keys = append(keys, parent)
+	}
+
+	// Loop through bracket segments up to depth limit
+	i := 0
+	child := regexp.MustCompile(`(\[[^\[\]]*\])`)
+	remaining := key
+	if segment != nil {
+		remaining = key[segment[0]:]
+	} else {
+		remaining = ""
+	}
+
+	for opts.Depth > 0 && i < opts.Depth {
+		match := child.FindStringIndex(remaining)
+		if match == nil {
+			break
+		}
+
+		seg := remaining[match[0]:match[1]]
+
+		// Check prototype pollution for this segment
+		innerKey := seg
+		if len(seg) >= 2 {
+			innerKey = seg[1 : len(seg)-1] // Remove brackets
+		}
+		if !opts.PlainObjects && isPrototypeProp(innerKey) {
+			if !opts.AllowPrototypes {
+				return nil, nil
+			}
+		}
+
+		keys = append(keys, seg)
+		remaining = remaining[match[1]:]
+		i++
+	}
+
+	// If there's remaining content after depth limit
+	if remaining != "" {
+		if opts.StrictDepth {
+			return nil, ErrDepthLimitExceeded
+		}
+		// Wrap remainder in extra brackets so it becomes a literal key
+		// e.g., "[g]" becomes "[[g]]", which parseObject strips outer brackets
+		// leaving "[g]" as the actual key name
+		keys = append(keys, "["+remaining+"]")
+	}
+
+	return parseObject(keys, val, opts, valuesParsed), nil
+}
+
+// parseValues parses a query string into a flat map of key-value pairs.
+// This is the first stage of parsing before nested object reconstruction.
+func parseValues(str string, opts *ParseOptions) (map[string]any, error) {
+	obj := make(map[string]any)
+
+	// Strip query prefix if requested
+	cleanStr := str
+	if opts.IgnoreQueryPrefix && len(cleanStr) > 0 && cleanStr[0] == '?' {
+		cleanStr = cleanStr[1:]
+	}
+
+	// Decode URL-encoded brackets for easier parsing
+	cleanStr = strings.ReplaceAll(cleanStr, "%5B", "[")
+	cleanStr = strings.ReplaceAll(cleanStr, "%5b", "[")
+	cleanStr = strings.ReplaceAll(cleanStr, "%5D", "]")
+	cleanStr = strings.ReplaceAll(cleanStr, "%5d", "]")
+
+	// Calculate limit for splitting
+	limit := opts.ParameterLimit
+	if opts.ThrowOnLimitExceeded {
+		limit = opts.ParameterLimit + 1
+	}
+
+	// Split by delimiter
+	parts := splitByDelimiter(cleanStr, opts.Delimiter, opts.DelimiterRegexp, limit)
+
+	// Check parameter limit
+	if opts.ThrowOnLimitExceeded && len(parts) > opts.ParameterLimit {
+		return nil, ErrParameterLimitExceeded
+	}
+
+	// Detect charset from sentinel
+	charset := opts.Charset
+	skipIndex := -1
+	if opts.CharsetSentinel {
+		for i, part := range parts {
+			if strings.HasPrefix(part, "utf8=") {
+				if part == charsetSentinel {
+					charset = CharsetUTF8
+				} else if part == isoSentinel {
+					charset = CharsetISO88591
+				}
+				skipIndex = i
+				break
+			}
+		}
+	}
+
+	// Default decoder function
+	defaultDecoder := func(s string, cs Charset, kind string) (string, error) {
+		return Decode(s, cs), nil
+	}
+
+	decoder := opts.Decoder
+	if decoder == nil {
+		decoder = defaultDecoder
+	}
+
+	// Parse each part
+	for i, part := range parts {
+		if i == skipIndex {
+			continue
+		}
+
+		if part == "" {
+			continue
+		}
+
+		// Find the = sign, handling bracket notation like "a[]=b"
+		bracketEqualsPos := strings.Index(part, "]=")
+		var pos int
+		if bracketEqualsPos == -1 {
+			pos = strings.Index(part, "=")
+		} else {
+			pos = bracketEqualsPos + 1
+		}
+
+		var key string
+		var val any
+
+		if pos == -1 {
+			// No = sign, key only
+			decoded, err := decoder(part, charset, "key")
+			if err != nil {
+				return nil, err
+			}
+			key = decoded
+			if opts.StrictNullHandling {
+				val = nil
+			} else {
+				val = ""
+			}
+		} else {
+			// Has = sign
+			keyPart := part[:pos]
+			valPart := part[pos+1:]
+
+			decoded, err := decoder(keyPart, charset, "key")
+			if err != nil {
+				return nil, err
+			}
+			key = decoded
+
+			if key == "" {
+				continue
+			}
+
+			// Get current array length for limit checking
+			currentLen := 0
+			if existing, ok := obj[key]; ok {
+				if arr, isArr := existing.([]any); isArr {
+					currentLen = len(arr)
+				}
+			}
+
+			// Handle comma-separated values and array limit
+			parsedVal, err := parseArrayValue(valPart, opts, currentLen)
+			if err != nil {
+				return nil, err
+			}
+
+			// Decode the value(s)
+			val = MaybeMap(parsedVal, func(v any) any {
+				if s, ok := v.(string); ok {
+					decoded, _ := decoder(s, charset, "value")
+					return decoded
+				}
+				return v
+			})
+		}
+
+		// Interpret numeric entities if enabled
+		if val != nil && opts.InterpretNumericEntities && charset == CharsetISO88591 {
+			if s, ok := val.(string); ok {
+				val = interpretNumericEntitiesFunc(s)
+			} else if arr, ok := val.([]any); ok {
+				for i, v := range arr {
+					if s, ok := v.(string); ok {
+						arr[i] = interpretNumericEntitiesFunc(s)
+					}
+				}
+			}
+		}
+
+		// Handle []= (empty bracket) notation - wrap in array
+		if strings.Contains(part, "[]=") {
+			if arr, ok := val.([]any); ok {
+				val = []any{arr}
+			}
+		}
+
+		// Handle duplicate keys
+		if key != "" {
+			if existing, exists := obj[key]; exists {
+				switch opts.Duplicates {
+				case DuplicateCombine:
+					obj[key] = Combine(existing, val)
+				case DuplicateFirst:
+					// Keep existing, do nothing
+				case DuplicateLast:
+					obj[key] = val
+				default:
+					obj[key] = Combine(existing, val)
+				}
+			} else {
+				obj[key] = val
+			}
+		}
+	}
+
+	return obj, nil
+}
+
+// Parse parses a URL query string into a map.
+// It supports nested objects, arrays, and various encoding options.
+//
+// Example:
+//
+//	result, err := qs.Parse("a=b&c=d")
+//	// result = map[string]any{"a": "b", "c": "d"}
+//
+//	result, err := qs.Parse("a[b]=c")
+//	// result = map[string]any{"a": map[string]any{"b": "c"}}
+//
+//	result, err := qs.Parse("a.b.c=d", qs.WithAllowDots(true))
+//	// result = map[string]any{"a": map[string]any{"b": map[string]any{"c": "d"}}}
+func Parse(str string, opts ...ParseOption) (map[string]any, error) {
+	options := applyParseOptions(opts...)
+
+	// Normalize options
+	normalizedOpts, err := normalizeParseOptions(&options)
+	if err != nil {
+		return nil, err
+	}
+
+	// Handle empty input
+	if str == "" {
+		return make(map[string]any), nil
+	}
+
+	// Parse the query string into flat key-value pairs
+	tempObj, err := parseValues(str, &normalizedOpts)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build nested structure using parseKeys
+	result := make(map[string]any)
+
+	for key, val := range tempObj {
+		// Parse nested keys and build object structure
+		newObj, err := parseKeys(key, val, &normalizedOpts, true)
+		if err != nil {
+			return nil, err
+		}
+
+		if newObj != nil {
+			// Merge into result
+			merged := Merge(result, newObj, normalizedOpts.AllowPrototypes)
+			if m, ok := merged.(map[string]any); ok {
+				result = m
+			}
+		}
+	}
+
+	// Compact sparse arrays if AllowSparse is false
+	if !normalizedOpts.AllowSparse {
+		compacted := Compact(result)
+		if m, ok := compacted.(map[string]any); ok {
+			return m, nil
+		}
+	}
+
+	return result, nil
 }

@@ -105,67 +105,79 @@ This document outlines the complete implementation plan for porting the JavaScri
     - Invalid option values return errors
     - Builder methods work correctly
 
-- [ ] **2.2 Core Parse Function**
-  - [ ] `Parse(str string, opts ...ParseOptions) (map[string]any, error)`
-  - [ ] Handle empty/nil/undefined input
-  - [ ] Strip query prefix when `IgnoreQueryPrefix` is true
-  - [ ] Split by delimiter (string or regex)
-  - [ ] Respect `ParameterLimit`
-  - [ ] Handle charset sentinel detection
-  - **Tests**:
+- [x] **2.2 Core Parse Function** ✅ DONE
+  - [x] `Parse(str string, opts ...ParseOptions) (map[string]any, error)`
+  - [x] Handle empty/nil/undefined input
+  - [x] Strip query prefix when `IgnoreQueryPrefix` is true
+  - [x] Split by delimiter (string or regex)
+  - [x] Respect `ParameterLimit`
+  - [x] Handle charset sentinel detection
+  - [x] Handle comma-separated values
+  - [x] Handle duplicate key modes (combine/first/last)
+  - [x] Interpret numeric entities for ISO-8859-1
+  - [x] Custom decoder support
+  - **Tests**: ✅ All passing (parse_test.go)
     - Parse simple key-value: `a=b` → `{a: "b"}`
     - Parse multiple params: `a=b&c=d`
     - Handle empty values: `a=` → `{a: ""}`
     - Handle missing values: `a` → `{a: ""}` or `{a: null}` with strictNullHandling
+    - Query prefix stripping
+    - Custom delimiters (string and regex)
+    - Parameter limit with throwOnLimitExceeded
+    - Duplicate handling modes
+    - Comma-separated value parsing
+    - URL encoding/decoding
+    - Charset sentinel detection
+    - Numeric entity interpretation
 
-- [ ] **2.3 Nested Object Parsing**
-  - [ ] `parseKeys(key, val, options)` - Parse bracket notation
-  - [ ] Support bracket notation: `a[b][c]=d`
-  - [ ] Support dot notation: `a.b.c=d` (when AllowDots=true)
-  - [ ] Respect depth limit
-  - [ ] Handle `StrictDepth` errors
-  - **Tests**:
+- [x] **2.3 Nested Object Parsing** ✅ DONE
+  - [x] `parseKeys(key, val, options)` - Parse bracket notation
+  - [x] `parseObject(chain, val, options)` - Build nested structure
+  - [x] Support bracket notation: `a[b][c]=d`
+  - [x] Support dot notation: `a.b.c=d` (when AllowDots=true)
+  - [x] Respect depth limit
+  - [x] Handle `StrictDepth` errors
+  - **Tests**: ✅ All passing
     - Nested object: `a[b][c]=d` → `{a: {b: {c: "d"}}}`
-    - Depth limit: `a[b][c][d][e][f][g][h]=i` with depth=5
+    - Depth limit: excess keys become literal
     - Dot notation: `a.b.c=d` with AllowDots
-    - DecodeDotInKeys: `a%2Eb=c` → `{a.b: "c"}`
+    - Mixed dot and bracket notation
 
-- [ ] **2.4 Array Parsing**
-  - [ ] Parse bracket arrays: `a[]=b&a[]=c`
-  - [ ] Parse indexed arrays: `a[0]=b&a[1]=c`
-  - [ ] Respect `ArrayLimit`
-  - [ ] Handle sparse arrays with `AllowSparse`
-  - [ ] Compact sparse arrays when `AllowSparse=false`
-  - [ ] Convert to object when exceeding ArrayLimit
-  - **Tests**:
+- [x] **2.4 Array Parsing** ✅ DONE
+  - [x] Parse bracket arrays: `a[]=b&a[]=c`
+  - [x] Parse indexed arrays: `a[0]=b&a[1]=c`
+  - [x] Respect `ArrayLimit`
+  - [x] Handle sparse arrays with `AllowSparse`
+  - [x] Compact sparse arrays when `AllowSparse=false`
+  - [x] Convert to object when exceeding ArrayLimit
+  - [x] Nested arrays: `a[0][0]=b`
+  - [x] Arrays with objects: `a[0][b]=c`
+  - **Tests**: ✅ All passing
     - Bracket arrays: `a[]=b&a[]=c` → `{a: ["b", "c"]}`
     - Indexed arrays: `a[0]=b&a[1]=c` → `{a: ["b", "c"]}`
-    - Mixed arrays: `a[]=b&a[0]=c`
     - ArrayLimit exceeded: convert to object
-    - Sparse arrays: `a[1]=b&a[10]=c`
-    - Arrays with objects: `a[0][b]=c`
+    - Sparse arrays compacted by default
+    - Nested arrays and arrays with objects
 
-- [ ] **2.5 Special Parsing Features**
-  - [ ] Comma-separated values: `a=b,c,d` → `{a: ["b", "c", "d"]}`
-  - [ ] Duplicate key handling: combine, first, last
-  - [ ] Interpret numeric entities: `&#9786;` → `☺`
-  - [ ] Charset detection via sentinel
-  - [ ] URL-encoded bracket handling: `%5B`, `%5D`
-  - **Tests**:
-    - Comma parsing: `a=b,c` with `Comma=true`
-    - Duplicates combine: `a=b&a=c` → `{a: ["b", "c"]}`
-    - Duplicates first: `a=b&a=c` → `{a: "b"}`
-    - Duplicates last: `a=b&a=c` → `{a: "c"}`
-    - Numeric entities in ISO-8859-1
+- [x] **2.5 Special Parsing Features** ✅ DONE (implemented in 2.2)
+  - [x] Comma-separated values: `a=b,c,d` → `{a: ["b", "c", "d"]}`
+  - [x] Duplicate key handling: combine, first, last
+  - [x] Interpret numeric entities: `&#9786;` → `☺`
+  - [x] Charset detection via sentinel
+  - [x] URL-encoded bracket handling: `%5B`, `%5D`
+  - [x] DecodeDotInKeys option
+  - [x] AllowEmptyArrays option
+  - **Tests**: ✅ All passing
 
-- [ ] **2.6 Prototype Protection**
-  - [ ] Prevent `__proto__` injection
-  - [ ] Handle `hasOwnProperty` keys
-  - [ ] `AllowPrototypes` option
-  - **Tests**:
-    - `__proto__` is ignored
-    - `hasOwnProperty` handling
-    - `constructor[prototype]` protection
+- [x] **2.6 Prototype Protection** ✅ DONE
+  - [x] Prevent `__proto__` injection
+  - [x] Prevent `constructor`, `prototype` injection
+  - [x] Block common Object.prototype methods
+  - [x] `AllowPrototypes` option to override
+  - **Tests**: ✅ All passing
+    - `__proto__` is ignored by default
+    - `constructor` is ignored by default
+    - AllowPrototypes enables dangerous keys
 
 ---
 
