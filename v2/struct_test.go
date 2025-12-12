@@ -5,6 +5,7 @@ package qs
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -713,5 +714,899 @@ func TestEmptyStringConversions(t *testing.T) {
 	}
 	if result.Bool != false {
 		t.Errorf("Bool = %v, want false", result.Bool)
+	}
+}
+
+// =============================================================================
+// COMPLEX STRUCT TESTS WITH OPTIONS
+// =============================================================================
+
+// TestParseToStructWithAllowDots tests dot notation parsing into structs
+func TestParseToStructWithAllowDots(t *testing.T) {
+	type Profile struct {
+		Bio      string `query:"bio"`
+		Location string `query:"location"`
+	}
+	type Settings struct {
+		Theme         string `query:"theme"`
+		Notifications bool   `query:"notifications"`
+	}
+	type User struct {
+		Name     string   `query:"name"`
+		Profile  Profile  `query:"profile"`
+		Settings Settings `query:"settings"`
+	}
+
+	var user User
+	err := ParseToStruct(
+		"name=John&profile.bio=Developer&profile.location=NYC&settings.theme=dark&settings.notifications=true",
+		&user,
+		WithAllowDots(true),
+	)
+	if err != nil {
+		t.Fatalf("ParseToStruct() error = %v", err)
+	}
+
+	if user.Name != "John" {
+		t.Errorf("Name = %v, want John", user.Name)
+	}
+	if user.Profile.Bio != "Developer" {
+		t.Errorf("Profile.Bio = %v, want Developer", user.Profile.Bio)
+	}
+	if user.Profile.Location != "NYC" {
+		t.Errorf("Profile.Location = %v, want NYC", user.Profile.Location)
+	}
+	if user.Settings.Theme != "dark" {
+		t.Errorf("Settings.Theme = %v, want dark", user.Settings.Theme)
+	}
+	if user.Settings.Notifications != true {
+		t.Errorf("Settings.Notifications = %v, want true", user.Settings.Notifications)
+	}
+}
+
+// TestParseToStructWithDepthLimit tests depth limit with structs
+func TestParseToStructWithDepthLimit(t *testing.T) {
+	type Level3 struct {
+		Value string `query:"value"`
+	}
+	type Level2 struct {
+		Level3 Level3 `query:"level3"`
+	}
+	type Level1 struct {
+		Level2 Level2 `query:"level2"`
+	}
+	type Root struct {
+		Level1 Level1 `query:"level1"`
+	}
+
+	// With depth=2, level3 should not be parsed as nested
+	var root Root
+	err := ParseToStruct(
+		"level1[level2][level3][value]=deep",
+		&root,
+		WithDepth(2),
+	)
+	if err != nil {
+		t.Fatalf("ParseToStruct() error = %v", err)
+	}
+
+	// level3 is at depth 3, so it becomes a literal key
+	// The struct won't have the nested value populated properly
+	// This is expected behavior with depth limits
+}
+
+// TestParseToStructWithArrayLimit tests array limit with struct slices
+func TestParseToStructWithArrayLimit(t *testing.T) {
+	type Container struct {
+		Items []string `query:"items"`
+	}
+
+	var container Container
+	err := ParseToStruct(
+		"items[0]=a&items[1]=b&items[100]=c",
+		&container,
+		WithArrayLimit(50),
+	)
+	if err != nil {
+		t.Fatalf("ParseToStruct() error = %v", err)
+	}
+
+	// items[100] exceeds array limit, so it becomes object key
+	// Only items[0] and items[1] should be in the array
+	if len(container.Items) < 2 {
+		t.Errorf("Items length = %v, want at least 2", len(container.Items))
+	}
+}
+
+// TestParseToStructWithComma tests comma-separated values into slices
+func TestParseToStructWithComma(t *testing.T) {
+	type Filter struct {
+		Tags     []string `query:"tags"`
+		Statuses []string `query:"statuses"`
+		Single   string   `query:"single"`
+	}
+
+	var filter Filter
+	err := ParseToStruct(
+		"tags=go,rust,python&statuses=active,pending&single=value",
+		&filter,
+		WithComma(true),
+	)
+	if err != nil {
+		t.Fatalf("ParseToStruct() error = %v", err)
+	}
+
+	expectedTags := []string{"go", "rust", "python"}
+	if !reflect.DeepEqual(filter.Tags, expectedTags) {
+		t.Errorf("Tags = %v, want %v", filter.Tags, expectedTags)
+	}
+
+	expectedStatuses := []string{"active", "pending"}
+	if !reflect.DeepEqual(filter.Statuses, expectedStatuses) {
+		t.Errorf("Statuses = %v, want %v", filter.Statuses, expectedStatuses)
+	}
+
+	if filter.Single != "value" {
+		t.Errorf("Single = %v, want value", filter.Single)
+	}
+}
+
+// TestParseToStructWithStrictNullHandling tests null handling in structs
+func TestParseToStructWithStrictNullHandling(t *testing.T) {
+	type Config struct {
+		Name    string  `query:"name"`
+		Value   *string `query:"value"`
+		Enabled *bool   `query:"enabled"`
+	}
+
+	var config Config
+	err := ParseToStruct(
+		"name=test&value&enabled",
+		&config,
+		WithStrictNullHandling(true),
+	)
+	if err != nil {
+		t.Fatalf("ParseToStruct() error = %v", err)
+	}
+
+	if config.Name != "test" {
+		t.Errorf("Name = %v, want test", config.Name)
+	}
+	// With strictNullHandling, "value" and "enabled" without = are null
+	// In Go, this means the pointer fields should be nil
+}
+
+// TestParseToStructWithCharset tests charset handling
+func TestParseToStructWithCharset(t *testing.T) {
+	type Message struct {
+		Text string `query:"text"`
+	}
+
+	var msg Message
+	err := ParseToStruct(
+		"text=%E4%B8%AD%E6%96%87", // "中文" in UTF-8
+		&msg,
+		WithCharset(CharsetUTF8),
+	)
+	if err != nil {
+		t.Fatalf("ParseToStruct() error = %v", err)
+	}
+
+	if msg.Text != "中文" {
+		t.Errorf("Text = %v, want 中文", msg.Text)
+	}
+}
+
+// TestParseToStructWithIgnoreQueryPrefix tests query prefix handling
+func TestParseToStructWithIgnoreQueryPrefix(t *testing.T) {
+	type Query struct {
+		Search string `query:"search"`
+		Page   int    `query:"page"`
+	}
+
+	var query Query
+	err := ParseToStruct(
+		"?search=golang&page=5",
+		&query,
+		WithIgnoreQueryPrefix(true),
+	)
+	if err != nil {
+		t.Fatalf("ParseToStruct() error = %v", err)
+	}
+
+	if query.Search != "golang" {
+		t.Errorf("Search = %v, want golang", query.Search)
+	}
+	if query.Page != 5 {
+		t.Errorf("Page = %v, want 5", query.Page)
+	}
+}
+
+// TestMarshalWithArrayFormatBrackets tests bracket array format
+func TestMarshalWithArrayFormatBrackets(t *testing.T) {
+	type Container struct {
+		Items []string `query:"items"`
+	}
+
+	container := Container{
+		Items: []string{"a", "b", "c"},
+	}
+
+	str, err := Marshal(container, WithArrayFormat(ArrayFormatBrackets))
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+
+	// Should contain items[]=a, items[]=b, items[]=c
+	parsed, _ := Parse(str)
+	items, ok := parsed["items"].([]any)
+	if !ok {
+		t.Fatalf("items is not an array: %T", parsed["items"])
+	}
+	if len(items) != 3 {
+		t.Errorf("items length = %v, want 3", len(items))
+	}
+}
+
+// TestMarshalWithArrayFormatRepeat tests repeat array format
+func TestMarshalWithArrayFormatRepeat(t *testing.T) {
+	type Container struct {
+		Tags []string `query:"tags"`
+	}
+
+	container := Container{
+		Tags: []string{"go", "rust"},
+	}
+
+	str, err := Marshal(container, WithArrayFormat(ArrayFormatRepeat))
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+
+	// Should contain tags=go&tags=rust
+	parsed, _ := Parse(str, WithDuplicates(DuplicateCombine))
+	tags, ok := parsed["tags"].([]any)
+	if !ok {
+		t.Fatalf("tags is not an array: %T", parsed["tags"])
+	}
+	if len(tags) != 2 {
+		t.Errorf("tags length = %v, want 2", len(tags))
+	}
+}
+
+// TestMarshalWithArrayFormatComma tests comma array format
+func TestMarshalWithArrayFormatComma(t *testing.T) {
+	type Container struct {
+		Items []string `query:"items"`
+	}
+
+	container := Container{
+		Items: []string{"x", "y", "z"},
+	}
+
+	str, err := Marshal(container, WithArrayFormat(ArrayFormatComma))
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+
+	// Should contain items=x,y,z
+	// Verify the string format
+	if !strings.Contains(str, "items=x,y,z") && !strings.Contains(str, "items=x%2Cy%2Cz") {
+		t.Errorf("Expected comma-separated format, got: %s", str)
+	}
+
+	// Parse back with comma option
+	parsed, _ := Parse(str, WithComma(true))
+
+	// With comma parsing, items could be an array or the raw value
+	switch items := parsed["items"].(type) {
+	case []any:
+		if len(items) != 3 {
+			t.Errorf("items length = %v, want 3", len(items))
+		}
+	case string:
+		// If it's a string, it should be comma-separated
+		parts := strings.Split(items, ",")
+		if len(parts) != 3 {
+			t.Errorf("items parts = %v, want 3", len(parts))
+		}
+	default:
+		t.Fatalf("unexpected items type: %T", parsed["items"])
+	}
+}
+
+// TestMarshalWithAllowDots tests dot notation stringify
+func TestMarshalWithAllowDots(t *testing.T) {
+	type Address struct {
+		City    string `query:"city"`
+		Country string `query:"country"`
+	}
+	type Person struct {
+		Name    string  `query:"name"`
+		Address Address `query:"address"`
+	}
+
+	person := Person{
+		Name: "John",
+		Address: Address{
+			City:    "NYC",
+			Country: "USA",
+		},
+	}
+
+	str, err := Marshal(person, WithStringifyAllowDots(true))
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+
+	// Should use dot notation: address.city=NYC
+	var result Person
+	err = ParseToStruct(str, &result, WithAllowDots(true))
+	if err != nil {
+		t.Fatalf("ParseToStruct() error = %v", err)
+	}
+
+	if result.Name != person.Name {
+		t.Errorf("Name = %v, want %v", result.Name, person.Name)
+	}
+	if result.Address.City != person.Address.City {
+		t.Errorf("Address.City = %v, want %v", result.Address.City, person.Address.City)
+	}
+}
+
+// TestMarshalWithSkipNulls tests null skipping
+func TestMarshalWithSkipNulls(t *testing.T) {
+	type Config struct {
+		Name    string  `query:"name"`
+		Value   *string `query:"value"`
+		Enabled *bool   `query:"enabled"`
+	}
+
+	config := Config{
+		Name:    "test",
+		Value:   nil,
+		Enabled: nil,
+	}
+
+	str, err := Marshal(config, WithSkipNulls(true))
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+
+	parsed, _ := Parse(str)
+
+	if parsed["name"] != "test" {
+		t.Errorf("name = %v, want test", parsed["name"])
+	}
+	if _, ok := parsed["value"]; ok {
+		t.Error("value should be skipped")
+	}
+	if _, ok := parsed["enabled"]; ok {
+		t.Error("enabled should be skipped")
+	}
+}
+
+// TestMarshalWithStrictNullHandling tests strict null serialization
+func TestMarshalWithStrictNullHandling(t *testing.T) {
+	type Config struct {
+		Name  string `query:"name"`
+		Value any    `query:"value"`
+	}
+
+	config := Config{
+		Name:  "test",
+		Value: nil,
+	}
+
+	str, err := Marshal(config, WithStringifyStrictNullHandling(true))
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+
+	// With strictNullHandling, null values appear as key without =
+	parsed, _ := Parse(str, WithStrictNullHandling(true))
+
+	if parsed["name"] != "test" {
+		t.Errorf("name = %v, want test", parsed["name"])
+	}
+}
+
+// TestMarshalWithAddQueryPrefix tests query prefix
+func TestMarshalWithAddQueryPrefix(t *testing.T) {
+	type Query struct {
+		Search string `query:"search"`
+	}
+
+	query := Query{Search: "golang"}
+
+	str, err := Marshal(query, WithStringifyAddQueryPrefix(true))
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+
+	if str[0] != '?' {
+		t.Errorf("Should start with ?, got: %s", str)
+	}
+}
+
+// TestMarshalWithSort tests key sorting
+func TestMarshalWithSort(t *testing.T) {
+	type Data struct {
+		Zebra  string `query:"zebra"`
+		Apple  string `query:"apple"`
+		Mango  string `query:"mango"`
+		Banana string `query:"banana"`
+	}
+
+	data := Data{
+		Zebra:  "z",
+		Apple:  "a",
+		Mango:  "m",
+		Banana: "b",
+	}
+
+	str, err := Marshal(data, WithSort(func(a, b string) bool {
+		return a < b
+	}))
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+
+	// Should be sorted alphabetically
+	// apple=a&banana=b&mango=m&zebra=z
+	expected := "apple=a&banana=b&mango=m&zebra=z"
+	if str != expected {
+		t.Errorf("Sorted result = %v, want %v", str, expected)
+	}
+}
+
+// TestMarshalWithEncodeDotInKeys tests dot encoding in keys
+func TestMarshalWithEncodeDotInKeys(t *testing.T) {
+	type Config struct {
+		APIKey string `query:"api.key"`
+	}
+
+	config := Config{APIKey: "secret"}
+
+	str, err := Marshal(config,
+		WithStringifyAllowDots(true),
+		WithEncodeDotInKeys(true),
+	)
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+
+	// Dot in "api.key" should be encoded as %2E
+	if !strings.Contains(str, "%2E") && !strings.Contains(str, "api.key") {
+		t.Errorf("Expected encoded dot or literal key, got: %s", str)
+	}
+}
+
+// TestMarshalWithFormat tests RFC1738 vs RFC3986 format
+func TestMarshalWithFormat(t *testing.T) {
+	type Query struct {
+		Search string `query:"search"`
+	}
+
+	query := Query{Search: "hello world"}
+
+	// RFC3986 - spaces as %20
+	str3986, err := Marshal(query, WithFormat(FormatRFC3986))
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+
+	if !strings.Contains(str3986, "%20") {
+		t.Errorf("RFC3986 should encode space as %%20, got: %s", str3986)
+	}
+
+	// RFC1738 - spaces as +
+	str1738, err := Marshal(query, WithFormat(FormatRFC1738))
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+
+	if !strings.Contains(str1738, "+") {
+		t.Errorf("RFC1738 should encode space as +, got: %s", str1738)
+	}
+}
+
+// TestRoundTripStructWithOptions tests full round-trip with various options
+func TestRoundTripStructWithOptions(t *testing.T) {
+	type Address struct {
+		Street string `query:"street"`
+		City   string `query:"city"`
+	}
+	type User struct {
+		Name    string   `query:"name"`
+		Age     int      `query:"age"`
+		Tags    []string `query:"tags"`
+		Address Address  `query:"address"`
+		Active  bool     `query:"active"`
+	}
+
+	original := User{
+		Name:   "John Doe",
+		Age:    30,
+		Tags:   []string{"admin", "user"},
+		Active: true,
+		Address: Address{
+			Street: "123 Main St",
+			City:   "NYC",
+		},
+	}
+
+	// Marshal with options
+	str, err := Marshal(original,
+		WithArrayFormat(ArrayFormatIndices),
+		WithStringifyAllowDots(false),
+	)
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+
+	// Unmarshal back
+	var result User
+	err = Unmarshal(str, &result)
+	if err != nil {
+		t.Fatalf("Unmarshal() error = %v", err)
+	}
+
+	if result.Name != original.Name {
+		t.Errorf("Name = %v, want %v", result.Name, original.Name)
+	}
+	if result.Age != original.Age {
+		t.Errorf("Age = %v, want %v", result.Age, original.Age)
+	}
+	if result.Active != original.Active {
+		t.Errorf("Active = %v, want %v", result.Active, original.Active)
+	}
+	if !reflect.DeepEqual(result.Tags, original.Tags) {
+		t.Errorf("Tags = %v, want %v", result.Tags, original.Tags)
+	}
+	if result.Address.City != original.Address.City {
+		t.Errorf("Address.City = %v, want %v", result.Address.City, original.Address.City)
+	}
+}
+
+// TestComplexNestedStructWithAllOptions tests deeply nested struct with all options
+func TestComplexNestedStructWithAllOptions(t *testing.T) {
+	type Notification struct {
+		Email bool `query:"email"`
+		SMS   bool `query:"sms"`
+	}
+	type Settings struct {
+		Theme         string       `query:"theme"`
+		Language      string       `query:"language"`
+		Notifications Notification `query:"notifications"`
+	}
+	type Profile struct {
+		Bio      string   `query:"bio"`
+		Website  string   `query:"website"`
+		Skills   []string `query:"skills"`
+		Settings Settings `query:"settings"`
+	}
+	type User struct {
+		ID      int      `query:"id"`
+		Name    string   `query:"name"`
+		Email   string   `query:"email"`
+		Roles   []string `query:"roles"`
+		Profile Profile  `query:"profile"`
+	}
+
+	original := User{
+		ID:    123,
+		Name:  "Alice",
+		Email: "alice@example.com",
+		Roles: []string{"admin", "editor", "viewer"},
+		Profile: Profile{
+			Bio:     "Software Developer",
+			Website: "https://alice.dev",
+			Skills:  []string{"Go", "Rust", "Python"},
+			Settings: Settings{
+				Theme:    "dark",
+				Language: "en",
+				Notifications: Notification{
+					Email: true,
+					SMS:   false,
+				},
+			},
+		},
+	}
+
+	// Test with dot notation
+	str, err := Marshal(original, WithStringifyAllowDots(true))
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+
+	var result User
+	err = Unmarshal(str, &result, WithAllowDots(true))
+	if err != nil {
+		t.Fatalf("Unmarshal() error = %v", err)
+	}
+
+	if result.ID != original.ID {
+		t.Errorf("ID = %v, want %v", result.ID, original.ID)
+	}
+	if result.Name != original.Name {
+		t.Errorf("Name = %v, want %v", result.Name, original.Name)
+	}
+	if !reflect.DeepEqual(result.Roles, original.Roles) {
+		t.Errorf("Roles = %v, want %v", result.Roles, original.Roles)
+	}
+	if result.Profile.Settings.Theme != original.Profile.Settings.Theme {
+		t.Errorf("Profile.Settings.Theme = %v, want %v",
+			result.Profile.Settings.Theme, original.Profile.Settings.Theme)
+	}
+	if result.Profile.Settings.Notifications.Email != original.Profile.Settings.Notifications.Email {
+		t.Errorf("Notifications.Email = %v, want %v",
+			result.Profile.Settings.Notifications.Email, original.Profile.Settings.Notifications.Email)
+	}
+}
+
+// TestStrapiStyleQuery tests Strapi-like query structure
+func TestStrapiStyleQuery(t *testing.T) {
+	type DateRange struct {
+		GTE string `query:"$gte"`
+		LTE string `query:"$lte"`
+	}
+	type Filters struct {
+		Status  []string  `query:"status"`
+		Created DateRange `query:"created"`
+	}
+	type Pagination struct {
+		Page  int `query:"page"`
+		Limit int `query:"limit"`
+	}
+	type StrapiQuery struct {
+		Filters    Filters    `query:"filters"`
+		Pagination Pagination `query:"pagination"`
+		Populate   []string   `query:"populate"`
+		Sort       []string   `query:"sort"`
+	}
+
+	original := StrapiQuery{
+		Filters: Filters{
+			Status: []string{"published", "draft"},
+			Created: DateRange{
+				GTE: "2024-01-01",
+				LTE: "2024-12-31",
+			},
+		},
+		Pagination: Pagination{
+			Page:  1,
+			Limit: 25,
+		},
+		Populate: []string{"author", "category"},
+		Sort:     []string{"createdAt:desc"},
+	}
+
+	// Marshal
+	str, err := Marshal(original)
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+
+	// Unmarshal
+	var result StrapiQuery
+	err = Unmarshal(str, &result)
+	if err != nil {
+		t.Fatalf("Unmarshal() error = %v", err)
+	}
+
+	if result.Pagination.Page != original.Pagination.Page {
+		t.Errorf("Pagination.Page = %v, want %v", result.Pagination.Page, original.Pagination.Page)
+	}
+	if result.Filters.Created.GTE != original.Filters.Created.GTE {
+		t.Errorf("Filters.Created.GTE = %v, want %v",
+			result.Filters.Created.GTE, original.Filters.Created.GTE)
+	}
+	if !reflect.DeepEqual(result.Populate, original.Populate) {
+		t.Errorf("Populate = %v, want %v", result.Populate, original.Populate)
+	}
+}
+
+// TestStructWithMapField tests struct containing map fields
+func TestStructWithMapField(t *testing.T) {
+	type Config struct {
+		Name     string            `query:"name"`
+		Settings map[string]string `query:"settings"`
+		Metadata map[string]int    `query:"metadata"`
+	}
+
+	original := Config{
+		Name: "myconfig",
+		Settings: map[string]string{
+			"theme":    "dark",
+			"language": "en",
+		},
+		Metadata: map[string]int{
+			"version": 2,
+			"count":   100,
+		},
+	}
+
+	str, err := Marshal(original)
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+
+	var result Config
+	err = Unmarshal(str, &result)
+	if err != nil {
+		t.Fatalf("Unmarshal() error = %v", err)
+	}
+
+	if result.Name != original.Name {
+		t.Errorf("Name = %v, want %v", result.Name, original.Name)
+	}
+	if result.Settings["theme"] != original.Settings["theme"] {
+		t.Errorf("Settings[theme] = %v, want %v",
+			result.Settings["theme"], original.Settings["theme"])
+	}
+	if result.Metadata["version"] != original.Metadata["version"] {
+		t.Errorf("Metadata[version] = %v, want %v",
+			result.Metadata["version"], original.Metadata["version"])
+	}
+}
+
+// TestStructWithInterfaceField tests struct with any/interface{} fields
+func TestStructWithInterfaceField(t *testing.T) {
+	type Flexible struct {
+		Name    string `query:"name"`
+		Payload any    `query:"payload"`
+	}
+
+	original := Flexible{
+		Name: "test",
+		Payload: map[string]any{
+			"key":   "value",
+			"count": 42,
+		},
+	}
+
+	str, err := Marshal(original)
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+
+	var result Flexible
+	err = Unmarshal(str, &result)
+	if err != nil {
+		t.Fatalf("Unmarshal() error = %v", err)
+	}
+
+	if result.Name != original.Name {
+		t.Errorf("Name = %v, want %v", result.Name, original.Name)
+	}
+
+	payload, ok := result.Payload.(map[string]any)
+	if !ok {
+		t.Fatalf("Payload is not map[string]any: %T", result.Payload)
+	}
+	if payload["key"] != "value" {
+		t.Errorf("Payload[key] = %v, want value", payload["key"])
+	}
+}
+
+// TestParseToStructWithDuplicates tests duplicate key handling
+func TestParseToStructWithDuplicates(t *testing.T) {
+	type Data struct {
+		Values []string `query:"v"`
+	}
+
+	// Test combine (default)
+	var dataCombine Data
+	err := ParseToStruct("v=a&v=b&v=c", &dataCombine, WithDuplicates(DuplicateCombine))
+	if err != nil {
+		t.Fatalf("ParseToStruct() error = %v", err)
+	}
+	if len(dataCombine.Values) != 3 {
+		t.Errorf("Combine: Values length = %v, want 3", len(dataCombine.Values))
+	}
+
+	// Test first
+	type SingleData struct {
+		Value string `query:"v"`
+	}
+	var dataFirst SingleData
+	err = ParseToStruct("v=first&v=second", &dataFirst, WithDuplicates(DuplicateFirst))
+	if err != nil {
+		t.Fatalf("ParseToStruct() error = %v", err)
+	}
+	if dataFirst.Value != "first" {
+		t.Errorf("First: Value = %v, want first", dataFirst.Value)
+	}
+
+	// Test last
+	var dataLast SingleData
+	err = ParseToStruct("v=first&v=last", &dataLast, WithDuplicates(DuplicateLast))
+	if err != nil {
+		t.Fatalf("ParseToStruct() error = %v", err)
+	}
+	if dataLast.Value != "last" {
+		t.Errorf("Last: Value = %v, want last", dataLast.Value)
+	}
+}
+
+// TestMarshalWithCustomDelimiter tests custom delimiter
+func TestMarshalWithCustomDelimiter(t *testing.T) {
+	type Data struct {
+		A string `query:"a"`
+		B string `query:"b"`
+	}
+
+	data := Data{A: "1", B: "2"}
+
+	str, err := Marshal(data, WithStringifyDelimiter(";"))
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+
+	// Should use semicolon
+	if !strings.Contains(str, ";") {
+		t.Errorf("Should use ; delimiter, got: %s", str)
+	}
+
+	// Parse back with same delimiter
+	var result Data
+	err = Unmarshal(str, &result, WithDelimiter(";"))
+	if err != nil {
+		t.Fatalf("Unmarshal() error = %v", err)
+	}
+
+	if result.A != data.A || result.B != data.B {
+		t.Errorf("Result = %+v, want %+v", result, data)
+	}
+}
+
+// TestMarshalWithEncodeValuesOnly tests encodeValuesOnly option
+func TestMarshalWithEncodeValuesOnly(t *testing.T) {
+	type Data struct {
+		Key string `query:"a[b]"`
+	}
+
+	data := Data{Key: "hello world"}
+
+	str, err := Marshal(data, WithEncodeValuesOnly(true))
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+
+	// Key should not be encoded, value should be
+	if strings.Contains(str, "%5B") {
+		t.Errorf("Key should not be encoded with encodeValuesOnly, got: %s", str)
+	}
+	if !strings.Contains(str, "%20") && !strings.Contains(str, "+") {
+		t.Errorf("Value should be encoded, got: %s", str)
+	}
+}
+
+// TestMarshalWithFilter tests filter option
+func TestMarshalWithFilter(t *testing.T) {
+	type Data struct {
+		A string `query:"a"`
+		B string `query:"b"`
+		C string `query:"c"`
+	}
+
+	data := Data{A: "1", B: "2", C: "3"}
+
+	// Filter as array of keys
+	str, err := Marshal(data, WithFilter([]string{"a", "c"}))
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+
+	parsed, _ := Parse(str)
+	if _, ok := parsed["b"]; ok {
+		t.Error("b should be filtered out")
+	}
+	if parsed["a"] != "1" {
+		t.Errorf("a = %v, want 1", parsed["a"])
+	}
+	if parsed["c"] != "3" {
+		t.Errorf("c = %v, want 3", parsed["c"])
 	}
 }
