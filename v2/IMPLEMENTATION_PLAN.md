@@ -14,23 +14,26 @@ This document outlines the complete implementation plan for porting the JavaScri
 ## Implementation Phases
 
 ### Phase 1: Core Infrastructure
-- [ ] **1.1 Project Setup**
-  - [ ] Initialize Go module with proper versioning (`v2`)
-  - [ ] Set up directory structure
+- [x] **1.1 Project Setup** ✅ DONE
+  - [x] Initialize Go module with proper versioning (`v2`)
+  - [x] Set up directory structure
   - [ ] Configure CI/CD pipeline
   - **Tests**: Verify module initialization, imports work correctly
 
-- [ ] **1.2 Format Constants (formats.go)** ✅ Partially done
-  - [ ] Define `Format` type
-  - [ ] Implement `RFC1738` format (spaces as `+`)
-  - [ ] Implement `RFC3986` format (spaces as `%20`)
-  - [ ] Implement formatters map with functions
-  - [ ] Set default format to RFC3986
-  - **Tests**:
+- [x] **1.2 Format Constants (formats.go)** ✅ DONE
+  - [x] Define `Format` type
+  - [x] Define `FormatRFC1738`, `FormatRFC3986` constants
+  - [x] Set default format to RFC3986
+  - [x] Implement `RFC1738` formatter function (spaces as `+`)
+  - [x] Implement `RFC3986` formatter function (returns unchanged)
+  - [x] Implement `Formatters` map with functions
+  - [x] Implement `GetFormatter` helper function
+  - **Tests**: ✅ All passing (formats_test.go)
     - Format constants exist
     - Formatter functions work correctly
     - RFC1738 converts `%20` to `+`
     - RFC3986 returns value unchanged
+    - Unknown format fallback to RFC3986
 
 - [ ] **1.3 Utility Functions (utils.go)**
   - [ ] `hexTable` - Pre-computed hex encoding table (256 entries)
