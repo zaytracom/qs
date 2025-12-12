@@ -10,6 +10,13 @@ import (
 	"strings"
 )
 
+// Pre-compiled regular expressions for performance.
+var (
+	numericEntityRe = regexp.MustCompile(`&#(\d+);`)
+	dotNotationRe   = regexp.MustCompile(`\.([^.\[]+)`)
+	bracketRe       = regexp.MustCompile(`(\[[^\[\]]*\])`)
+)
+
 // DuplicateHandling specifies how duplicate keys should be handled during parsing.
 type DuplicateHandling string
 
@@ -431,8 +438,7 @@ func applyParseOptions(opts ...ParseOption) ParseOptions {
 // interpretNumericEntities converts HTML numeric entities (&#NNN;) to characters.
 // e.g., "&#9786;" → "☺"
 func interpretNumericEntitiesFunc(str string) string {
-	re := regexp.MustCompile(`&#(\d+);`)
-	return re.ReplaceAllStringFunc(str, func(match string) string {
+	return numericEntityRe.ReplaceAllStringFunc(str, func(match string) string {
 		// Extract the number between &# and ;
 		numStr := match[2 : len(match)-1]
 		num, err := strconv.Atoi(numStr)
@@ -441,6 +447,34 @@ func interpretNumericEntitiesFunc(str string) string {
 		}
 		return string(rune(num))
 	})
+}
+
+// decodeBrackets decodes URL-encoded brackets (%5B/%5D) in a single pass.
+func decodeBrackets(s string) string {
+	if !strings.Contains(s, "%5") {
+		return s
+	}
+
+	var b strings.Builder
+	b.Grow(len(s))
+
+	for i := 0; i < len(s); {
+		if i+2 < len(s) && s[i] == '%' && s[i+1] == '5' {
+			switch s[i+2] {
+			case 'B', 'b':
+				b.WriteByte('[')
+				i += 3
+				continue
+			case 'D', 'd':
+				b.WriteByte(']')
+				i += 3
+				continue
+			}
+		}
+		b.WriteByte(s[i])
+		i++
+	}
+	return b.String()
 }
 
 // parseArrayValue handles comma-separated values and array limit checking.
@@ -591,16 +625,11 @@ func parseKeys(givenKey string, val any, opts *ParseOptions, valuesParsed bool) 
 	key := givenKey
 	if opts.AllowDots {
 		// Replace .foo with [foo], but not dots inside brackets
-		// Pattern: \.([^.[]+) -> [$1]
-		re := regexp.MustCompile(`\.([^.\[]+)`)
-		key = re.ReplaceAllString(key, "[$1]")
+		key = dotNotationRe.ReplaceAllString(key, "[$1]")
 	}
 
-	// Regex to find bracket segments
-	brackets := regexp.MustCompile(`(\[[^\[\]]*\])`)
-
 	// Find first bracket segment
-	segment := brackets.FindStringIndex(key)
+	segment := bracketRe.FindStringIndex(key)
 
 	var parent string
 	if opts.Depth > 0 && segment != nil {
@@ -624,14 +653,13 @@ func parseKeys(givenKey string, val any, opts *ParseOptions, valuesParsed bool) 
 
 	// Loop through bracket segments up to depth limit
 	i := 0
-	child := regexp.MustCompile(`(\[[^\[\]]*\])`)
 	remaining := ""
 	if segment != nil && opts.Depth > 0 {
 		remaining = key[segment[0]:]
 	}
 
 	for opts.Depth > 0 && i < opts.Depth {
-		match := child.FindStringIndex(remaining)
+		match := bracketRe.FindStringIndex(remaining)
 		if match == nil {
 			break
 		}
@@ -691,10 +719,7 @@ func parseValues(str string, opts *ParseOptions) (orderedResult, error) {
 	}
 
 	// Decode URL-encoded brackets for easier parsing
-	cleanStr = strings.ReplaceAll(cleanStr, "%5B", "[")
-	cleanStr = strings.ReplaceAll(cleanStr, "%5b", "[")
-	cleanStr = strings.ReplaceAll(cleanStr, "%5D", "]")
-	cleanStr = strings.ReplaceAll(cleanStr, "%5d", "]")
+	cleanStr = decodeBrackets(cleanStr)
 
 	// Calculate limit for splitting
 	limit := opts.ParameterLimit

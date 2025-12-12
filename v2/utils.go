@@ -180,8 +180,24 @@ func Decode(str string, charset Charset) string {
 		return str
 	}
 
+	// Fast path: check if decoding is needed at all
+	hasPlus := strings.IndexByte(str, '+') >= 0
+	hasPercent := strings.IndexByte(str, '%') >= 0
+
+	// No encoding present - return as-is (most common case for keys)
+	if !hasPlus && !hasPercent {
+		return str
+	}
+
+	// Only + present, no % - simple space replacement
+	if !hasPercent {
+		return strings.ReplaceAll(str, "+", " ")
+	}
+
 	// Replace + with space first
-	str = strings.ReplaceAll(str, "+", " ")
+	if hasPlus {
+		str = strings.ReplaceAll(str, "+", " ")
+	}
 
 	if charset == CharsetISO88591 {
 		return decodeISO88591(str)
