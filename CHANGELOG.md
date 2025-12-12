@@ -13,10 +13,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Parse options: `WithAllowDots` → `WithParseAllowDots`, `WithDepth` → `WithParseDepth`, etc.
   - Stringify options: `WithArrayFormat` → `WithStringifyArrayFormat`, `WithEncode` → `WithStringifyEncode`, etc.
 
-### ✨ Added
-
-- WASM module (`@zaytra/qs-wasm`) for browser and Node.js usage
-
 ## [2.0.0-beta.1] - 2025-12-12
 
 This is a **beta** release of v2. The API is expected to be close to final, but may still change before the stable `2.0.0` release.
