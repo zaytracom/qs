@@ -1456,7 +1456,7 @@ func TestJSCustomDecoderError(t *testing.T) {
 
 // ===========================================
 // JS Test: "parses jquery-param strings"
-// jQuery serialization uses + for spaces
+// jQuery serialization format compatibility
 // ===========================================
 func TestJSJQueryParamStrings(t *testing.T) {
 	// jQuery.param serializes spaces as +
@@ -1480,6 +1480,45 @@ func TestJSJQueryParamStrings(t *testing.T) {
 	}
 	if result["city"] != "New York" {
 		t.Errorf("result['city'] = %q, want 'New York'", result["city"])
+	}
+
+	// Full jQuery format test from JS parse.js:
+	// readable = 'filter[0][]=int1&filter[0][]==&filter[0][]=77&filter[]=and&filter[2][]=int2&filter[2][]==&filter[2][]=8'
+	// encoded = 'filter%5B0%5D%5B%5D=int1&filter%5B0%5D%5B%5D=%3D&filter%5B0%5D%5B%5D=77&filter%5B%5D=and&filter%5B2%5D%5B%5D=int2&filter%5B2%5D%5B%5D=%3D&filter%5B2%5D%5B%5D=8'
+	// expected = { filter: [['int1', '=', '77'], 'and', ['int2', '=', '8']] }
+	result, err = Parse("filter%5B0%5D%5B%5D=int1&filter%5B0%5D%5B%5D=%3D&filter%5B0%5D%5B%5D=77&filter%5B%5D=and&filter%5B2%5D%5B%5D=int2&filter%5B2%5D%5B%5D=%3D&filter%5B2%5D%5B%5D=8")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	filter, ok := result["filter"].([]any)
+	if !ok {
+		t.Fatalf("filter should be array, got %T: %v", result["filter"], result["filter"])
+	}
+
+	if len(filter) != 3 {
+		t.Fatalf("expected 3 elements, got %d: %v", len(filter), filter)
+	}
+
+	// First element: ['int1', '=', '77']
+	first, ok := filter[0].([]any)
+	if !ok {
+		t.Errorf("filter[0] should be array, got %T: %v", filter[0], filter[0])
+	} else {
+		assertEqual(t, first, []any{"int1", "=", "77"}, "filter[0]")
+	}
+
+	// Second element: 'and'
+	if filter[1] != "and" {
+		t.Errorf("filter[1] = %v, expected 'and'", filter[1])
+	}
+
+	// Third element: ['int2', '=', '8']
+	third, ok := filter[2].([]any)
+	if !ok {
+		t.Errorf("filter[2] should be array, got %T: %v", filter[2], filter[2])
+	} else {
+		assertEqual(t, third, []any{"int2", "=", "8"}, "filter[2]")
 	}
 }
 
