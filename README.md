@@ -81,15 +81,15 @@ qs.Unmarshal("page=2&limit=20&tags[0]=rust", &parsed)
 
 ## Comparison with Other QS Libraries
 
-| Feature | **zaytra** | [gorilla](https://github.com/gorilla/schema) | [go-playground](https://github.com/go-playground/form) | [ajg](https://github.com/ajg/form) | [google](https://github.com/google/go-querystring) |
+| Feature | **zaytra** | [gorilla](https://github.com/gorilla/schema) | [google](https://github.com/google/go-querystring) | [go-playground](https://github.com/go-playground/form) | [ajg](https://github.com/ajg/form) |
 |---------|:------:|:------:|:------:|:------:|:------:|
 | Encode | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Decode | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Decode | ✅ | ✅ | ❌ | ✅ | ✅ |
 | Struct Tags | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Nested Objects | ✅ | ❌ | ✅ | ✅ | ✅ |
-| Nested Arrays | ✅ | ❌ | ✅ | ✅ | ❌ |
+| Nested Arrays | ✅ | ❌ | ❌ | ✅ | ✅ |
 | Dynamic map | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Array Formats | 4️⃣ | 1️⃣ | 2️⃣ | 1️⃣ | 5️⃣ |
+| Array Formats | 4️⃣ | 1️⃣ | 5️⃣ | 2️⃣ | 1️⃣ |
 | Depth Control | ✅ | ❌ | ❌ | ❌ | ❌ |
 
 **Array Formats:** `indices` (`a[0]=x`), `brackets` (`a[]=x`), `repeat` (`a=x&a=y`), `comma` (`a=x,y`)
