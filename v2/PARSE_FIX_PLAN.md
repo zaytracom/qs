@@ -1,199 +1,345 @@
-# Parse Fix Plan - Comparison with JS Version
+# Parse Fix Plan - Comparison with JS Version (UPDATED)
 
 ## Overview
 
-Current Go v2 implementation has **16 failed tests** out of 44 (36%). Main discrepancies with JS `qs` are related to:
-1. Handling edge cases for depth/arrayLimit
-2. Merge logic for values
-3. Empty bracket handling
-4. Charset encoding
+Current Go v2 implementation has **16 failed tests** out of 44 (36%). After detailed JS/Go code comparison, the real root causes are:
+
+1. **CRITICAL**: Map iteration order (random in Go, insertion-order in JS)
+2. `normalizeParseOptions` overwrites zero values with defaults
+3. `splitByDelimiter` behavior differs from JS `String.split()`
+4. `Merge` function has multiple behavioral differences
+5. `__proto__` incorrectly allowed with `allowPrototypes: true`
+6. ISO-8859-1 decoding produces invalid UTF-8
 
 ---
 
-## Phase 1: Critical Core Parsing Fixes
+## Phase 0: CRITICAL — Map Iteration Order
 
-### 1.1 Fix `depth: 0` behavior
+### Problem
 
-**Problem:** `depth: 0` should completely disable nesting
-```
-Input:  a[0]=b&a[1]=c with depth: 0
-Expected: {"a[0]": "b", "a[1]": "c"}
-Got:      {a: ["b", "c"]}
-```
+This is the **root cause** of ~50% of failed tests, completely missing from original plan.
 
-**JS code (parse.js:205-206):**
+**JS (parse.js:320-325):**
 ```js
-var segment = options.depth > 0 && brackets.exec(key);
-var parent = segment ? key.slice(0, segment.index) : key;
+var keys = Object.keys(tempObj);
+for (var i = 0; i < keys.length; ++i) {
+    var key = keys[i];
+    var newObj = parseKeys(key, tempObj[key], options, typeof str === 'string');
+    obj = utils.merge(obj, newObj, options);
+}
 ```
+`Object.keys()` returns keys in **insertion order** (ES2015+).
 
-**Go code (parse.go:596-600):**
+**Go (parse.go:872):**
 ```go
-if opts.Depth > 0 && segment != nil {
-    parent = key[:segment[0]]
-} else {
-    parent = key
+for key, val := range tempObj {
+    newObj, err := parseKeys(key, val, &normalizedOpts, true)
+    // ...
+}
+```
+Go map iteration is **randomized** by design.
+
+### Impact
+
+For input `a[b]=c&a=d`:
+- JS always processes `a[b]` first, then `a` → `{a: {b: "c", d: true}}`
+- Go may process `a` first, then `a[b]` → `{a: ["d", {b: "c"}]}`
+
+Affected tests:
+- `TestJSMixedArrays` — order `["b", "c"]` vs `["c", "b"]`
+- `TestJSAddKeysToObjects` — `{b: "c", d: true}` vs `["d", {b: "c"}]`
+- `TestJSArraysToObjects` — key order in converted objects
+- `TestJSArraysToObjectsDotNotation` — same issue
+
+### Solution
+
+**Option A: Track insertion order in parseValues**
+```go
+type orderedResult struct {
+    keys   []string       // insertion order
+    values map[string]any
+}
+
+func parseValues(str string, opts *ParseOptions) (orderedResult, error) {
+    result := orderedResult{
+        keys:   make([]string, 0),
+        values: make(map[string]any),
+    }
+    // ...
+    if _, exists := result.values[key]; !exists {
+        result.keys = append(result.keys, key)
+    }
+    result.values[key] = val
+    // ...
 }
 ```
 
-**Root Cause:**
-Problem in `normalizeParseOptions` (line 226-228):
+**Option B: Use ordered map library**
 ```go
-if result.Depth == 0 {
-    result.Depth = DefaultDepth  // <- This overwrites depth: 0 to 5!
-}
+import "github.com/elliotchance/orderedmap/v2"
 ```
 
-**Solution:**
-1. Add field `DepthSet bool` or use pointer `*int`
-2. Or use special value (e.g., -1 = use default)
+**Option C: Sort keys deterministically**
+Less ideal but simplest — sort keys alphabetically. Won't match JS exactly but will be deterministic.
 
-**Files:**
-- `parse.go:197-244` - normalizeParseOptions
-- `parse.go:339-343` - WithDepth
+### Files
+- `parse.go:665-834` — parseValues return type
+- `parse.go:870-886` — Parse iteration loop
+
+### Tests affected
+- `TestJSMixedArrays`
+- `TestJSAddKeysToObjects`
+- `TestJSArraysToObjects`
+- `TestJSArraysToObjectsDotNotation`
 
 ---
 
-### 1.2 Fix `arrayLimit: 0` behavior
+## Phase 1: Core Parsing Fixes
 
-**Problem:** `arrayLimit: 0` should always return object, not array
-```
-Input:  a[1]=c with arrayLimit: 0
-Expected: {a: {1: "c"}}
-Got:      {a: ["c"]}
-```
+### 1.1 Fix `depth: 0` and `arrayLimit: 0` behavior
 
-**JS code (parse.js:170-176):**
+**Problem:** Zero values are overwritten with defaults.
+
+**JS (parse.js:287, 295):**
 ```js
-if (
-    !isNaN(index)
-    && root !== decodedRoot
-    && String(index) === decodedRoot
-    && index >= 0
-    && (options.parseArrays && index <= options.arrayLimit)  // <- Key condition
-) {
-    obj = [];
-    obj[index] = leaf;
-}
+arrayLimit: typeof opts.arrayLimit === 'number' ? opts.arrayLimit : defaults.arrayLimit,
+depth: (typeof opts.depth === 'number' || opts.depth === false) ? +opts.depth : defaults.depth,
 ```
+JS checks **type**, not value. `0` is a valid number.
 
-**Go code (parse.go:549):**
-```go
-} else if isValidIndex && opts.ParseArrays && index <= opts.ArrayLimit {
-```
-
-**Root Cause:**
-Same issue - `normalizeParseOptions` overwrites `ArrayLimit: 0` to 20:
+**Go (parse.go:223-231):**
 ```go
 if result.ArrayLimit == 0 {
-    result.ArrayLimit = DefaultArrayLimit  // <- Overwrites!
+    result.ArrayLimit = DefaultArrayLimit  // WRONG: overwrites explicit 0
+}
+if result.Depth == 0 {
+    result.Depth = DefaultDepth  // WRONG: overwrites explicit 0
 }
 ```
 
-**Solution:**
-Same as depth - use explicit flag or pointer.
+### Solution
 
-**Files:**
-- `parse.go:223-225` - normalizeParseOptions
-- `parse.go:549` - parseObject
+**Option A: Use pointers**
+```go
+type ParseOptions struct {
+    ArrayLimit *int  // nil = use default, 0 = explicitly zero
+    Depth      *int
+    // ...
+}
+
+func normalizeParseOptions(opts *ParseOptions) (ParseOptions, error) {
+    // ...
+    if result.ArrayLimit == nil {
+        defaultVal := DefaultArrayLimit
+        result.ArrayLimit = &defaultVal
+    }
+    if result.Depth == nil {
+        defaultVal := DefaultDepth
+        result.Depth = &defaultVal
+    }
+}
+```
+
+**Option B: Use sentinel value**
+```go
+const (
+    ArrayLimitNotSet = -999
+    DepthNotSet      = -999
+)
+
+// In DefaultParseOptions:
+ArrayLimit: ArrayLimitNotSet,
+Depth:      DepthNotSet,
+
+// In normalizeParseOptions:
+if result.ArrayLimit == ArrayLimitNotSet {
+    result.ArrayLimit = DefaultArrayLimit
+}
+```
+
+**Option C: Separate "Set" flags**
+```go
+type ParseOptions struct {
+    ArrayLimit    int
+    ArrayLimitSet bool
+    Depth         int
+    DepthSet      bool
+}
+```
+
+### Files
+- `parse.go:35-138` — ParseOptions struct
+- `parse.go:197-244` — normalizeParseOptions
+- `parse.go:278-282, 339-343` — WithArrayLimit, WithDepth
+
+### Tests affected
+- `TestJSDepthZero`
+- `TestJSArrayIndices` (arrayLimit: 0)
+- `TestJSArrayLimitOverride`
+- `TestJSArrayLimitTests`
 
 ---
 
-### 1.3 Fix ParameterLimit (count parameters vs characters)
+### 1.2 Fix ParameterLimit (split behavior)
 
-**Problem:** Limit should count number of parameters, not characters
-```
-Input:  a=b&c=d with parameterLimit: 1
-Expected: {a: "b"}
-Got:      {a: "b&c=d"}
-```
+**Problem:** JS and Go `split` behave differently with limit parameter.
 
-**JS code (parse.js:66-74):**
+**JS (parse.js:67-70):**
 ```js
 var limit = options.parameterLimit === Infinity ? undefined : options.parameterLimit;
-var parts = cleanStr.split(options.delimiter,
-    options.throwOnLimitExceeded ? limit + 1 : limit);
-
-if (options.throwOnLimitExceeded && parts.length > limit) {
-    throw new RangeError('Parameter limit exceeded...');
-}
+var parts = cleanStr.split(options.delimiter, limit);
 ```
+JS `"a&b&c".split("&", 2)` returns `["a", "b"]` — exactly 2 parts, rest discarded.
 
-**Go code (parse.go:680-691):**
+**Go current behavior:**
 ```go
-limit := opts.ParameterLimit
-if opts.ThrowOnLimitExceeded {
-    limit = opts.ParameterLimit + 1
-}
-parts := splitByDelimiter(cleanStr, opts.Delimiter, opts.DelimiterRegexp, limit)
+// For limit=1: loops 0 times, returns whole string as 1 part
+// "a&b&c" with limit=1 → ["a&b&c"]  WRONG!
+// Should be: ["a"]
 ```
 
-**Root Cause:**
-Current `splitByDelimiter` implementation is incorrect. Verify:
-1. JS `split(delimiter, limit)` splits into `limit` parts, not characters
-2. Go should use `strings.SplitN` correctly
+**JS behavior table:**
+| Input | Delimiter | Limit | Result |
+|-------|-----------|-------|--------|
+| `a&b&c` | `&` | 1 | `["a"]` |
+| `a&b&c` | `&` | 2 | `["a", "b"]` |
+| `a&b&c` | `&` | 5 | `["a", "b", "c"]` |
 
-**Files:**
-- `parse.go:453-482` - splitByDelimiter
-- `parse.go:680-691` - parseValues
+### Solution
+
+```go
+func splitByDelimiter(str string, delimiter string, delimiterRegexp *regexp.Regexp, limit int) []string {
+    if limit <= 0 {
+        // No limit
+        if delimiterRegexp != nil {
+            return delimiterRegexp.Split(str, -1)
+        }
+        return strings.Split(str, delimiter)
+    }
+
+    // Split with limit+1 to detect if there are more parts
+    var parts []string
+    if delimiterRegexp != nil {
+        parts = delimiterRegexp.Split(str, limit+1)
+    } else {
+        parts = strings.SplitN(str, delimiter, limit+1)
+    }
+
+    // Truncate to limit (discard remainder like JS)
+    if len(parts) > limit {
+        parts = parts[:limit]
+    }
+
+    return parts
+}
+```
+
+### Files
+- `parse.go:453-482` — splitByDelimiter
+
+### Tests affected
+- `TestJSParameterLimit`
+- `TestJSParameterLimitTests`
 
 ---
 
-### 1.4 Support empty parent brackets `[]=a`
+### 1.3 Support empty parent brackets `[]=a`
 
-**Problem:** `[]=a` at root level should create `{0: "a"}`
+**Problem:** Keys like `[]` at root level should create indexed entries.
+
+**JS behavior:**
 ```
+Input:  []=&a=b
+Expected: {0: "", a: "b"}
+
 Input:  []=a&[]=b
 Expected: {0: "a", 1: "b"}
-Got:      {}
+
+Input:  [0]=a&[1]=b
+Expected: {0: "a", 1: "b"}
 ```
 
-**JS code (parse.js:205-219):**
+**JS (parse.js:205-219):**
 ```js
 var segment = options.depth > 0 && brackets.exec(key);
 var parent = segment ? key.slice(0, segment.index) : key;
 
 var keys = [];
 if (parent) {
-    // ... push parent
     keys.push(parent);
 }
+
+// For key="[]": segment matches at index 0, parent="", keys=[]
+// Loop adds "[]" to keys
+// parseObject(["[]"], val) creates array, which becomes {0: val}
 ```
-When `key = "[]"`, `parent = ""` (empty string), and key is skipped.
 
-**But** in JS this works through different mechanism - parseValues creates key `[]`,
-which is then processed by parseObject.
+**Go issue:**
+The logic is similar but the final merge doesn't handle array→object conversion at root level properly.
 
-**Go problem:**
-In `parseKeys` (line 576-577):
+### Root Cause Analysis
+
+When `parseKeys("[]", "a", ...)` returns `["a"]` (an array), and we merge it into `{}` (empty map), Go's Merge doesn't convert the array to object with index keys.
+
+**JS (utils.js:95-104):**
+```js
+return Object.keys(source).reduce(function (acc, key) {
+    var value = source[key];
+    // Object.keys(["a"]) returns ["0"]!
+    acc[key] = value;
+    return acc;
+}, mergeTarget);
+```
+
+**Go (utils.go:322-330):**
 ```go
-if givenKey == "" {
-    return nil, nil
+if sourceIsMap {
+    for key, value := range sourceMap {
+        // ...
+    }
+}
+return mergeTarget  // If source is slice, it's IGNORED!
+```
+
+### Solution
+
+Fix in Merge to handle `target=map, source=slice`:
+
+```go
+// After the map+map merge section, add:
+if sourceIsSlice {
+    // Convert slice indices to map keys (like JS Object.keys on array)
+    for i, value := range sourceSlice {
+        if value == nil {
+            continue
+        }
+        key := strconv.Itoa(i)
+        if existing, exists := mergeTarget[key]; exists {
+            mergeTarget[key] = Merge(existing, value, allowPrototypes)
+        } else {
+            mergeTarget[key] = value
+        }
+    }
 }
 ```
-Key `[]` is not empty, but `parent = ""` handling skips it.
 
-**Solution:**
-Need to change logic in `parseKeys` to handle case when parent is empty,
-but bracket segments exist.
+### Files
+- `utils.go:232-333` — Merge function
+- `parse.go:575-661` — parseKeys (minor adjustments)
 
-**Files:**
-- `parse.go:575-661` - parseKeys
+### Tests affected
+- `TestJSNoParentFound`
+- `TestJSEmptyKeysWithBrackets`
 
 ---
 
 ## Phase 2: Merge Behavior Fixes
 
-### 2.1 Mixed array/value order
+### 2.1 Fix slice+slice merge (push vs overwrite)
 
-**Problem:** Value order should match input order
-```
-Input:  a=b&a[]=c
-Expected: {a: ["b", "c"]}
-Got:      {a: ["c", "b"]}
-```
+**Problem:** When merging arrays with same-index primitives, JS pushes to end, Go overwrites.
 
-**JS code (utils.js:79-93):**
+**JS (utils.js:79-92):**
 ```js
 if (isArray(target) && isArray(source)) {
     source.forEach(function (item, i) {
@@ -202,7 +348,7 @@ if (isArray(target) && isArray(source)) {
             if (targetItem && typeof targetItem === 'object' && item && typeof item === 'object') {
                 target[i] = merge(targetItem, item, options);
             } else {
-                target.push(item);  // <- push preserves order
+                target.push(item);  // <- PUSH to end, not overwrite!
             }
         } else {
             target[i] = item;
@@ -212,259 +358,355 @@ if (isArray(target) && isArray(source)) {
 }
 ```
 
-**Go code (utils.go:277-311):**
-Problem is Go overwrites elements by index instead of push.
-
-**Solution:**
-1. Change array merge logic in `Merge`
-2. When merging primitive with array - append to end
-
-**Files:**
-- `utils.go:232-333` - Merge
-
----
-
-### 2.2 Adding keys to objects `a[b]=c&a=d`
-
-**Problem:** Primitive should be added as key to existing object
-```
-Input:  a[b]=c&a=d
-Expected: {a: {b: "c", d: true}}
-Got:      {a: ["d", {b: "c"}]}
-```
-
-**JS code (utils.js:53-67):**
-```js
-if (typeof source !== 'object' && typeof source !== 'function') {
-    if (isArray(target)) {
-        target.push(source);
-    } else if (target && typeof target === 'object') {
-        if (
-            (options && (options.plainObjects || options.allowPrototypes))
-            || !has.call(Object.prototype, source)
-        ) {
-            target[source] = true;  // <- Adds as key!
-        }
-    } else {
-        return [target, source];
-    }
-    return target;
-}
-```
-
-**Go code (utils.go:242-256):**
+**Go (utils.go:300-307):**
 ```go
-if sourceIsPrimitive {
-    if targetSlice, ok := target.([]any); ok {
-        return append(targetSlice, source)
-    }
-    if targetMap, ok := target.(map[string]any); ok {
-        key, isString := source.(string)
-        if isString && (allowPrototypes || !isPrototypeKey(key)) {
-            targetMap[key] = true  // <- This works!
-        }
-        return targetMap
-    }
-    return []any{target, source}
-}
-```
-
-**Root Cause:**
-Problem is elsewhere - when merging `{b: "c"}` with `"d"` first target is map,
-but somewhere the operation order is wrong. Need to check key iteration order
-in `Parse`.
-
-**Files:**
-- `parse.go:871-886` - Parse main loop
-- `utils.go:232-333` - Merge
-
----
-
-### 2.3 Arrays to Objects transformation
-
-**Problem:** When mixing string and numeric keys, all should be preserved
-```
-Input:  foo[bad]=baz&foo[0]=bar
-Expected: {foo: {bad: "baz", 0: "bar"}}
-Got:      {foo: {bad: "baz"}}
-```
-
-**JS code (utils.js:74-77):**
-```js
-var mergeTarget = target;
-if (isArray(target) && !isArray(source)) {
-    mergeTarget = arrayToObject(target, options);
-}
-```
-
-**Go code (utils.go:314-319):**
-```go
-var mergeTarget map[string]any
-if targetIsSlice {
-    mergeTarget = ArrayToObject(targetSlice)
+if targetItemIsMap && itemIsMap {
+    targetSlice[i] = Merge(targetItem, item, allowPrototypes)
+} else if targetItemIsSlice && itemIsSlice {
+    targetSlice[i] = Merge(targetItem, item, allowPrototypes)
 } else {
-    mergeTarget = targetMap
+    targetSlice[i] = item  // <- WRONG: overwrites instead of push
 }
 ```
 
-**Root Cause:**
-Problem is `ArrayToObject` skips nil values, but in JS
-arrayToObject preserves all indices where `typeof source[i] !== 'undefined'`.
+### Solution
 
-Also need to check logic in `parseObject` - possibly array is created
-incorrectly initially.
+```go
+if targetIsSlice && sourceIsSlice {
+    for i, item := range sourceSlice {
+        if item == nil {
+            continue
+        }
 
-**Files:**
-- `utils.go:343-351` - ArrayToObject
-- `parse.go:503-571` - parseObject
+        if i < len(targetSlice) && targetSlice[i] != nil {
+            targetItem := targetSlice[i]
+            _, targetItemIsMap := targetItem.(map[string]any)
+            _, itemIsMap := item.(map[string]any)
+            _, targetItemIsSlice := targetItem.([]any)
+            _, itemIsSlice := item.([]any)
+
+            if (targetItemIsMap && itemIsMap) || (targetItemIsSlice && itemIsSlice) {
+                targetSlice[i] = Merge(targetItem, item, allowPrototypes)
+            } else {
+                // Both exist but different types or primitives - PUSH to end
+                targetSlice = append(targetSlice, item)
+            }
+        } else {
+            // Extend if needed
+            for len(targetSlice) <= i {
+                targetSlice = append(targetSlice, nil)
+            }
+            targetSlice[i] = item
+        }
+    }
+    return targetSlice
+}
+```
+
+### Files
+- `utils.go:278-311` — slice+slice merge block
+
+### Tests affected
+- `TestJSMixedArrays` (partially — also needs Phase 0)
 
 ---
 
-## Phase 3: Charset & Security
+### 2.2 Fix map+slice merge (missing case)
 
-### 3.1 ISO-8859-1 to UTF-8 conversion
+**Problem:** When target is map and source is slice, Go ignores the source entirely.
 
-**Problem:** ISO-8859-1 bytes should be converted to UTF-8 Unicode
-```
-Input:  %A2=%BD with charset: "iso-8859-1"
-Expected: {"¢": "½"}
-Got:      {"\xa2": "\xbd"}
-```
-
-**JS code (utils.js:114-126):**
+**JS (utils.js:95-104):**
 ```js
-var decode = function (str, defaultDecoder, charset) {
-    var strWithoutPlus = str.replace(/\+/g, ' ');
-    if (charset === 'iso-8859-1') {
-        return strWithoutPlus.replace(/%[0-9a-f]{2}/gi, unescape);
+// Works for both map and array sources via Object.keys()
+return Object.keys(source).reduce(function (acc, key) {
+    var value = source[key];
+    if (has.call(acc, key)) {
+        acc[key] = merge(acc[key], value, options);
+    } else {
+        acc[key] = value;
     }
-    // ... utf-8
+    return acc;
+}, mergeTarget);
+```
+
+`Object.keys(["a", "b"])` returns `["0", "1"]`.
+
+**Go (utils.go:322-330):**
+```go
+if sourceIsMap {
+    for key, value := range sourceMap {
+        // ...
+    }
+}
+return mergeTarget  // sourceSlice is IGNORED!
+```
+
+### Solution
+
+```go
+// Source is a map, merge into target
+if sourceIsMap {
+    for key, value := range sourceMap {
+        if existing, exists := mergeTarget[key]; exists {
+            mergeTarget[key] = Merge(existing, value, allowPrototypes)
+        } else {
+            mergeTarget[key] = value
+        }
+    }
+} else if sourceIsSlice {
+    // Source is a slice - convert indices to string keys
+    for i, value := range sourceSlice {
+        if value == nil {
+            continue
+        }
+        key := strconv.Itoa(i)
+        if existing, exists := mergeTarget[key]; exists {
+            mergeTarget[key] = Merge(existing, value, allowPrototypes)
+        } else {
+            mergeTarget[key] = value
+        }
+    }
+}
+
+return mergeTarget
+```
+
+### Files
+- `utils.go:321-332` — add slice handling
+
+### Tests affected
+- `TestJSNoParentFound`
+- `TestJSEmptyKeysWithBrackets`
+- `TestJSArraysToObjects`
+
+---
+
+### 2.3 Fix ArrayToObject (preserve all indices)
+
+**Problem:** ArrayToObject skips nil but should preserve index positions.
+
+**JS (utils.js:36-45):**
+```js
+var arrayToObject = function arrayToObject(source, options) {
+    var obj = options && options.plainObjects ? { __proto__: null } : {};
+    for (var i = 0; i < source.length; ++i) {
+        if (typeof source[i] !== 'undefined') {
+            obj[i] = source[i];
+        }
+    }
+    return obj;
 };
 ```
 
-**Go code (utils.go:186-207):**
+JS checks for `undefined`, not null. In Go context, we should preserve non-nil values.
+
+**Go (utils.go:343-351):**
 ```go
-func decodeISO88591(str string) string {
-    // ... decodes bytes as-is
+func ArrayToObject(source []any) map[string]any {
+    result := make(map[string]any)
+    for i, v := range source {
+        if v != nil {
+            result[strconv.Itoa(i)] = v
+        }
+    }
+    return result
 }
 ```
 
-**Solution:**
-JS `unescape` interprets each %XX as Latin-1 character and returns
-its Unicode equivalent. Go should do the same:
+This is actually correct. The issue is elsewhere — when sparse arrays are created, some indices are lost before ArrayToObject is called.
+
+### Real Issue
+
+In `parseObject`, when creating sparse array with large index:
 ```go
-// Each byte 0x00-0xFF should map to Unicode code point U+0000-U+00FF
-result.WriteRune(rune(byte(hi<<4 | lo)))  // Instead of WriteByte
+if isValidIndex && opts.ParseArrays && index <= opts.ArrayLimit {
+    arr := make([]any, index+1)
+    arr[index] = leaf
+    obj = arr
+}
 ```
 
-**Files:**
-- `utils.go:186-207` - decodeISO88591
+For input `a[2]=b&a[99999999]=c`:
+- First: creates `arr[0..2]` with `arr[2]="b"`
+- Second: creates `arr[0..99999999]` with `arr[99999999]="c"` — huge allocation!
+- JS handles this by converting to object when index > arrayLimit
+
+The arrayLimit check should trigger conversion to object for large indices.
+
+### Files
+- `utils.go:343-351` — ArrayToObject (OK as-is)
+- `parse.go:549-553` — parseObject array creation
+
+### Tests affected
+- `TestJSPruneUndefined`
 
 ---
 
-### 3.2 `__proto__` should ALWAYS be blocked
+## Phase 3: Security & Charset
 
-**Problem:** `__proto__` should be ignored even with `allowPrototypes: true`
-```
-Input:  categories[__proto__]=login with allowPrototypes: true
-Expected: {}  // __proto__ ignored
-Got:      {categories: {__proto__: ["login"]}}
-```
+### 3.1 `__proto__` must ALWAYS be blocked
 
-**JS code (parse.js:179-181):**
+**Problem:** `__proto__` is allowed when `allowPrototypes: true`, but JS always blocks it.
+
+**JS (parse.js:179-181):**
 ```js
 } else if (decodedRoot !== '__proto__') {
     obj[decodedRoot] = leaf;
 }
+// NO else clause! __proto__ is always blocked.
 ```
-Note - check for `__proto__` happens **OUTSIDE** the `allowPrototypes` block.
 
-**Go code (parse.go:554-564):**
+**Go (parse.go:554-564):**
 ```go
 } else if decodedRoot != "__proto__" {
     objMap[decodedRoot] = leaf
     obj = objMap
-} else if opts.AllowPrototypes {  // <- This is wrong!
+} else if opts.AllowPrototypes {  // <- SECURITY BUG!
     objMap[decodedRoot] = leaf
+    obj = objMap
+} else {
     obj = objMap
 }
 ```
 
-**Solution:**
-Remove `opts.AllowPrototypes` block for `__proto__`.
-`__proto__` should **ALWAYS** be ignored regardless of options.
+### Solution
 
-**Files:**
-- `parse.go:554-564` - parseObject
+Remove the `allowPrototypes` exception for `__proto__`:
+
+```go
+} else if decodedRoot != "__proto__" {
+    objMap[decodedRoot] = leaf
+    obj = objMap
+} else {
+    // __proto__ is ALWAYS blocked, regardless of allowPrototypes
+    obj = objMap
+}
+```
+
+### Files
+- `parse.go:554-564` — parseObject
+
+### Tests affected
+- `TestJSDunderProto`
+
+---
+
+### 3.2 ISO-8859-1 to UTF-8 conversion
+
+**Problem:** ISO-8859-1 bytes should become Unicode code points.
+
+**JS (utils.js:116-118):**
+```js
+if (charset === 'iso-8859-1') {
+    return strWithoutPlus.replace(/%[0-9a-f]{2}/gi, unescape);
+}
+```
+
+JS `unescape('%A2')` returns character with code point U+00A2 (¢).
+
+**Go (utils.go:196-198):**
+```go
+if hi >= 0 && lo >= 0 {
+    result.WriteByte(byte(hi<<4 | lo))  // <- Writes raw byte, invalid UTF-8!
+    i += 3
+    continue
+}
+```
+
+Byte `0xA2` alone is invalid UTF-8. Need to write Unicode code point.
+
+### Solution
+
+```go
+if hi >= 0 && lo >= 0 {
+    // Convert ISO-8859-1 byte to Unicode code point
+    // ISO-8859-1 bytes 0x00-0xFF map directly to U+0000-U+00FF
+    result.WriteRune(rune(hi<<4 | lo))
+    i += 3
+    continue
+}
+```
+
+### Files
+- `utils.go:186-207` — decodeISO88591
+
+### Tests affected
+- `TestJSCharset`
 
 ---
 
 ### 3.3 Charset Sentinel switching
 
-**Problem:** Sentinel should switch charset for entire string
-```
-Input:  utf8=%26%2310003%3B&%C3%B8=%C3%B8 with charsetSentinel: true, charset: "utf-8"
-Expected: {"Ã¸": "Ã¸"} (interpreted as ISO-8859-1)
-Got:      {"ø": "ø"} (still UTF-8)
-```
+**Problem:** Sentinel should switch charset interpretation for entire string.
 
-**JS code:** Sentinel is determined before parsing values and applied to all.
+**JS behavior:**
+1. Scan for `utf8=` sentinel
+2. If found, determine charset (UTF-8 or ISO-8859-1)
+3. Decode ALL values using detected charset
 
-**Go code (parse.go:695-709):**
-```go
-if opts.CharsetSentinel {
-    for i, part := range parts {
-        if strings.HasPrefix(part, "utf8=") {
-            if part == charsetSentinel {
-                charset = CharsetUTF8
-            } else if part == isoSentinel {
-                charset = CharsetISO88591
-            }
-            // ...
-        }
-    }
-}
-```
+**Go behavior:**
+Charset detection works, but ISO-8859-1 decoding is broken (see 3.2).
 
-**Root Cause:**
-Problem is that `%C3%B8` is first decoded by URL decoder, which
-transforms it to "ø" (UTF-8). But if sentinel indicates ISO-8859-1,
-need to interpret bytes 0xC3 0xB8 as two separate Latin-1 characters.
+After fixing 3.2, this should work. However, verify that:
+1. Sentinel is detected before any value decoding
+2. Detected charset is used for all subsequent decodes
 
-**Files:**
-- `parse.go:695-709` - charset detection
-- `utils.go:164-183` - Decode
+### Files
+- `parse.go:695-709` — charset detection (OK)
+- `utils.go:164-183` — Decode function
+- `utils.go:186-207` — decodeISO88591 (needs fix from 3.2)
+
+### Tests affected
+- `TestJSCharsetSentinel`
 
 ---
 
-## Phase 4: Additional Fixes
+### 3.4 StrictNullHandling in arrays
 
-### 4.1 StrictNullHandling in arrays
+**Problem:** Missing value should create null in array, not be skipped.
 
-**Problem:** Missing value should create null in array
+**Current behavior:**
 ```
 Input:  a[0]=b&a[1]&a[2]=c with strictNullHandling: true
 Expected: {a: ["b", null, "c"]}
 Got:      {a: ["b", "c"]}
 ```
 
-**Files:**
-- `parse.go` - parseValues
-- `utils.go` - Compact (should not remove null)
+**Root cause:** `Compact` removes nil values.
 
----
-
-### 4.2 Sparse array pruning
-
-**Problem:** When converting to object, both indices should be preserved
-```
-Input:  a[2]=b&a[99999999]=c
-Expected: {a: {2: "b", 99999999: "c"}}
-Got:      {a: {99999999: "c"}}
+**JS (utils.js:25-29):**
+```js
+for (var j = 0; j < obj.length; ++j) {
+    if (typeof obj[j] !== 'undefined') {
+        compacted.push(obj[j]);
+    }
+}
 ```
 
-**Files:**
-- `utils.go:343-351` - ArrayToObject
+JS removes `undefined`, not `null`. In Go, we're removing all nil.
+
+### Solution
+
+When `strictNullHandling` is true, null values are meaningful and should not be compacted. Need to pass options to Compact or handle differently.
+
+```go
+func CompactWithOptions(value any, preserveNull bool) any {
+    // ...
+    if v == nil && !preserveNull {
+        continue
+    }
+    // ...
+}
+```
+
+Or: don't compact when strictNullHandling is true.
+
+### Files
+- `utils.go:355-407` — Compact functions
+- `parse.go:888-894` — Compact call
+
+### Tests affected
+- `TestJSEmptyStringsInArrays`
 
 ---
 
@@ -472,52 +714,100 @@ Got:      {a: {99999999: "c"}}
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ Step 1: Critical Fixes                                      │
+│ Phase 0: CRITICAL - Iteration Order                         │
 ├─────────────────────────────────────────────────────────────┤
-│ 1. normalizeParseOptions - depth/arrayLimit zero values     │
-│ 2. splitByDelimiter - parameter limit fix                   │
-│ 3. parseKeys - empty parent brackets support                │
-│ 4. parseObject - __proto__ always blocked                   │
+│ 0. parseValues returns ordered keys + Parse uses that order │
+│    Impact: Fixes 4+ tests                                   │
+│    Risk: HIGH (structural change)                           │
 └─────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────┐
-│ Step 2: Merge Behavior                                      │
+│ Phase 1: Core Parsing                                       │
 ├─────────────────────────────────────────────────────────────┤
-│ 5. Merge - order preservation when merging arrays           │
-│ 6. Merge - primitive-to-object addition                     │
-│ 7. ArrayToObject - preserve all indices                     │
+│ 1.1 normalizeParseOptions - depth/arrayLimit zero values    │
+│ 1.2 splitByDelimiter - parameter limit fix                  │
+│ 1.3 parseKeys/Merge - empty parent brackets support         │
+│    Impact: Fixes 6+ tests                                   │
+│    Risk: MEDIUM                                             │
 └─────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────┐
-│ Step 3: Charset & Edge Cases                                │
+│ Phase 2: Merge Behavior                                     │
 ├─────────────────────────────────────────────────────────────┤
-│ 8. decodeISO88591 - UTF-8 conversion                        │
-│ 9. Charset sentinel - full string re-interpretation         │
-│ 10. StrictNullHandling - null preservation in arrays        │
+│ 2.1 Merge slice+slice - push vs overwrite                   │
+│ 2.2 Merge map+slice - handle slice source                   │
+│ 2.3 ArrayToObject - verify index preservation               │
+│    Impact: Fixes 3+ tests                                   │
+│    Risk: MEDIUM-HIGH (affects many code paths)              │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│ Phase 3: Security & Charset                                 │
+├─────────────────────────────────────────────────────────────┤
+│ 3.1 __proto__ always blocked (SECURITY)                     │
+│ 3.2 ISO-8859-1 decode - WriteRune                           │
+│ 3.3 Charset sentinel (depends on 3.2)                       │
+│ 3.4 StrictNullHandling - preserve null in arrays            │
+│    Impact: Fixes 4+ tests                                   │
+│    Risk: LOW-MEDIUM                                         │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Testing
+## Testing Strategy
 
-After each fix:
+After each phase:
 ```bash
+# Run all JS compatibility tests
+go test -v -run "TestJS" ./v2/...
+
 # Run specific test
 go test -v -run "TestJSDepthZero" ./v2/...
-
-# Run all JS-compatible tests
-go test -v -run "TestJS" ./v2/...
 
 # With coverage
 go test -v -run "TestJS" -coverprofile=cov.out ./v2/...
 go tool cover -html=cov.out
 ```
 
+### Phase 0 verification:
+```bash
+go test -v -run "TestJSMixedArrays|TestJSAddKeysToObjects|TestJSArraysToObjects" ./v2/...
+```
+
+### Phase 1 verification:
+```bash
+go test -v -run "TestJSDepthZero|TestJSArrayIndices|TestJSParameterLimit|TestJSNoParentFound" ./v2/...
+```
+
+### Phase 3 verification:
+```bash
+go test -v -run "TestJSDunderProto|TestJSCharset" ./v2/...
+```
+
 ---
 
 ## Expected Outcome
 
-After all fixes:
-- **44/44 tests** should pass (100%)
-- JS qs compatibility ~95%+ for parse functionality
+| Phase | Tests Fixed | Cumulative Pass Rate |
+|-------|-------------|---------------------|
+| Before | 0 | 28/44 (64%) |
+| Phase 0 | ~4 | 32/44 (73%) |
+| Phase 1 | ~6 | 38/44 (86%) |
+| Phase 2 | ~3 | 41/44 (93%) |
+| Phase 3 | ~3 | 44/44 (100%) |
+
+---
+
+## Risk Assessment
+
+| Fix | Risk Level | Reason |
+|-----|------------|--------|
+| Phase 0 (iteration order) | HIGH | Structural change to parseValues/Parse |
+| Fix 1.1 (depth/arrayLimit) | MEDIUM | API change if using pointers |
+| Fix 1.2 (split) | LOW | Isolated function |
+| Fix 2.1-2.2 (Merge) | MEDIUM-HIGH | Core function, many callers |
+| Fix 3.1 (__proto__) | LOW | Simple removal |
+| Fix 3.2 (charset) | LOW | Isolated function |
+
+**Recommendation:** Create comprehensive unit tests for Merge before modifying it.
