@@ -233,68 +233,173 @@ func normalizeParseOptions(opts *ParseOptions) (ParseOptions, error) {
 	return result, nil
 }
 
-// WithAllowDots returns a copy of opts with AllowDots set.
-func (opts ParseOptions) WithAllowDots(v bool) ParseOptions {
-	opts.AllowDots = v
-	return opts
+// ParseOption is a functional option for configuring ParseOptions.
+type ParseOption func(*ParseOptions)
+
+// WithAllowDots enables dot notation parsing (e.g., "a.b.c" → {a: {b: {c: ...}}}).
+func WithAllowDots(v bool) ParseOption {
+	return func(o *ParseOptions) {
+		o.AllowDots = v
+	}
 }
 
-// WithArrayLimit returns a copy of opts with ArrayLimit set.
-func (opts ParseOptions) WithArrayLimit(v int) ParseOptions {
-	opts.ArrayLimit = v
-	return opts
+// WithAllowEmptyArrays allows empty arrays when value is empty string.
+func WithAllowEmptyArrays(v bool) ParseOption {
+	return func(o *ParseOptions) {
+		o.AllowEmptyArrays = v
+	}
 }
 
-// WithCharset returns a copy of opts with Charset set.
-func (opts ParseOptions) WithCharset(v Charset) ParseOptions {
-	opts.Charset = v
-	return opts
+// WithAllowPrototypes allows keys that would overwrite Object prototype properties.
+func WithAllowPrototypes(v bool) ParseOption {
+	return func(o *ParseOptions) {
+		o.AllowPrototypes = v
+	}
 }
 
-// WithComma returns a copy of opts with Comma set.
-func (opts ParseOptions) WithComma(v bool) ParseOptions {
-	opts.Comma = v
-	return opts
+// WithAllowSparse preserves sparse arrays without compacting them.
+func WithAllowSparse(v bool) ParseOption {
+	return func(o *ParseOptions) {
+		o.AllowSparse = v
+	}
 }
 
-// WithDelimiter returns a copy of opts with Delimiter set.
-func (opts ParseOptions) WithDelimiter(v string) ParseOptions {
-	opts.Delimiter = v
-	return opts
+// WithArrayLimit sets the maximum index for array parsing.
+func WithArrayLimit(v int) ParseOption {
+	return func(o *ParseOptions) {
+		o.ArrayLimit = v
+	}
 }
 
-// WithDepth returns a copy of opts with Depth set.
-func (opts ParseOptions) WithDepth(v int) ParseOptions {
-	opts.Depth = v
-	return opts
+// WithCharset sets the character encoding to use.
+func WithCharset(v Charset) ParseOption {
+	return func(o *ParseOptions) {
+		o.Charset = v
+	}
 }
 
-// WithDuplicates returns a copy of opts with Duplicates set.
-func (opts ParseOptions) WithDuplicates(v DuplicateHandling) ParseOptions {
-	opts.Duplicates = v
-	return opts
+// WithCharsetSentinel enables automatic charset detection via utf8=✓ parameter.
+func WithCharsetSentinel(v bool) ParseOption {
+	return func(o *ParseOptions) {
+		o.CharsetSentinel = v
+	}
 }
 
-// WithIgnoreQueryPrefix returns a copy of opts with IgnoreQueryPrefix set.
-func (opts ParseOptions) WithIgnoreQueryPrefix(v bool) ParseOptions {
-	opts.IgnoreQueryPrefix = v
-	return opts
+// WithComma enables parsing comma-separated values as arrays.
+func WithComma(v bool) ParseOption {
+	return func(o *ParseOptions) {
+		o.Comma = v
+	}
 }
 
-// WithParameterLimit returns a copy of opts with ParameterLimit set.
-func (opts ParseOptions) WithParameterLimit(v int) ParseOptions {
-	opts.ParameterLimit = v
-	return opts
+// WithDecodeDotInKeys decodes %2E as . in keys.
+func WithDecodeDotInKeys(v bool) ParseOption {
+	return func(o *ParseOptions) {
+		o.DecodeDotInKeys = v
+		if v {
+			o.AllowDots = true
+		}
+	}
 }
 
-// WithParseArrays returns a copy of opts with ParseArrays set.
-func (opts ParseOptions) WithParseArrays(v bool) ParseOptions {
-	opts.ParseArrays = v
-	return opts
+// WithDecoder sets a custom decoder function.
+func WithDecoder(v DecoderFunc) ParseOption {
+	return func(o *ParseOptions) {
+		o.Decoder = v
+	}
 }
 
-// WithStrictNullHandling returns a copy of opts with StrictNullHandling set.
-func (opts ParseOptions) WithStrictNullHandling(v bool) ParseOptions {
-	opts.StrictNullHandling = v
-	return opts
+// WithDelimiter sets the string used to split key-value pairs.
+func WithDelimiter(v string) ParseOption {
+	return func(o *ParseOptions) {
+		o.Delimiter = v
+		o.DelimiterRegexp = nil
+	}
+}
+
+// WithDelimiterRegexp sets a regexp used to split key-value pairs.
+func WithDelimiterRegexp(v *regexp.Regexp) ParseOption {
+	return func(o *ParseOptions) {
+		o.DelimiterRegexp = v
+		o.Delimiter = ""
+	}
+}
+
+// WithDepth sets the maximum depth for nested object parsing.
+func WithDepth(v int) ParseOption {
+	return func(o *ParseOptions) {
+		o.Depth = v
+	}
+}
+
+// WithDuplicates sets how to handle duplicate keys.
+func WithDuplicates(v DuplicateHandling) ParseOption {
+	return func(o *ParseOptions) {
+		o.Duplicates = v
+	}
+}
+
+// WithIgnoreQueryPrefix strips a leading ? from the input string.
+func WithIgnoreQueryPrefix(v bool) ParseOption {
+	return func(o *ParseOptions) {
+		o.IgnoreQueryPrefix = v
+	}
+}
+
+// WithInterpretNumericEntities converts HTML numeric entities to characters.
+func WithInterpretNumericEntities(v bool) ParseOption {
+	return func(o *ParseOptions) {
+		o.InterpretNumericEntities = v
+	}
+}
+
+// WithParameterLimit sets the maximum number of parameters to parse.
+func WithParameterLimit(v int) ParseOption {
+	return func(o *ParseOptions) {
+		o.ParameterLimit = v
+	}
+}
+
+// WithParseArrays enables or disables array parsing.
+func WithParseArrays(v bool) ParseOption {
+	return func(o *ParseOptions) {
+		o.ParseArrays = v
+	}
+}
+
+// WithPlainObjects creates objects without prototype.
+func WithPlainObjects(v bool) ParseOption {
+	return func(o *ParseOptions) {
+		o.PlainObjects = v
+	}
+}
+
+// WithStrictDepth returns an error when input depth exceeds Depth option.
+func WithStrictDepth(v bool) ParseOption {
+	return func(o *ParseOptions) {
+		o.StrictDepth = v
+	}
+}
+
+// WithStrictNullHandling treats keys without values as null instead of empty string.
+func WithStrictNullHandling(v bool) ParseOption {
+	return func(o *ParseOptions) {
+		o.StrictNullHandling = v
+	}
+}
+
+// WithThrowOnLimitExceeded returns an error when limits are exceeded.
+func WithThrowOnLimitExceeded(v bool) ParseOption {
+	return func(o *ParseOptions) {
+		o.ThrowOnLimitExceeded = v
+	}
+}
+
+// applyParseOptions applies functional options to a ParseOptions struct.
+func applyParseOptions(opts ...ParseOption) ParseOptions {
+	o := DefaultParseOptions()
+	for _, opt := range opts {
+		opt(&o)
+	}
+	return o
 }

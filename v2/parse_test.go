@@ -244,98 +244,246 @@ func TestNormalizeParseOptions(t *testing.T) {
 	})
 }
 
-func TestParseOptionsWithMethods(t *testing.T) {
-	base := DefaultParseOptions()
-
+func TestFunctionalOptions(t *testing.T) {
 	t.Run("WithAllowDots", func(t *testing.T) {
-		opts := base.WithAllowDots(true)
+		opts := applyParseOptions(WithAllowDots(true))
 		if !opts.AllowDots {
 			t.Error("WithAllowDots(true) should set AllowDots to true")
 		}
-		if base.AllowDots {
-			t.Error("original options should not be modified")
+	})
+
+	t.Run("WithAllowEmptyArrays", func(t *testing.T) {
+		opts := applyParseOptions(WithAllowEmptyArrays(true))
+		if !opts.AllowEmptyArrays {
+			t.Error("WithAllowEmptyArrays(true) should set AllowEmptyArrays to true")
+		}
+	})
+
+	t.Run("WithAllowPrototypes", func(t *testing.T) {
+		opts := applyParseOptions(WithAllowPrototypes(true))
+		if !opts.AllowPrototypes {
+			t.Error("WithAllowPrototypes(true) should set AllowPrototypes to true")
+		}
+	})
+
+	t.Run("WithAllowSparse", func(t *testing.T) {
+		opts := applyParseOptions(WithAllowSparse(true))
+		if !opts.AllowSparse {
+			t.Error("WithAllowSparse(true) should set AllowSparse to true")
 		}
 	})
 
 	t.Run("WithArrayLimit", func(t *testing.T) {
-		opts := base.WithArrayLimit(100)
+		opts := applyParseOptions(WithArrayLimit(100))
 		if opts.ArrayLimit != 100 {
 			t.Errorf("WithArrayLimit(100) = %d, want 100", opts.ArrayLimit)
 		}
 	})
 
+	t.Run("WithArrayLimit zero", func(t *testing.T) {
+		opts := applyParseOptions(WithArrayLimit(0))
+		if opts.ArrayLimit != 0 {
+			t.Errorf("WithArrayLimit(0) = %d, want 0", opts.ArrayLimit)
+		}
+	})
+
 	t.Run("WithCharset", func(t *testing.T) {
-		opts := base.WithCharset(CharsetISO88591)
+		opts := applyParseOptions(WithCharset(CharsetISO88591))
 		if opts.Charset != CharsetISO88591 {
 			t.Errorf("WithCharset(ISO88591) = %q, want %q", opts.Charset, CharsetISO88591)
 		}
 	})
 
+	t.Run("WithCharsetSentinel", func(t *testing.T) {
+		opts := applyParseOptions(WithCharsetSentinel(true))
+		if !opts.CharsetSentinel {
+			t.Error("WithCharsetSentinel(true) should set CharsetSentinel to true")
+		}
+	})
+
 	t.Run("WithComma", func(t *testing.T) {
-		opts := base.WithComma(true)
+		opts := applyParseOptions(WithComma(true))
 		if !opts.Comma {
 			t.Error("WithComma(true) should set Comma to true")
 		}
 	})
 
+	t.Run("WithDecodeDotInKeys enables AllowDots", func(t *testing.T) {
+		opts := applyParseOptions(WithDecodeDotInKeys(true))
+		if !opts.DecodeDotInKeys {
+			t.Error("WithDecodeDotInKeys(true) should set DecodeDotInKeys to true")
+		}
+		if !opts.AllowDots {
+			t.Error("WithDecodeDotInKeys(true) should also enable AllowDots")
+		}
+	})
+
+	t.Run("WithDecoder", func(t *testing.T) {
+		customDecoder := func(s string, c Charset, k string) (string, error) {
+			return s, nil
+		}
+		opts := applyParseOptions(WithDecoder(customDecoder))
+		if opts.Decoder == nil {
+			t.Error("WithDecoder should set Decoder")
+		}
+	})
+
 	t.Run("WithDelimiter", func(t *testing.T) {
-		opts := base.WithDelimiter(";")
+		opts := applyParseOptions(WithDelimiter(";"))
 		if opts.Delimiter != ";" {
 			t.Errorf("WithDelimiter(;) = %q, want ;", opts.Delimiter)
 		}
 	})
 
+	t.Run("WithDelimiterRegexp clears Delimiter", func(t *testing.T) {
+		re := regexp.MustCompile("[&;]")
+		opts := applyParseOptions(WithDelimiterRegexp(re))
+		if opts.DelimiterRegexp != re {
+			t.Error("WithDelimiterRegexp should set DelimiterRegexp")
+		}
+		if opts.Delimiter != "" {
+			t.Error("WithDelimiterRegexp should clear Delimiter")
+		}
+	})
+
+	t.Run("WithDelimiter clears DelimiterRegexp", func(t *testing.T) {
+		re := regexp.MustCompile("[&;]")
+		opts := applyParseOptions(WithDelimiterRegexp(re), WithDelimiter(";"))
+		if opts.DelimiterRegexp != nil {
+			t.Error("WithDelimiter should clear DelimiterRegexp")
+		}
+		if opts.Delimiter != ";" {
+			t.Errorf("Delimiter = %q, want ;", opts.Delimiter)
+		}
+	})
+
 	t.Run("WithDepth", func(t *testing.T) {
-		opts := base.WithDepth(10)
+		opts := applyParseOptions(WithDepth(10))
 		if opts.Depth != 10 {
 			t.Errorf("WithDepth(10) = %d, want 10", opts.Depth)
 		}
 	})
 
+	t.Run("WithDepth zero", func(t *testing.T) {
+		opts := applyParseOptions(WithDepth(0))
+		if opts.Depth != 0 {
+			t.Errorf("WithDepth(0) = %d, want 0", opts.Depth)
+		}
+	})
+
 	t.Run("WithDuplicates", func(t *testing.T) {
-		opts := base.WithDuplicates(DuplicateLast)
+		opts := applyParseOptions(WithDuplicates(DuplicateLast))
 		if opts.Duplicates != DuplicateLast {
 			t.Errorf("WithDuplicates(last) = %q, want %q", opts.Duplicates, DuplicateLast)
 		}
 	})
 
 	t.Run("WithIgnoreQueryPrefix", func(t *testing.T) {
-		opts := base.WithIgnoreQueryPrefix(true)
+		opts := applyParseOptions(WithIgnoreQueryPrefix(true))
 		if !opts.IgnoreQueryPrefix {
 			t.Error("WithIgnoreQueryPrefix(true) should set IgnoreQueryPrefix to true")
 		}
 	})
 
+	t.Run("WithInterpretNumericEntities", func(t *testing.T) {
+		opts := applyParseOptions(WithInterpretNumericEntities(true))
+		if !opts.InterpretNumericEntities {
+			t.Error("WithInterpretNumericEntities(true) should set InterpretNumericEntities to true")
+		}
+	})
+
 	t.Run("WithParameterLimit", func(t *testing.T) {
-		opts := base.WithParameterLimit(500)
+		opts := applyParseOptions(WithParameterLimit(500))
 		if opts.ParameterLimit != 500 {
 			t.Errorf("WithParameterLimit(500) = %d, want 500", opts.ParameterLimit)
 		}
 	})
 
-	t.Run("WithParseArrays", func(t *testing.T) {
-		opts := base.WithParseArrays(false)
+	t.Run("WithParseArrays false", func(t *testing.T) {
+		opts := applyParseOptions(WithParseArrays(false))
 		if opts.ParseArrays {
 			t.Error("WithParseArrays(false) should set ParseArrays to false")
 		}
 	})
 
+	t.Run("WithPlainObjects", func(t *testing.T) {
+		opts := applyParseOptions(WithPlainObjects(true))
+		if !opts.PlainObjects {
+			t.Error("WithPlainObjects(true) should set PlainObjects to true")
+		}
+	})
+
+	t.Run("WithStrictDepth", func(t *testing.T) {
+		opts := applyParseOptions(WithStrictDepth(true))
+		if !opts.StrictDepth {
+			t.Error("WithStrictDepth(true) should set StrictDepth to true")
+		}
+	})
+
 	t.Run("WithStrictNullHandling", func(t *testing.T) {
-		opts := base.WithStrictNullHandling(true)
+		opts := applyParseOptions(WithStrictNullHandling(true))
 		if !opts.StrictNullHandling {
 			t.Error("WithStrictNullHandling(true) should set StrictNullHandling to true")
 		}
 	})
 
-	t.Run("chaining", func(t *testing.T) {
-		opts := base.
-			WithAllowDots(true).
-			WithDepth(10).
-			WithComma(true).
-			WithDelimiter(";")
+	t.Run("WithThrowOnLimitExceeded", func(t *testing.T) {
+		opts := applyParseOptions(WithThrowOnLimitExceeded(true))
+		if !opts.ThrowOnLimitExceeded {
+			t.Error("WithThrowOnLimitExceeded(true) should set ThrowOnLimitExceeded to true")
+		}
+	})
 
-		if !opts.AllowDots || opts.Depth != 10 || !opts.Comma || opts.Delimiter != ";" {
-			t.Error("chained With methods should work correctly")
+	t.Run("multiple options", func(t *testing.T) {
+		opts := applyParseOptions(
+			WithAllowDots(true),
+			WithDepth(10),
+			WithComma(true),
+			WithDelimiter(";"),
+		)
+		if !opts.AllowDots {
+			t.Error("AllowDots should be true")
+		}
+		if opts.Depth != 10 {
+			t.Errorf("Depth = %d, want 10", opts.Depth)
+		}
+		if !opts.Comma {
+			t.Error("Comma should be true")
+		}
+		if opts.Delimiter != ";" {
+			t.Errorf("Delimiter = %q, want ;", opts.Delimiter)
+		}
+	})
+
+	t.Run("no options returns defaults", func(t *testing.T) {
+		opts := applyParseOptions()
+		defaults := DefaultParseOptions()
+		if opts.ArrayLimit != defaults.ArrayLimit {
+			t.Errorf("ArrayLimit = %d, want %d", opts.ArrayLimit, defaults.ArrayLimit)
+		}
+		if opts.Depth != defaults.Depth {
+			t.Errorf("Depth = %d, want %d", opts.Depth, defaults.Depth)
+		}
+		if opts.ParseArrays != defaults.ParseArrays {
+			t.Errorf("ParseArrays = %v, want %v", opts.ParseArrays, defaults.ParseArrays)
+		}
+	})
+
+	t.Run("defaults are correct with functional options", func(t *testing.T) {
+		// This is the key test - verifies that functional options solve the zero-value problem
+		opts := applyParseOptions() // no options = all defaults
+
+		if opts.ParseArrays != true {
+			t.Error("ParseArrays default should be true")
+		}
+		if opts.ArrayLimit != 20 {
+			t.Errorf("ArrayLimit default should be 20, got %d", opts.ArrayLimit)
+		}
+		if opts.Depth != 5 {
+			t.Errorf("Depth default should be 5, got %d", opts.Depth)
+		}
+		if opts.ParameterLimit != 1000 {
+			t.Errorf("ParameterLimit default should be 1000, got %d", opts.ParameterLimit)
 		}
 	})
 }
