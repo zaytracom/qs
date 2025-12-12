@@ -2,12 +2,16 @@
 
 ## Current Errors Analysis
 
-After running tests, the following categories of issues were identified:
+After running tests and comparing with JS source (`/Users/phl/Projects/qs/.ref/lib/stringify.js`), the following issues were identified:
 
-### 1. EncodeDotInKeys + AllowDots=false
+---
+
+### 1. EncodeDotInKeys + AllowDots=false ✅ CONFIRMED
 
 **File:** `stringify.go`
-**Problem:** When `encodeDotInKeys=true` and `allowDots=false`, Go implementation uses dot notation instead of bracket notation.
+**Status:** Test fails: `allowDots_false,_encodeDotInKeys_true`
+
+**Problem:** When `encodeDotInKeys=true` and `allowDots=false` (explicitly set), Go implementation uses dot notation instead of bracket notation.
 
 **Error example:**
 ```
@@ -22,92 +26,125 @@ var allowDots = typeof opts.allowDots === 'undefined'
     : !!opts.allowDots;
 ```
 
-**Root cause in Go (stringify.go:243-246):**
+**Key insight:** JS sets `allowDots=true` ONLY if:
+1. `allowDots` is NOT explicitly set (`=== undefined`) AND
+2. `encodeDotInKeys === true`
+
+If `allowDots` is explicitly set to `false`, it MUST remain `false`.
+
+**Root cause in Go:**
+
+1. `stringify.go:243-246` (normalizeStringifyOptions):
 ```go
-// If EncodeDotInKeys is true, AllowDots should also be true
 if result.EncodeDotInKeys && !result.AllowDots {
-    result.AllowDots = true  // INCORRECT!
+    result.AllowDots = true  // WRONG: ignores explicit false
 }
 ```
 
-**Fix:**
-JS sets `allowDots=true` only if `allowDots` is **not explicitly set**. If `allowDots=false` is explicitly set, it should remain `false`.
-
+2. `stringify.go:318-324` (WithEncodeDotInKeys):
 ```go
-// WAS:
-if result.EncodeDotInKeys && !result.AllowDots {
-    result.AllowDots = true
+func WithEncodeDotInKeys(v bool) StringifyOption {
+    return func(o *StringifyOptions) {
+        o.EncodeDotInKeys = v
+        if v {
+            o.AllowDots = true  // WRONG: overwrites explicit setting
+        }
+    }
 }
-
-// SHOULD BE:
-// allowDots should NOT be automatically set to true
-// if it was explicitly set to false
-// Need to track whether AllowDots was explicitly set
 ```
 
-**Solution:** Add `AllowDotsExplicit bool` field or use pointer `*bool` to track explicit setting.
+**Fix:** Track whether `AllowDots` was explicitly set.
+
+**Option A (recommended): Add tracking field**
+```go
+type StringifyOptions struct {
+    AllowDots         bool
+    allowDotsSet      bool  // internal: tracks if AllowDots was explicitly set
+    // ...
+}
+
+func WithStringifyAllowDots(v bool) StringifyOption {
+    return func(o *StringifyOptions) {
+        o.AllowDots = v
+        o.allowDotsSet = true
+    }
+}
+
+// In normalizeStringifyOptions:
+if result.EncodeDotInKeys && !result.allowDotsSet {
+    result.AllowDots = true  // Only set if not explicitly provided
+}
+
+// Remove auto-set from WithEncodeDotInKeys
+```
+
+**Option B: Remove auto-set entirely**
+Simply remove lines 243-246 and 321-323. Users who want `encodeDotInKeys=true` with dots must also set `allowDots=true` explicitly.
 
 ---
 
-### 2. Empty arrays in structures with `null` values
+### 2. Empty strings in arrays are skipped ✅ CONFIRMED
 
 **File:** `stringify.go`
-**Problem:** With `skipNulls=false`, empty strings in arrays are skipped instead of being output.
+**Status:** Multiple test failures
 
-**Error example:**
+**Problem:** Empty strings `""` in arrays are being skipped instead of output as `key=`.
+
+**Error examples:**
 ```
 input: {b: [""], c: "c"}
 expected: "b[0]=&c=c"
 got:      "c=c"
-```
 
-**JS behavior (lib/stringify.js:169-171):**
-```javascript
-if (skipNulls && value === null) {
-    continue;
-}
-```
-JS only checks for `null`, not empty strings or `undefined` in arrays.
-
-**Root cause in Go (stringify.go:662-669):**
-```go
-// Skip nulls if requested, or skip nil in arrays (sparse array behavior like JS undefined)
-if value == nil && isSlice(obj) {
-    // In arrays, nil represents undefined (sparse slot) - always skip
-    continue
-}
-if skipNulls && (value == nil || IsExplicitNull(value)) {
-    continue
-}
-```
-
-**Problem:** Go skips `nil` in arrays unconditionally. But empty string `""` should not be skipped.
-
-**Fix:**
-Ensure that `nil` is skipped only as sparse array slot, while empty values `""` are output.
-
----
-
-### 3. strictNullHandling with arrays
-
-**File:** `stringify.go`
-**Problem:** With `strictNullHandling=true`, empty strings in arrays should be output as key without value.
-
-**Error example:**
-```
 input: {b: [""], c: "c"}, strictNullHandling: true
 expected: "b[0]&c=c"
 got:      "c=c"
 ```
 
-**Related to issue #2** - empty values in arrays are being skipped.
+**JS behavior (lib/stringify.js:137-139, 169-171):**
+```javascript
+// Line 137-139: undefined returns empty array (no output)
+if (typeof obj === 'undefined') {
+    return values;
+}
+
+// Line 169-171: Only skip null with skipNulls, NOT undefined or empty string
+if (skipNulls && value === null) {
+    continue;
+}
+```
+
+**Root cause in Go (stringify.go:662-665):**
+```go
+if value == nil && isSlice(obj) {
+    // In arrays, nil represents undefined (sparse slot) - always skip
+    continue
+}
+```
+
+**Investigation needed:** The empty string `""` should NOT be `nil`. Need to trace where `""` becomes `nil` or why it's being skipped.
+
+**Likely issue:** When building `objKeys` for arrays (line 612-616), the value retrieval might be returning `nil` for empty strings, OR the empty string is being converted somewhere.
+
+**Fix approach:**
+1. Trace the code path for `{b: [""]}`
+2. Ensure `""` stays as `""` and is not converted to `nil`
+3. Empty strings should reach the primitive handling (line 543) and output `key=`
 
 ---
 
-### 4. Filter with array of keys
+### 3. strictNullHandling with empty strings ✅ CONFIRMED (related to #2)
+
+Same root cause as #2. Once empty strings are properly handled, this should also work.
+
+---
+
+### 4. Filter array applied recursively ✅ CONFIRMED
 
 **File:** `stringify.go`
-**Problem:** Filter as array of keys is applied incorrectly - extra keys are added.
+**Status:** Test fails with garbage keys
+
+**Problem:** Filter as array of keys is applied at ALL nesting levels instead of only at root.
 
 **Error example:**
 ```
@@ -117,38 +154,80 @@ expected: "a%5Bb%5D%5B0%5D=1&a%5Bb%5D%5B2%5D=3"
 got:      "a%5Ba%5D=&a%5Bb%5D%5Ba%5D=1&a%5Bb%5D%5Bb%5D=1&a%5Bb%5D%5B0%5D=1&a%5Bb%5D%5B2%5D=3&a%5B0%5D=&a%5B2%5D=&b=&0=&2="
 ```
 
-**JS behavior (lib/stringify.js:148-152):**
+**JS behavior (lib/stringify.js:148-153, 191, 287-293, 330):**
+
+In the **exported function** (line 287-293):
 ```javascript
-if (isArray(filter)) {
-    objKeys = filter;
+if (typeof options.filter === 'function') {
+    filter = options.filter;
+    obj = filter('', obj);
+} else if (isArray(options.filter)) {
+    filter = options.filter;
+    objKeys = filter;  // Used for root keys only
+}
+// ...
+// Line 330: filter is passed to stringify()
+stringify(..., options.filter, ...)
+```
+
+In **recursive stringify** (line 148-153):
+```javascript
+if (generateArrayPrefix === 'comma' && isArray(obj)) {
+    // ... comma handling
+} else if (isArray(filter)) {
+    objKeys = filter;  // Filter array used as keys for OBJECTS
 } else {
     var keys = Object.keys(obj);
     objKeys = sort ? keys.sort(sort) : keys;
 }
 ```
-Filter as array is used only to determine which keys to output from current object, **not** for recursive application to all levels.
+
+**Key insight:** The `else if (isArray(filter))` block is AFTER the array check. So for **arrays**, filter is NOT applied - indices are used. For **objects**, filter array specifies which keys to include.
 
 **Root cause in Go (stringify.go:591-596):**
 ```go
 } else if filterSlice, ok := filter.([]string); ok {
-    // Filter is array of keys
     objKeys = make([]any, len(filterSlice))
     for i, k := range filterSlice {
         objKeys[i] = k
     }
 }
 ```
-Go applies filter to all nesting levels, while JS applies only to the root.
+
+This runs BEFORE checking if `obj` is an array, and applies to all objects.
 
 **Fix:**
-Filter as array should be applied **only at the top level** (in the main `Stringify` function), not in recursive `stringify`.
+```go
+// In stringify(), reorder the conditions:
+if generateArrayPrefix == nil && isSlice(obj) {
+    // Comma format handling...
+} else if isSlice(obj) {
+    // Array: use indices, NOT filter
+    slice := toSlice(obj)
+    objKeys = make([]any, len(slice))
+    for i := range slice {
+        objKeys[i] = i
+    }
+} else if filterSlice, ok := filter.([]string); ok {
+    // Object with filter array: use filter keys
+    objKeys = make([]any, len(filterSlice))
+    for i, k := range filterSlice {
+        objKeys[i] = k
+    }
+} else {
+    // Object without filter: use map keys
+    // ...existing code...
+}
+```
 
 ---
 
-### 5. Filter function doesn't remove nil values
+### 5. Filter function returns nil → key not skipped ✅ CONFIRMED
 
 **File:** `stringify.go`
-**Problem:** If filter function returns `nil`, the key should be skipped.
+**Status:** Test fails
+
+**Problem:** When filter function returns `nil`, the key should be completely skipped.
 
 **Error example:**
 ```
@@ -158,261 +237,172 @@ expected: "a=b&e%5Bf%5D=1257894000000"
 got:      "a=b&c=&e%5Bf%5D=1257894000000"
 ```
 
-**Fix:**
-After applying filter function, check if `nil` was returned and skip such values.
+**JS behavior (lib/stringify.js:106-107):**
+```javascript
+if (typeof filter === 'function') {
+    obj = filter(prefix, obj);
+}
+// Then later, if obj is null/undefined, it's handled appropriately
+```
+
+**Root cause in Go (stringify.go:509-514):**
+```go
+if filterFunc, ok := filter.(FilterFunc); ok {
+    obj = filterFunc(prefix, obj)
+} else if fn, ok := filter.(func(string, any) any); ok {
+    obj = fn(prefix, obj)
+}
+// No check if obj became nil after filter!
+```
+
+**Fix:** After applying filter function, check if result is `nil` and return early:
+```go
+if filterFunc, ok := filter.(FilterFunc); ok {
+    obj = filterFunc(prefix, obj)
+    if obj == nil {
+        return []string{}, nil  // Skip this key entirely
+    }
+} else if fn, ok := filter.(func(string, any) any); ok {
+    obj = fn(prefix, obj)
+    if obj == nil {
+        return []string{}, nil
+    }
+}
+```
 
 ---
 
-### 6. Key order (map iteration order)
+### 6. Key order (map iteration) ✅ CONFIRMED
 
-**File:** `stringify.go`
-**Problem:** Go map doesn't guarantee iteration order. Tests expect a specific order.
+**File:** `stringify_jscompat_test.go`
+**Status:** Test failures due to ordering
+
+**Problem:** Go maps don't guarantee iteration order. Some tests expect specific order.
 
 **Error example:**
 ```
-expected: "a=b&c[0]=d&c[1]=e&f[0][0]=g&f[1][0]=h"
-got:      "f[0][0]=g&f[1][0]=h&a=b&c[0]=d&c[1]=e"
+expected: "a=b&c[]=d&c[]=e&f[][]=g&f[][]=h"
+got:      "f[][]=g&f[][]=h&a=b&c[]=d&c[]=e"
 ```
 
-**Fix:**
-Add `WithSort` to tests where specific order is required, or fix tests so they don't depend on order.
+**Fix:** This is a TEST issue, not implementation issue. Tests should either:
+1. Add `WithSort(func(a, b string) bool { return a < b })` to get deterministic order
+2. Compare results as unordered sets of key-value pairs
+
+**Note:** The implementation correctly supports `WithSort` option. Tests need updating.
 
 ---
 
-### 7. Empty key with nested array
+### 7. Empty key with nested array ✅ CONFIRMED
 
 **File:** `stringify.go`
-**Problem:** When key is empty string `""` and contains an array, format should be `[][0]=val`.
+**Status:** Test fails
+
+**Problem:** When key is empty string `""` containing nested empty key with array, format is wrong.
 
 **Error example:**
 ```
-input: {"": [2, 3]}
+input: {"": {"": [2, 3]}}
 expected: "[][0]=2&[][1]=3"
 got:      "[0]=2&[1]=3"
 ```
 
-**JS behavior (lib/stringify.js:174-176):**
+**JS behavior analysis:**
+1. Root call: `key=""`, value=`{"": [2,3]}`
+2. Recurse into object: `prefix=""`, `key=""` → `keyPrefix = "" + "[" + "" + "]"` = `"[]"`
+3. Recurse into array: `prefix="[]"`, `generateArrayPrefix("[]", "0")` = `"[][0]"`
+
+**JS (lib/stringify.js:174-176):**
 ```javascript
 var keyPrefix = isArray(obj)
     ? typeof generateArrayPrefix === 'function' ? generateArrayPrefix(adjustedPrefix, encodedKey) : adjustedPrefix
     : adjustedPrefix + (allowDots ? '.' + encodedKey : '[' + encodedKey + ']');
 ```
 
-With empty prefix and array, `generateArrayPrefix("")` should return `"[]"`.
+For objects with empty key: `"" + "[" + "" + "]"` = `"[]"` ✓
 
-**Root cause:**
-In Go when prefix is empty and this is a root array, brackets are not added.
+**Root cause in Go:** When `adjustedPrefix=""` and `encodedKey=""`, the bracket notation should produce `"[]"`, but something is generating just `""`.
 
-**Fix:**
-For empty prefix with array, `[]` should be used as prefix.
-
----
-
-### 8. repeat format with duplicated references
-
-**File:** `stringify.go`
-**Problem:** When using the same object in multiple places with repeat format.
-
-**Related to handling of duplicated references.**
-
----
-
-## Fix Priority
-
-1. **Critical (affect core logic):**
-   - #4 Filter with array of keys
-   - #5 Filter function and nil
-   - #2/#3 Empty values in arrays
-
-2. **Medium priority:**
-   - #1 EncodeDotInKeys + AllowDots
-   - #7 Empty key with array
-
-3. **Low priority (tests):**
-   - #6 Key order - fix tests
-
----
-
-## Detailed Fix Examples
-
-### Fix #4: Filter array only at root level
-
-**stringify.go - Stringify function (lines 765-771):**
-
+**Investigation:** Check Go's keyPrefix generation for empty keys in objects:
 ```go
-// WAS:
-var filter any = normalizedOpts.Filter
-var objKeys []string
-
-// Handle filter
-if filterFunc, ok := filter.(FilterFunc); ok {
-    obj = filterFunc("", obj)
-} else if fn, ok := filter.(func(string, any) any); ok {
-    obj = fn("", obj)
-} else if filterSlice, ok := filter.([]string); ok {
-    objKeys = filterSlice
-}
-```
-
-```go
-// SHOULD BE:
-var filter any = normalizedOpts.Filter
-var objKeys []string
-var filterForRecursion any = filter  // Filter function is passed recursively
-
-// Handle filter
-if filterFunc, ok := filter.(FilterFunc); ok {
-    obj = filterFunc("", obj)
-} else if fn, ok := filter.(func(string, any) any); ok {
-    obj = fn("", obj)
-} else if filterSlice, ok := filter.([]string); ok {
-    objKeys = filterSlice
-    filterForRecursion = nil  // Array filter is NOT passed to recursion
-}
-```
-
-And in `stringify()` call pass `filterForRecursion` instead of `filter`.
-
----
-
-### Fix #2/#3: Don't skip empty strings in arrays
-
-**stringify.go - stringify function (lines 662-669):**
-
-```go
-// WAS:
-// Skip nulls if requested, or skip nil in arrays (sparse array behavior like JS undefined)
-if value == nil && isSlice(obj) {
-    // In arrays, nil represents undefined (sparse slot) - always skip
-    continue
-}
-if skipNulls && (value == nil || IsExplicitNull(value)) {
-    continue
-}
-```
-
-```go
-// SHOULD BE:
-// Skip sparse array slots (nil in arrays = undefined in JS)
-if value == nil && isSlice(obj) {
-    continue
-}
-// Skip nulls if requested (but not empty strings!)
-if skipNulls && (value == nil || IsExplicitNull(value)) {
-    continue
-}
-// Empty strings "" are NOT skipped - they should be output as key=
-```
-
-Issue: need to ensure that `""` (empty string) doesn't become `nil` somewhere earlier in the code.
-
----
-
-### Fix #7: Empty key with array
-
-**stringify.go - Stringify function (after getting keyValues):**
-
-```go
-// WAS (lines 815-848):
-keyValues, err := stringify(
-    value,
-    key,  // <- key is used directly
-    ...
-)
-```
-
-```go
-// SHOULD BE:
-// For arrays at root level with empty key, need to use
-// correct prefix format
-var prefix string
-if key == "" && isSlice(value) {
-    // Empty key with array should generate [][0]=val
-    prefix = ""  // generateArrayPrefix will add []
+// stringify.go:688-693
+if allowDots {
+    keyPrefix = adjustedPrefix + "." + encodedKey
 } else {
-    prefix = key
+    keyPrefix = adjustedPrefix + "[" + encodedKey + "]"
 }
-keyValues, err := stringify(
-    value,
-    prefix,
-    ...
-)
 ```
 
-Also need to check `arrayPrefixGenerators` - for empty prefix should return `[]`.
+With `adjustedPrefix=""` and `encodedKey=""`: `"" + "[" + "" + "]"` = `"[]"` — this looks correct.
+
+**Actual issue:** May be in how the initial prefix is built in `Stringify()` function, or in `generateArrayPrefix` handling.
+
+**Direct JS test:**
+```javascript
+qs.stringify({'': [2,3]}, {encode: false})  // → "[0]=2&[1]=3" (NOT "[][0]=2")
+qs.stringify({'': {'': [2,3]}}, {encode: false})  // → "[][0]=2&[][1]=3"
+```
+
+So `{"": [2,3]}` at root → `[0]=2` is CORRECT! The test case `{"": {"": [2,3]}}` expects `[][0]=2`.
+
+**Fix:** Need to trace exact test case that's failing and verify expected value.
 
 ---
 
-### Fix #1: EncodeDotInKeys should not automatically enable AllowDots
+## Fix Priority (Updated)
 
-Need to change `StringifyOptions` structure or logic:
+### 1. Critical (core logic bugs):
 
-**Option 1: Use pointer**
-```go
-type StringifyOptions struct {
-    AllowDots *bool  // nil = not set, true/false = explicitly set
-    // ...
-}
-```
+1. **#4 Filter array** - causes garbage output, breaks filtering
+2. **#5 Filter function nil** - filter doesn't work correctly
+3. **#2/#3 Empty strings in arrays** - values silently dropped
 
-**Option 2: Separate field**
-```go
-type StringifyOptions struct {
-    AllowDots         bool
-    allowDotsExplicit bool  // internal field
-    // ...
-}
-```
+### 2. Medium priority (option behavior):
 
-**Option 3: Logic in WithEncodeDotInKeys**
-```go
-// normalizeStringifyOptions:
-// Do NOT automatically set AllowDots = true
-// Instead check allowDots only where needed
-```
+4. **#1 EncodeDotInKeys + AllowDots** - option interaction bug
+5. **#7 Empty key with array** - edge case with empty keys
 
-Recommended **Option 3** - remove automatic setting and handle cases individually.
+### 3. Low priority (test fixes):
+
+6. **#6 Key order** - fix tests to use sort or unordered comparison
 
 ---
 
-## JS vs Go Implementation Comparison
+## Implementation Order
 
-### JS lib/stringify.js key points:
-
-1. **Line 142-147**: Comma format with arrays
-```javascript
-if (generateArrayPrefix === 'comma' && isArray(obj)) {
-    if (encodeValuesOnly && encoder) {
-        obj = utils.maybeMap(obj, encoder);
-    }
-    objKeys = [{ value: obj.length > 0 ? obj.join(',') || null : void undefined }];
-}
+```
+1. Fix #4 (filter array) - reorder conditions in stringify()
+2. Fix #5 (filter nil) - add nil check after filter function
+3. Fix #2/#3 (empty strings) - trace and fix value handling
+4. Fix #1 (allowDots) - add tracking field
+5. Fix #7 (empty key) - investigate and fix prefix generation
+6. Fix #6 (tests) - add sort to affected tests
 ```
 
-2. **Line 169-171**: Skip only null, not undefined
-```javascript
-if (skipNulls && value === null) {
-    continue;
-}
-```
+---
 
-3. **Line 174-176**: keyPrefix generation
-```javascript
-var keyPrefix = isArray(obj)
-    ? typeof generateArrayPrefix === 'function' ? generateArrayPrefix(adjustedPrefix, encodedKey) : adjustedPrefix
-    : adjustedPrefix + (allowDots ? '.' + encodedKey : '[' + encodedKey + ']');
-```
+## Code Locations Summary
 
-4. **Line 301-302**: generateArrayPrefix for comma
-```javascript
-var generateArrayPrefix = arrayPrefixGenerators[options.arrayFormat];
-var commaRoundTrip = generateArrayPrefix === 'comma' && options.commaRoundTrip;
-```
-`generateArrayPrefix` can be either string `'comma'` or function.
+| Issue | File | Lines | Function |
+|-------|------|-------|----------|
+| #1 | stringify.go | 243-246, 318-324 | normalizeStringifyOptions, WithEncodeDotInKeys |
+| #2/#3 | stringify.go | 662-669 | stringify (skip logic) |
+| #4 | stringify.go | 591-618 | stringify (objKeys building) |
+| #5 | stringify.go | 509-514 | stringify (filter application) |
+| #6 | stringify_jscompat_test.go | various | tests |
+| #7 | stringify.go | 688-693 | stringify (keyPrefix generation) |
 
-### Go differences:
+---
 
-1. Go uses `nil` for both sparse slots and explicit null - need to distinguish via `ExplicitNullValue`
-2. Go automatically sets `AllowDots=true` when `EncodeDotInKeys=true` - incorrect
-3. Go applies filter array recursively - incorrect
-4. Go maps don't guarantee order - need sort for deterministic output
+## JS Reference
+
+Key file: `/Users/phl/Projects/qs/.ref/lib/stringify.js`
+
+Key line numbers:
+- 106-117: filter function application
+- 137-139: undefined handling
+- 142-153: objKeys building (comma, filter array, object keys)
+- 155-161: prefix encoding and commaRoundTrip
+- 163-176: main loop with skip logic and keyPrefix
+- 255: allowDots calculation with encodeDotInKeys
+- 287-293: root filter handling
