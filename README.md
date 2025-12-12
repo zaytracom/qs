@@ -79,9 +79,9 @@ qs.Unmarshal("page=2&limit=20&tags[0]=rust", &parsed)
 // Request{Page: 2, Limit: 20, Tags: []string{"rust"}}
 ```
 
-## Comparison with Other Libraries
+## Comparison with Other QS Libraries
 
-| Feature | zaytra | [gorilla](https://github.com/gorilla/schema) | [go-playground](https://github.com/go-playground/form) | [ajg](https://github.com/ajg/form) | [google](https://github.com/google/go-querystring) |
+| Feature | **zaytra** | [gorilla](https://github.com/gorilla/schema) | [go-playground](https://github.com/go-playground/form) | [ajg](https://github.com/ajg/form) | [google](https://github.com/google/go-querystring) |
 |---------|:------:|:------:|:------:|:------:|:------:|
 | Encode | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Decode | ✅ | ✅ | ✅ | ✅ | ❌ |
@@ -96,7 +96,7 @@ qs.Unmarshal("page=2&limit=20&tags[0]=rust", &parsed)
 
 ## Performance
 
-### Stringify (struct → query string) — lower is better
+Stringify (struct → query string) — lower is better
 
 | Benchmark | zaytra | gorilla | google | go-playground | ajg |
 |:----------|-------:|--------:|-------:|--------------:|----:|
@@ -107,7 +107,7 @@ qs.Unmarshal("page=2&limit=20&tags[0]=rust", &parsed)
 
 zaytra is **3-26x faster** than alternatives for encoding.
 
-### Parse (query string → struct) — lower is better
+Parse (query string → struct) — lower is better
 
 | Benchmark | zaytra | gorilla | google | go-playground | ajg |
 |:----------|-------:|--------:|-------:|--------------:|----:|
