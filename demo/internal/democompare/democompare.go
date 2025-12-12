@@ -43,9 +43,7 @@ func parseQueryStringWithDelimiter(s, delimiter string) map[string][]string {
 	if s == "" {
 		return result
 	}
-	if strings.HasPrefix(s, "?") {
-		s = s[1:]
-	}
+	s = strings.TrimPrefix(s, "?")
 	parts := strings.Split(s, delimiter)
 	for _, part := range parts {
 		idx := strings.Index(part, "=")

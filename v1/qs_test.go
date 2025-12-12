@@ -583,13 +583,13 @@ func TestStructToMap(t *testing.T) {
 
 func BenchmarkParseSimple(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Parse("a=b&c=d&e=f")
+		_, _ = Parse("a=b&c=d&e=f")
 	}
 }
 
 func BenchmarkParseComplex(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Parse("user[profile][settings][theme][colors][primary]=blue&user[profile][settings][theme][colors][secondary]=green&data[users][]=John&data[users][]=Jane")
+		_, _ = Parse("user[profile][settings][theme][colors][primary]=blue&user[profile][settings][theme][colors][secondary]=green&data[users][]=John&data[users][]=Jane")
 	}
 }
 
@@ -601,7 +601,7 @@ func BenchmarkStringifySimple(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		Stringify(obj)
+		_, _ = Stringify(obj)
 	}
 }
 

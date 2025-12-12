@@ -765,13 +765,6 @@ func parseObject(chain []string, val interface{}, options *ParseOptions, result 
 	return nil
 }
 
-func getCleanKey(key string) string {
-	if strings.HasPrefix(key, "[") && strings.HasSuffix(key, "]") {
-		return key[1 : len(key)-1]
-	}
-	return key
-}
-
 // StringifyOptions configures how data structures are converted to query strings.
 // These options control various aspects of the stringification process,
 // including array formatting, encoding, and output structure.
