@@ -59,7 +59,7 @@ func TestStrapiAPI_ReadmeExamples(t *testing.T) {
 					"createdAt": map[string]any{"$gte": "2023-01-01"},
 				},
 			},
-			qs.WithEncodeValuesOnly(true),
+			qs.WithStringifyEncodeValuesOnly(true),
 		)
 		if err != nil {
 			t.Fatalf("go stringify: %v", err)
@@ -92,7 +92,7 @@ func TestStrapiAPI_ReadmeExamples(t *testing.T) {
 
 		goQS, err := qs.Stringify(
 			map[string]any{"sort": []any{"title:asc", "createdAt:desc"}},
-			qs.WithEncodeValuesOnly(true),
+			qs.WithStringifyEncodeValuesOnly(true),
 		)
 		if err != nil {
 			t.Fatalf("go stringify: %v", err)
@@ -117,8 +117,8 @@ func TestStrapiAPI_ReadmeExamples(t *testing.T) {
 
 			goQS, err := qs.Stringify(
 				map[string]any{"pagination": map[string]any{"page": 1, "pageSize": 10}},
-				qs.WithEncodeValuesOnly(true),
-				qs.WithSort(func(a, b string) bool { return a < b }),
+				qs.WithStringifyEncodeValuesOnly(true),
+				qs.WithStringifySort(func(a, b string) bool { return a < b }),
 			)
 			if err != nil {
 				t.Fatalf("go stringify: %v", err)
@@ -151,7 +151,7 @@ func TestStrapiAPI_ReadmeExamples(t *testing.T) {
 					"categories": map[string]any{"fields": []any{"name"}},
 				},
 			},
-			qs.WithEncodeValuesOnly(true),
+			qs.WithStringifyEncodeValuesOnly(true),
 		)
 		if err != nil {
 			t.Fatalf("go stringify: %v", err)
@@ -187,8 +187,8 @@ func TestStrapiAPI_ReadmeExamples(t *testing.T) {
 				"pagination": map[string]any{"page": 1, "pageSize": 25},
 				"populate":   map[string]any{"author": map[string]any{"fields": []any{"name"}}},
 			},
-			qs.WithEncodeValuesOnly(true),
-			qs.WithSort(func(a, b string) bool { return a < b }),
+			qs.WithStringifyEncodeValuesOnly(true),
+			qs.WithStringifySort(func(a, b string) bool { return a < b }),
 		)
 		if err != nil {
 			t.Fatalf("go stringify: %v", err)

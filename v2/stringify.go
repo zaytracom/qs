@@ -131,6 +131,12 @@ type StringifyOptions struct {
 	// Default: nil (no sorting)
 	Sort SortFunc
 
+	// SortArrayIndices when true, sorts array indices as strings along with object keys.
+	// This is needed for compatibility with JS qs library which sorts all keys including
+	// array indices when sort option is provided (e.g., "0", "1", "10", "2" order).
+	// Default: false (arrays preserve natural numeric order)
+	SortArrayIndices bool
+
 	// StrictNullHandling serializes null values without = sign.
 	// e.g., {a: null} → "a" instead of "a="
 	// Default: false
@@ -279,8 +285,8 @@ func WithStringifyAllowEmptyArrays(v bool) StringifyOption {
 	}
 }
 
-// WithArrayFormat sets how arrays are serialized.
-func WithArrayFormat(v ArrayFormat) StringifyOption {
+// WithStringifyArrayFormat sets how arrays are serialized.
+func WithStringifyArrayFormat(v ArrayFormat) StringifyOption {
 	return func(o *StringifyOptions) {
 		o.ArrayFormat = v
 	}
@@ -300,8 +306,8 @@ func WithStringifyCharsetSentinel(v bool) StringifyOption {
 	}
 }
 
-// WithCommaRoundTrip ensures single-element arrays round-trip with comma format.
-func WithCommaRoundTrip(v bool) StringifyOption {
+// WithStringifyCommaRoundTrip ensures single-element arrays round-trip with comma format.
+func WithStringifyCommaRoundTrip(v bool) StringifyOption {
 	return func(o *StringifyOptions) {
 		o.CommaRoundTrip = v
 	}
@@ -314,75 +320,85 @@ func WithStringifyDelimiter(v string) StringifyOption {
 	}
 }
 
-// WithEncode enables or disables URL encoding.
-func WithEncode(v bool) StringifyOption {
+// WithStringifyEncode enables or disables URL encoding.
+func WithStringifyEncode(v bool) StringifyOption {
 	return func(o *StringifyOptions) {
 		o.Encode = v
 	}
 }
 
-// WithEncodeDotInKeys encodes . as %2E in keys.
-func WithEncodeDotInKeys(v bool) StringifyOption {
+// WithStringifyEncodeDotInKeys encodes . as %2E in keys.
+func WithStringifyEncodeDotInKeys(v bool) StringifyOption {
 	return func(o *StringifyOptions) {
 		o.EncodeDotInKeys = v
 		// Note: AllowDots is set in normalizeStringifyOptions if not explicitly set
 	}
 }
 
-// WithEncoder sets a custom encoder function.
-func WithEncoder(v EncoderFunc) StringifyOption {
+// WithStringifyEncoder sets a custom encoder function.
+func WithStringifyEncoder(v EncoderFunc) StringifyOption {
 	return func(o *StringifyOptions) {
 		o.Encoder = v
 	}
 }
 
-// WithEncodeValuesOnly only encodes values, not keys.
-func WithEncodeValuesOnly(v bool) StringifyOption {
+// WithStringifyEncodeValuesOnly only encodes values, not keys.
+func WithStringifyEncodeValuesOnly(v bool) StringifyOption {
 	return func(o *StringifyOptions) {
 		o.EncodeValuesOnly = v
 	}
 }
 
-// WithFilter sets a filter function or array of allowed keys.
-func WithFilter(v any) StringifyOption {
+// WithStringifyFilter sets a filter function or array of allowed keys.
+func WithStringifyFilter(v any) StringifyOption {
 	return func(o *StringifyOptions) {
 		o.Filter = v
 	}
 }
 
-// WithFormat sets the RFC encoding format.
-func WithFormat(v Format) StringifyOption {
+// WithStringifyFormat sets the RFC encoding format.
+func WithStringifyFormat(v Format) StringifyOption {
 	return func(o *StringifyOptions) {
 		o.Format = v
 		o.Formatter = GetFormatter(v)
 	}
 }
 
-// WithFormatter sets a custom formatter function.
-func WithFormatter(v FormatterFunc) StringifyOption {
+// WithStringifyFormatter sets a custom formatter function.
+func WithStringifyFormatter(v FormatterFunc) StringifyOption {
 	return func(o *StringifyOptions) {
 		o.Formatter = v
 	}
 }
 
-// WithSerializeDate sets a custom date serialization function.
-func WithSerializeDate(v SerializeDateFunc) StringifyOption {
+// WithStringifySerializeDate sets a custom date serialization function.
+func WithStringifySerializeDate(v SerializeDateFunc) StringifyOption {
 	return func(o *StringifyOptions) {
 		o.SerializeDate = v
 	}
 }
 
-// WithSkipNulls skips keys with null/nil values.
-func WithSkipNulls(v bool) StringifyOption {
+// WithStringifySkipNulls skips keys with null/nil values.
+func WithStringifySkipNulls(v bool) StringifyOption {
 	return func(o *StringifyOptions) {
 		o.SkipNulls = v
 	}
 }
 
-// WithSort sets a function for sorting keys.
-func WithSort(v SortFunc) StringifyOption {
+// WithStringifySort sets a function for sorting keys.
+func WithStringifySort(v SortFunc) StringifyOption {
 	return func(o *StringifyOptions) {
 		o.Sort = v
+	}
+}
+
+// WithStringifySortArrayIndices enables sorting array indices as strings.
+// When true, array indices are sorted lexicographically like object keys,
+// producing output like "a[0], a[1], a[10], a[2]" instead of "a[0], a[1], a[2], a[10]".
+// This is needed for compatibility with JS qs library's sort behavior.
+func WithStringifySortArrayIndices(v bool) StringifyOption {
+	return func(o *StringifyOptions) {
+		o.SortArrayIndices = v
 	}
 }
 
@@ -505,6 +521,7 @@ func stringify(
 	encoder func(string, Charset, string, Format) string,
 	filter any,
 	sort SortFunc,
+	sortArrayIndices bool,
 	allowDots bool,
 	serializeDate SerializeDateFunc,
 	format Format,
@@ -657,9 +674,24 @@ func stringify(
 				objKeys[i] = k
 			}
 		case []any:
-			objKeys = make([]any, len(v))
-			for i := range v {
-				objKeys[i] = i
+			if sortArrayIndices && sort != nil {
+				// Convert indices to strings and sort them lexicographically
+				// This matches JS qs behavior where sort applies to all keys including array indices
+				keys := make([]string, len(v))
+				for i := range v {
+					keys[i] = strconv.Itoa(i)
+				}
+				sortStrings(keys, sort)
+				objKeys = make([]any, len(keys))
+				for i, k := range keys {
+					objKeys[i] = k // Keep as string for sorted order
+				}
+			} else {
+				// Normal numeric order
+				objKeys = make([]any, len(v))
+				for i := range v {
+					objKeys[i] = i
+				}
 			}
 		}
 	}
@@ -783,6 +815,7 @@ func stringify(
 			childEncoder,
 			filter,
 			sort,
+			sortArrayIndices,
 			allowDots,
 			serializeDate,
 			format,
@@ -902,6 +935,7 @@ func Stringify(obj any, opts ...StringifyOption) (string, error) {
 			encoder,
 			filter,
 			normalizedOpts.Sort,
+			normalizedOpts.SortArrayIndices,
 			normalizedOpts.AllowDots,
 			normalizedOpts.SerializeDate,
 			normalizedOpts.Format,

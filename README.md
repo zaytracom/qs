@@ -1,11 +1,12 @@
 # QS — Query String library for Go (v2-beta)
 
 [![Go Reference (v2)](https://pkg.go.dev/badge/github.com/zaytracom/qs/v2.svg)](https://pkg.go.dev/github.com/zaytracom/qs/v2)
-[![Go Reference (v1)](https://pkg.go.dev/badge/github.com/zaytracom/qs/v1.svg)](https://pkg.go.dev/github.com/zaytracom/qs/v1)
-[![Go Report Card](https://goreportcard.com/badge/github.com/zaytracom/qs)](https://goreportcard.com/report/github.com/zaytracom/qs)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![GitHub release](https://img.shields.io/github/release/zaytracom/qs.svg)](https://github.com/zaytracom/qs/releases)
 [![CI](https://github.com/zaytracom/qs/actions/workflows/ci.yml/badge.svg)](https://github.com/zaytracom/qs/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/zaytracom/qs/v2)](https://goreportcard.com/report/github.com/zaytracom/qs/v2)
+[![codecov](https://codecov.io/gh/zaytracom/qs/branch/main/graph/badge.svg)](https://codecov.io/gh/zaytracom/qs)
+[![GitHub release](https://img.shields.io/github/v/release/zaytracom/qs?include_prereleases)](https://github.com/zaytracom/qs/releases)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go&logoColor=white)](https://github.com/zaytracom/qs)
 
 **QS v2-beta** is a production-ready Go port of the popular JavaScript [`qs`](https://github.com/ljharb/qs) library for parsing and stringifying URL query strings (nested objects, arrays, and all the tricky edge cases).
 
@@ -54,7 +55,7 @@ go test ./...
 ### v2-beta (recommended)
 
 ```bash
-go get github.com/zaytracom/qs/v2@v2.0.0-beta.1
+go get github.com/zaytracom/qs/v2@v2.0.0-beta.2
 ```
 
 ### v1 (legacy)
@@ -98,7 +99,7 @@ func main() {
 
 	queryString, err := qs.Stringify(
 		data,
-		qs.WithEncodeValuesOnly(true), // keep keys readable (brackets), still encode values
+		qs.WithStringifyEncodeValuesOnly(true), // keep keys readable (brackets), still encode values
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -137,7 +138,7 @@ func main() {
 		Score:    88.5,
 	}
 
-	queryString, err := qs.StructToQueryString(newUser, qs.WithEncodeValuesOnly(true))
+	queryString, err := qs.StructToQueryString(newUser, qs.WithStringifyEncodeValuesOnly(true))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -151,7 +152,7 @@ func main() {
 func main() {
 	// Marshal with automatic type detection
 	user := User{Name: "John", Age: 30}
-	queryString, err := qs.Marshal(user, qs.WithEncodeValuesOnly(true))
+	queryString, err := qs.Marshal(user, qs.WithStringifyEncodeValuesOnly(true))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -186,16 +187,16 @@ data := map[string]any{
 	"items": []any{"a", "b", "c"},
 }
 
-qs.Stringify(data, qs.WithArrayFormat(qs.ArrayFormatIndices), qs.WithEncode(false))
+qs.Stringify(data, qs.WithStringifyArrayFormat(qs.ArrayFormatIndices), qs.WithStringifyEncode(false))
 // items[0]=a&items[1]=b&items[2]=c
 
-qs.Stringify(data, qs.WithArrayFormat(qs.ArrayFormatBrackets), qs.WithEncode(false))
+qs.Stringify(data, qs.WithStringifyArrayFormat(qs.ArrayFormatBrackets), qs.WithStringifyEncode(false))
 // items[]=a&items[]=b&items[]=c
 
-qs.Stringify(data, qs.WithArrayFormat(qs.ArrayFormatRepeat), qs.WithEncode(false))
+qs.Stringify(data, qs.WithStringifyArrayFormat(qs.ArrayFormatRepeat), qs.WithStringifyEncode(false))
 // items=a&items=b&items=c
 
-qs.Stringify(data, qs.WithArrayFormat(qs.ArrayFormatComma), qs.WithEncode(false))
+qs.Stringify(data, qs.WithStringifyArrayFormat(qs.ArrayFormatComma), qs.WithStringifyEncode(false))
 // items=a,b,c
 ```
 
@@ -215,7 +216,7 @@ data := map[string]any{
 		},
 	},
 }
-queryString, _ := qs.Stringify(data, qs.WithEncodeValuesOnly(true))
+queryString, _ := qs.Stringify(data, qs.WithStringifyEncodeValuesOnly(true))
 // user[profile][age]=30&user[profile][name]=John
 ```
 
@@ -228,9 +229,9 @@ More JS ↔ Go examples (tested): start with `demo/src/array-format/README.md`, 
 ```go
 result, err := qs.Parse(
 	"?name=John&age=30",
-	qs.WithIgnoreQueryPrefix(true),
-	qs.WithDepth(5),
-	qs.WithParameterLimit(1000),
+	qs.WithParseIgnoreQueryPrefix(true),
+	qs.WithParseDepth(5),
+	qs.WithParseParameterLimit(1000),
 )
 _ = result
 _ = err
@@ -242,8 +243,8 @@ _ = err
 result, err := qs.Stringify(
 	map[string]any{"items": []any{"a", "b"}},
 	qs.WithStringifyAddQueryPrefix(true),
-	qs.WithArrayFormat(qs.ArrayFormatBrackets),
-	qs.WithEncodeValuesOnly(true),
+	qs.WithStringifyArrayFormat(qs.ArrayFormatBrackets),
+	qs.WithStringifyEncodeValuesOnly(true),
 )
 _ = result
 _ = err

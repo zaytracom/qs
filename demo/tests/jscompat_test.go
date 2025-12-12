@@ -239,7 +239,7 @@ func TestSparseArraysNulls(t *testing.T) {
 
 	// Parse with strictNullHandling and allowSparse
 	// Note: Parse returns nil for null values after Compact converts ExplicitNullValue -> nil
-	goParsed, err := qs.Parse(jsResult, qs.WithStrictNullHandling(true), qs.WithAllowSparse(true))
+	goParsed, err := qs.Parse(jsResult, qs.WithParseStrictNullHandling(true), qs.WithParseAllowSparse(true))
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
@@ -258,7 +258,7 @@ func TestArrayFormatIndices(t *testing.T) {
 		"numbers": []any{1, 2, 3, 4, 5},
 	}
 
-	goResult, err := qs.Stringify(input, qs.WithArrayFormat(qs.ArrayFormatIndices))
+	goResult, err := qs.Stringify(input, qs.WithStringifyArrayFormat(qs.ArrayFormatIndices))
 	if err != nil {
 		t.Fatalf("Stringify failed: %v", err)
 	}
@@ -279,7 +279,7 @@ func TestArrayFormatBrackets(t *testing.T) {
 		"numbers": []any{1, 2, 3, 4, 5},
 	}
 
-	goResult, err := qs.Stringify(input, qs.WithArrayFormat(qs.ArrayFormatBrackets))
+	goResult, err := qs.Stringify(input, qs.WithStringifyArrayFormat(qs.ArrayFormatBrackets))
 	if err != nil {
 		t.Fatalf("Stringify failed: %v", err)
 	}
@@ -300,7 +300,7 @@ func TestArrayFormatRepeat(t *testing.T) {
 		"numbers": []any{1, 2, 3, 4, 5},
 	}
 
-	goResult, err := qs.Stringify(input, qs.WithArrayFormat(qs.ArrayFormatRepeat))
+	goResult, err := qs.Stringify(input, qs.WithStringifyArrayFormat(qs.ArrayFormatRepeat))
 	if err != nil {
 		t.Fatalf("Stringify failed: %v", err)
 	}
@@ -321,7 +321,7 @@ func TestArrayFormatComma(t *testing.T) {
 		"numbers": []any{1, 2, 3, 4, 5},
 	}
 
-	goResult, err := qs.Stringify(input, qs.WithArrayFormat(qs.ArrayFormatComma))
+	goResult, err := qs.Stringify(input, qs.WithStringifyArrayFormat(qs.ArrayFormatComma))
 	if err != nil {
 		t.Fatalf("Stringify failed: %v", err)
 	}
@@ -347,7 +347,7 @@ func TestDotNotationEncoded(t *testing.T) {
 		},
 	}
 
-	goResult, err := qs.Stringify(input, qs.WithStringifyAllowDots(true), qs.WithEncodeDotInKeys(true))
+	goResult, err := qs.Stringify(input, qs.WithStringifyAllowDots(true), qs.WithStringifyEncodeDotInKeys(true))
 	if err != nil {
 		t.Fatalf("Stringify failed: %v", err)
 	}
@@ -455,7 +455,7 @@ func TestRFCFormats(t *testing.T) {
 		"special": "a+b=c&d",
 	}
 
-	goResult, err := qs.Stringify(input, qs.WithFormat(qs.FormatRFC1738))
+	goResult, err := qs.Stringify(input, qs.WithStringifyFormat(qs.FormatRFC1738))
 	if err != nil {
 		t.Fatalf("Stringify failed: %v", err)
 	}
@@ -480,8 +480,8 @@ func TestFilterSortSkipNulls(t *testing.T) {
 	}
 
 	goResult, err := qs.Stringify(input,
-		qs.WithSkipNulls(true),
-		qs.WithSort(func(a, b string) bool { return a < b }))
+		qs.WithStringifySkipNulls(true),
+		qs.WithStringifySort(func(a, b string) bool { return a < b }))
 	if err != nil {
 		t.Fatalf("Stringify failed: %v", err)
 	}
@@ -530,7 +530,7 @@ func TestDepthLimits(t *testing.T) {
 	}
 
 	// Test parse with depth limit
-	goParsed, err := qs.Parse(jsResult, qs.WithDepth(3))
+	goParsed, err := qs.Parse(jsResult, qs.WithParseDepth(3))
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
@@ -616,7 +616,7 @@ func TestQueryPrefix(t *testing.T) {
 	}
 
 	// Parse with ignoreQueryPrefix
-	goParsed, err := qs.Parse("?a=b&c=d", qs.WithIgnoreQueryPrefix(true))
+	goParsed, err := qs.Parse("?a=b&c=d", qs.WithParseIgnoreQueryPrefix(true))
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
@@ -648,7 +648,7 @@ func TestCharsetSentinel(t *testing.T) {
 func TestCommaRoundTrip(t *testing.T) {
 	input := map[string]any{"a": []any{"b"}}
 
-	goResult, err := qs.Stringify(input, qs.WithArrayFormat(qs.ArrayFormatComma), qs.WithCommaRoundTrip(true))
+	goResult, err := qs.Stringify(input, qs.WithStringifyArrayFormat(qs.ArrayFormatComma), qs.WithStringifyCommaRoundTrip(true))
 	if err != nil {
 		t.Fatalf("Stringify failed: %v", err)
 	}
@@ -664,7 +664,7 @@ func TestCommaRoundTrip(t *testing.T) {
 func TestEncodeValuesOnly(t *testing.T) {
 	input := map[string]any{"a[b]": "c d"}
 
-	goResult, err := qs.Stringify(input, qs.WithEncodeValuesOnly(true))
+	goResult, err := qs.Stringify(input, qs.WithStringifyEncodeValuesOnly(true))
 	if err != nil {
 		t.Fatalf("Stringify failed: %v", err)
 	}
@@ -692,7 +692,7 @@ func TestCustomDelimiter(t *testing.T) {
 	}
 
 	// Parse with custom delimiter
-	goParsed, err := qs.Parse("a=1;b=2", qs.WithDelimiter(";"))
+	goParsed, err := qs.Parse("a=1;b=2", qs.WithParseDelimiter(";"))
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
@@ -706,7 +706,7 @@ func TestCustomDelimiter(t *testing.T) {
 
 // Test 19: Array limit
 func TestArrayLimit(t *testing.T) {
-	goParsed, err := qs.Parse("a[100]=b", qs.WithArrayLimit(50))
+	goParsed, err := qs.Parse("a[100]=b", qs.WithParseArrayLimit(50))
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
@@ -721,7 +721,7 @@ func TestArrayLimit(t *testing.T) {
 // Test 20: Duplicates handling
 func TestDuplicatesHandling(t *testing.T) {
 	// Combine
-	goParsedCombine, err := qs.Parse("a=1&a=2&a=3", qs.WithDuplicates(qs.DuplicateCombine))
+	goParsedCombine, err := qs.Parse("a=1&a=2&a=3", qs.WithParseDuplicates(qs.DuplicateCombine))
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
@@ -731,7 +731,7 @@ func TestDuplicatesHandling(t *testing.T) {
 	}
 
 	// First
-	goParsedFirst, err := qs.Parse("a=1&a=2&a=3", qs.WithDuplicates(qs.DuplicateFirst))
+	goParsedFirst, err := qs.Parse("a=1&a=2&a=3", qs.WithParseDuplicates(qs.DuplicateFirst))
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
@@ -741,7 +741,7 @@ func TestDuplicatesHandling(t *testing.T) {
 	}
 
 	// Last
-	goParsedLast, err := qs.Parse("a=1&a=2&a=3", qs.WithDuplicates(qs.DuplicateLast))
+	goParsedLast, err := qs.Parse("a=1&a=2&a=3", qs.WithParseDuplicates(qs.DuplicateLast))
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
@@ -864,8 +864,8 @@ func TestMegaComplex(t *testing.T) {
 
 	goResult, err := qs.Stringify(input,
 		qs.WithStringifyAllowDots(true),
-		qs.WithEncodeDotInKeys(true),
-		qs.WithArrayFormat(qs.ArrayFormatIndices))
+		qs.WithStringifyEncodeDotInKeys(true),
+		qs.WithStringifyArrayFormat(qs.ArrayFormatIndices))
 	if err != nil {
 		t.Fatalf("Stringify failed: %v", err)
 	}
@@ -910,7 +910,7 @@ func TestAllowPrototypes(t *testing.T) {
 	}
 
 	// With allowPrototypes: true
-	goParsedAllowed, err := qs.Parse("a[__proto__][b]=c", qs.WithAllowPrototypes(true))
+	goParsedAllowed, err := qs.Parse("a[__proto__][b]=c", qs.WithParseAllowPrototypes(true))
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
@@ -923,7 +923,7 @@ func TestAllowPrototypes(t *testing.T) {
 // Test 26: DelimiterRegexp - regex delimiter
 func TestDelimiterRegexp(t *testing.T) {
 	re := regexp.MustCompile(`[;,]`)
-	goParsed, err := qs.Parse("a=1;b=2,c=3", qs.WithDelimiterRegexp(re))
+	goParsed, err := qs.Parse("a=1;b=2,c=3", qs.WithParseDelimiterRegexp(re))
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
@@ -935,7 +935,7 @@ func TestDelimiterRegexp(t *testing.T) {
 
 // Test 27: InterpretNumericEntities - HTML entities in ISO-8859-1
 func TestInterpretNumericEntities(t *testing.T) {
-	goParsed, err := qs.Parse("a=%26%23945%3B", qs.WithCharset(qs.CharsetISO88591), qs.WithInterpretNumericEntities(true))
+	goParsed, err := qs.Parse("a=%26%23945%3B", qs.WithParseCharset(qs.CharsetISO88591), qs.WithParseInterpretNumericEntities(true))
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
@@ -947,7 +947,7 @@ func TestInterpretNumericEntities(t *testing.T) {
 
 // Test 28: ParameterLimit
 func TestParameterLimit(t *testing.T) {
-	goParsed, err := qs.Parse("a=1&b=2&c=3&d=4&e=5", qs.WithParameterLimit(3))
+	goParsed, err := qs.Parse("a=1&b=2&c=3&d=4&e=5", qs.WithParseParameterLimit(3))
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
@@ -971,7 +971,7 @@ func TestParseArraysFalse(t *testing.T) {
 
 // Test 30: PlainObjects
 func TestPlainObjects(t *testing.T) {
-	goParsed, err := qs.Parse("a[hasOwnProperty]=b", qs.WithPlainObjects(true))
+	goParsed, err := qs.Parse("a[hasOwnProperty]=b", qs.WithParsePlainObjects(true))
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
@@ -984,7 +984,7 @@ func TestPlainObjects(t *testing.T) {
 // Test 31: StrictDepth - error when depth exceeded
 func TestStrictDepth(t *testing.T) {
 	// Should NOT error when within depth
-	goParsedOK, err := qs.Parse("a[b][c]=d", qs.WithDepth(2), qs.WithStrictDepth(true))
+	goParsedOK, err := qs.Parse("a[b][c]=d", qs.WithParseDepth(2), qs.WithParseStrictDepth(true))
 	if err != nil {
 		t.Fatalf("Parse should not fail within depth: %v", err)
 	}
@@ -994,7 +994,7 @@ func TestStrictDepth(t *testing.T) {
 	}
 
 	// Should error when exceeding depth
-	_, err = qs.Parse("a[b][c][d]=e", qs.WithDepth(2), qs.WithStrictDepth(true))
+	_, err = qs.Parse("a[b][c][d]=e", qs.WithParseDepth(2), qs.WithParseStrictDepth(true))
 	if err == nil {
 		t.Errorf("Expected error when strictDepth exceeded, got nil")
 	}
@@ -1016,7 +1016,7 @@ func TestStrictDepth(t *testing.T) {
 // Test 32: ThrowOnLimitExceeded - error when parameter limit exceeded
 func TestThrowOnLimitExceeded(t *testing.T) {
 	// Should error when exceeding parameter limit
-	_, err := qs.Parse("a=1&b=2&c=3", qs.WithParameterLimit(2), qs.WithThrowOnLimitExceeded(true))
+	_, err := qs.Parse("a=1&b=2&c=3", qs.WithParseParameterLimit(2), qs.WithParseThrowOnLimitExceeded(true))
 	if err == nil {
 		t.Errorf("Expected error when parameterLimit exceeded with throwOnLimitExceeded")
 	}
@@ -1046,7 +1046,7 @@ func TestCustomDecoder(t *testing.T) {
 		return decoded, nil
 	}
 
-	goParsed, err := qs.Parse("foo=bar", qs.WithDecoder(decoder))
+	goParsed, err := qs.Parse("foo=bar", qs.WithParseDecoder(decoder))
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
@@ -1075,8 +1075,8 @@ func TestEncodeDisabled(t *testing.T) {
 	input := map[string]any{"a": "hello world", "b": "foo&bar"}
 
 	goResult, err := qs.Stringify(input,
-		qs.WithEncode(false),
-		qs.WithSort(func(a, b string) bool { return a < b }),
+		qs.WithStringifyEncode(false),
+		qs.WithStringifySort(func(a, b string) bool { return a < b }),
 	)
 	if err != nil {
 		t.Fatalf("Stringify failed: %v", err)
@@ -1106,7 +1106,7 @@ func TestCustomEncoder(t *testing.T) {
 	}
 
 	input := map[string]any{"a": "test"}
-	goResult, err := qs.Stringify(input, qs.WithEncoder(encoder))
+	goResult, err := qs.Stringify(input, qs.WithStringifyEncoder(encoder))
 	if err != nil {
 		t.Fatalf("Stringify failed: %v", err)
 	}
@@ -1142,7 +1142,7 @@ func TestFilterFunction(t *testing.T) {
 		return nil
 	}
 
-	goResult, err := qs.Stringify(input, qs.WithFilter(filter))
+	goResult, err := qs.Stringify(input, qs.WithStringifyFilter(filter))
 	if err != nil {
 		t.Fatalf("Stringify failed: %v", err)
 	}
@@ -1168,7 +1168,7 @@ func TestFilterArray(t *testing.T) {
 		"c": "3",
 	}
 
-	goResult, err := qs.Stringify(input, qs.WithFilter([]string{"a", "c"}))
+	goResult, err := qs.Stringify(input, qs.WithStringifyFilter([]string{"a", "c"}))
 	if err != nil {
 		t.Fatalf("Stringify failed: %v", err)
 	}
@@ -1206,7 +1206,7 @@ func TestSerializeDate(t *testing.T) {
 
 // Test 39: allowDots + depth + strictDepth
 func TestAllowDotsWithDepthStrict(t *testing.T) {
-	goParsed, err := qs.Parse("a.b.c.d=e", qs.WithAllowDots(true), qs.WithDepth(2), qs.WithStrictDepth(false))
+	goParsed, err := qs.Parse("a.b.c.d=e", qs.WithParseAllowDots(true), qs.WithParseDepth(2), qs.WithParseStrictDepth(false))
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
@@ -1220,7 +1220,7 @@ func TestAllowDotsWithDepthStrict(t *testing.T) {
 
 // Test 40: comma + arrayLimit
 func TestCommaWithArrayLimit(t *testing.T) {
-	goParsed, err := qs.Parse("a=1,2,3,4,5", qs.WithComma(true), qs.WithArrayLimit(2))
+	goParsed, err := qs.Parse("a=1,2,3,4,5", qs.WithParseComma(true), qs.WithParseArrayLimit(2))
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
@@ -1265,8 +1265,8 @@ func TestBracketsWithEncodeValuesOnly(t *testing.T) {
 	}
 
 	goResult, err := qs.Stringify(input,
-		qs.WithArrayFormat(qs.ArrayFormatBrackets),
-		qs.WithEncodeValuesOnly(true))
+		qs.WithStringifyArrayFormat(qs.ArrayFormatBrackets),
+		qs.WithStringifyEncodeValuesOnly(true))
 	if err != nil {
 		t.Fatalf("Stringify failed: %v", err)
 	}
@@ -1317,8 +1317,8 @@ func TestDotsWithEncodingAndSort(t *testing.T) {
 
 	goResult, err := qs.Stringify(input,
 		qs.WithStringifyAllowDots(true),
-		qs.WithEncodeDotInKeys(true),
-		qs.WithSort(func(a, b string) bool { return a < b }))
+		qs.WithStringifyEncodeDotInKeys(true),
+		qs.WithStringifySort(func(a, b string) bool { return a < b }))
 	if err != nil {
 		t.Fatalf("Stringify failed: %v", err)
 	}
@@ -1343,7 +1343,7 @@ func TestDotsWithEncodingAndSort(t *testing.T) {
 // Test 45: duplicates + parameterLimit
 func TestDuplicatesWithParameterLimit(t *testing.T) {
 	// Test that parameter limit is applied before duplicate handling
-	goParsed, err := qs.Parse("a=1&a=2&a=3&b=4&b=5", qs.WithDuplicates(qs.DuplicateCombine), qs.WithParameterLimit(3))
+	goParsed, err := qs.Parse("a=1&a=2&a=3&b=4&b=5", qs.WithParseDuplicates(qs.DuplicateCombine), qs.WithParseParameterLimit(3))
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
@@ -1368,9 +1368,9 @@ func TestSkipNullsWithFilterAndArrayFormat(t *testing.T) {
 	}
 
 	goResult, err := qs.Stringify(input,
-		qs.WithSkipNulls(true),
-		qs.WithFilter([]string{"a", "b", "c"}),
-		qs.WithArrayFormat(qs.ArrayFormatBrackets))
+		qs.WithStringifySkipNulls(true),
+		qs.WithStringifyFilter([]string{"a", "b", "c"}),
+		qs.WithStringifyArrayFormat(qs.ArrayFormatBrackets))
 	if err != nil {
 		t.Fatalf("Stringify failed: %v", err)
 	}
@@ -1388,9 +1388,9 @@ func TestSkipNullsWithFilterAndArrayFormat(t *testing.T) {
 // Test 47: ignoreQueryPrefix + delimiter + depth
 func TestIgnorePrefixWithDelimiterAndDepth(t *testing.T) {
 	goParsed, err := qs.Parse("?a[b][c]=1;d[e]=2",
-		qs.WithIgnoreQueryPrefix(true),
-		qs.WithDelimiter(";"),
-		qs.WithDepth(1))
+		qs.WithParseIgnoreQueryPrefix(true),
+		qs.WithParseDelimiter(";"),
+		qs.WithParseDepth(1))
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
@@ -1414,7 +1414,7 @@ func TestQueryPrefixWithFormatRFC1738(t *testing.T) {
 
 	goResult, err := qs.Stringify(input,
 		qs.WithStringifyAddQueryPrefix(true),
-		qs.WithFormat(qs.FormatRFC1738))
+		qs.WithStringifyFormat(qs.FormatRFC1738))
 	if err != nil {
 		t.Fatalf("Stringify failed: %v", err)
 	}
@@ -1444,7 +1444,7 @@ func TestRoundTripComplex(t *testing.T) {
 	}
 
 	// Stringify with specific options
-	goStringified, err := qs.Stringify(input, qs.WithArrayFormat(qs.ArrayFormatIndices))
+	goStringified, err := qs.Stringify(input, qs.WithStringifyArrayFormat(qs.ArrayFormatIndices))
 	if err != nil {
 		t.Fatalf("Stringify failed: %v", err)
 	}
@@ -1478,12 +1478,12 @@ func TestRoundTripComplex(t *testing.T) {
 // Test 50: All parse options together (reasonable combination)
 func TestAllParseOptionsCombined(t *testing.T) {
 	goParsed, err := qs.Parse("?utf8=%E2%9C%93&a.b=1&c[0]=x&c[1]=y&d=hello%20world",
-		qs.WithAllowDots(true),
-		qs.WithCharset(qs.CharsetUTF8),
-		qs.WithCharsetSentinel(true),
-		qs.WithDepth(5),
-		qs.WithIgnoreQueryPrefix(true),
-		qs.WithParameterLimit(100))
+		qs.WithParseAllowDots(true),
+		qs.WithParseCharset(qs.CharsetUTF8),
+		qs.WithParseCharsetSentinel(true),
+		qs.WithParseDepth(5),
+		qs.WithParseIgnoreQueryPrefix(true),
+		qs.WithParseParameterLimit(100))
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
@@ -1516,11 +1516,11 @@ func TestAllStringifyOptionsCombined(t *testing.T) {
 	goResult, err := qs.Stringify(input,
 		qs.WithStringifyAddQueryPrefix(true),
 		qs.WithStringifyAllowDots(true),
-		qs.WithArrayFormat(qs.ArrayFormatBrackets),
+		qs.WithStringifyArrayFormat(qs.ArrayFormatBrackets),
 		qs.WithStringifyCharset(qs.CharsetUTF8),
-		qs.WithFormat(qs.FormatRFC3986),
-		qs.WithSkipNulls(true),
-		qs.WithSort(func(a, b string) bool { return a < b }))
+		qs.WithStringifyFormat(qs.FormatRFC3986),
+		qs.WithStringifySkipNulls(true),
+		qs.WithStringifySort(func(a, b string) bool { return a < b }))
 	if err != nil {
 		t.Fatalf("Stringify failed: %v", err)
 	}
@@ -1566,7 +1566,7 @@ func TestSerializeDateWithTime(t *testing.T) {
 	date := time.Date(2024, 6, 15, 10, 30, 0, 0, time.UTC)
 	input := map[string]any{"date": date}
 
-	goResult, err := qs.Stringify(input, qs.WithSerializeDate(serializeDate))
+	goResult, err := qs.Stringify(input, qs.WithStringifySerializeDate(serializeDate))
 	if err != nil {
 		t.Fatalf("Stringify failed: %v", err)
 	}

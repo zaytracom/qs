@@ -255,64 +255,64 @@ func normalizeParseOptions(opts *ParseOptions) (ParseOptions, error) {
 // ParseOption is a functional option for configuring ParseOptions.
 type ParseOption func(*ParseOptions)
 
-// WithAllowDots enables dot notation parsing (e.g., "a.b.c" → {a: {b: {c: ...}}}).
-func WithAllowDots(v bool) ParseOption {
+// WithParseAllowDots enables dot notation parsing (e.g., "a.b.c" → {a: {b: {c: ...}}}).
+func WithParseAllowDots(v bool) ParseOption {
 	return func(o *ParseOptions) {
 		o.AllowDots = v
 	}
 }
 
-// WithAllowEmptyArrays allows empty arrays when value is empty string.
-func WithAllowEmptyArrays(v bool) ParseOption {
+// WithParseAllowEmptyArrays allows empty arrays when value is empty string.
+func WithParseAllowEmptyArrays(v bool) ParseOption {
 	return func(o *ParseOptions) {
 		o.AllowEmptyArrays = v
 	}
 }
 
-// WithAllowPrototypes allows keys that would overwrite Object prototype properties.
-func WithAllowPrototypes(v bool) ParseOption {
+// WithParseAllowPrototypes allows keys that would overwrite Object prototype properties.
+func WithParseAllowPrototypes(v bool) ParseOption {
 	return func(o *ParseOptions) {
 		o.AllowPrototypes = v
 	}
 }
 
-// WithAllowSparse preserves sparse arrays without compacting them.
-func WithAllowSparse(v bool) ParseOption {
+// WithParseAllowSparse preserves sparse arrays without compacting them.
+func WithParseAllowSparse(v bool) ParseOption {
 	return func(o *ParseOptions) {
 		o.AllowSparse = v
 	}
 }
 
-// WithArrayLimit sets the maximum index for array parsing.
-func WithArrayLimit(v int) ParseOption {
+// WithParseArrayLimit sets the maximum index for array parsing.
+func WithParseArrayLimit(v int) ParseOption {
 	return func(o *ParseOptions) {
 		o.ArrayLimit = v
 	}
 }
 
-// WithCharset sets the character encoding to use.
-func WithCharset(v Charset) ParseOption {
+// WithParseCharset sets the character encoding to use.
+func WithParseCharset(v Charset) ParseOption {
 	return func(o *ParseOptions) {
 		o.Charset = v
 	}
 }
 
-// WithCharsetSentinel enables automatic charset detection via utf8=✓ parameter.
-func WithCharsetSentinel(v bool) ParseOption {
+// WithParseCharsetSentinel enables automatic charset detection via utf8=✓ parameter.
+func WithParseCharsetSentinel(v bool) ParseOption {
 	return func(o *ParseOptions) {
 		o.CharsetSentinel = v
 	}
 }
 
-// WithComma enables parsing comma-separated values as arrays.
-func WithComma(v bool) ParseOption {
+// WithParseComma enables parsing comma-separated values as arrays.
+func WithParseComma(v bool) ParseOption {
 	return func(o *ParseOptions) {
 		o.Comma = v
 	}
 }
 
-// WithDecodeDotInKeys decodes %2E as . in keys.
-func WithDecodeDotInKeys(v bool) ParseOption {
+// WithParseDecodeDotInKeys decodes %2E as . in keys.
+func WithParseDecodeDotInKeys(v bool) ParseOption {
 	return func(o *ParseOptions) {
 		o.DecodeDotInKeys = v
 		if v {
@@ -321,59 +321,59 @@ func WithDecodeDotInKeys(v bool) ParseOption {
 	}
 }
 
-// WithDecoder sets a custom decoder function.
-func WithDecoder(v DecoderFunc) ParseOption {
+// WithParseDecoder sets a custom decoder function.
+func WithParseDecoder(v DecoderFunc) ParseOption {
 	return func(o *ParseOptions) {
 		o.Decoder = v
 	}
 }
 
-// WithDelimiter sets the string used to split key-value pairs.
-func WithDelimiter(v string) ParseOption {
+// WithParseDelimiter sets the string used to split key-value pairs.
+func WithParseDelimiter(v string) ParseOption {
 	return func(o *ParseOptions) {
 		o.Delimiter = v
 		o.DelimiterRegexp = nil
 	}
 }
 
-// WithDelimiterRegexp sets a regexp used to split key-value pairs.
-func WithDelimiterRegexp(v *regexp.Regexp) ParseOption {
+// WithParseDelimiterRegexp sets a regexp used to split key-value pairs.
+func WithParseDelimiterRegexp(v *regexp.Regexp) ParseOption {
 	return func(o *ParseOptions) {
 		o.DelimiterRegexp = v
 		o.Delimiter = ""
 	}
 }
 
-// WithDepth sets the maximum depth for nested object parsing.
-func WithDepth(v int) ParseOption {
+// WithParseDepth sets the maximum depth for nested object parsing.
+func WithParseDepth(v int) ParseOption {
 	return func(o *ParseOptions) {
 		o.Depth = v
 	}
 }
 
-// WithDuplicates sets how to handle duplicate keys.
-func WithDuplicates(v DuplicateHandling) ParseOption {
+// WithParseDuplicates sets how to handle duplicate keys.
+func WithParseDuplicates(v DuplicateHandling) ParseOption {
 	return func(o *ParseOptions) {
 		o.Duplicates = v
 	}
 }
 
-// WithIgnoreQueryPrefix strips a leading ? from the input string.
-func WithIgnoreQueryPrefix(v bool) ParseOption {
+// WithParseIgnoreQueryPrefix strips a leading ? from the input string.
+func WithParseIgnoreQueryPrefix(v bool) ParseOption {
 	return func(o *ParseOptions) {
 		o.IgnoreQueryPrefix = v
 	}
 }
 
-// WithInterpretNumericEntities converts HTML numeric entities to characters.
-func WithInterpretNumericEntities(v bool) ParseOption {
+// WithParseInterpretNumericEntities converts HTML numeric entities to characters.
+func WithParseInterpretNumericEntities(v bool) ParseOption {
 	return func(o *ParseOptions) {
 		o.InterpretNumericEntities = v
 	}
 }
 
-// WithParameterLimit sets the maximum number of parameters to parse.
-func WithParameterLimit(v int) ParseOption {
+// WithParseParameterLimit sets the maximum number of parameters to parse.
+func WithParseParameterLimit(v int) ParseOption {
 	return func(o *ParseOptions) {
 		o.ParameterLimit = v
 	}
@@ -386,29 +386,29 @@ func WithParseArrays(v bool) ParseOption {
 	}
 }
 
-// WithPlainObjects creates objects without prototype.
-func WithPlainObjects(v bool) ParseOption {
+// WithParsePlainObjects creates objects without prototype.
+func WithParsePlainObjects(v bool) ParseOption {
 	return func(o *ParseOptions) {
 		o.PlainObjects = v
 	}
 }
 
-// WithStrictDepth returns an error when input depth exceeds Depth option.
-func WithStrictDepth(v bool) ParseOption {
+// WithParseStrictDepth returns an error when input depth exceeds Depth option.
+func WithParseStrictDepth(v bool) ParseOption {
 	return func(o *ParseOptions) {
 		o.StrictDepth = v
 	}
 }
 
-// WithStrictNullHandling treats keys without values as null instead of empty string.
-func WithStrictNullHandling(v bool) ParseOption {
+// WithParseStrictNullHandling treats keys without values as null instead of empty string.
+func WithParseStrictNullHandling(v bool) ParseOption {
 	return func(o *ParseOptions) {
 		o.StrictNullHandling = v
 	}
 }
 
-// WithThrowOnLimitExceeded returns an error when limits are exceeded.
-func WithThrowOnLimitExceeded(v bool) ParseOption {
+// WithParseThrowOnLimitExceeded returns an error when limits are exceeded.
+func WithParseThrowOnLimitExceeded(v bool) ParseOption {
 	return func(o *ParseOptions) {
 		o.ThrowOnLimitExceeded = v
 	}

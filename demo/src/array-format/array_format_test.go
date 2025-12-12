@@ -26,25 +26,25 @@ func TestArrayFormat_ReadmeExamples(t *testing.T) {
 	}{
 		{
 			name:     "default (indices)",
-			goOpts:   []qs.StringifyOption{qs.WithEncode(false)},
+			goOpts:   []qs.StringifyOption{qs.WithStringifyEncode(false)},
 			jsOpts:   `{ encode: false }`,
 			expected: "a[0]=b&a[1]=c",
 		},
 		{
 			name:     "brackets",
-			goOpts:   []qs.StringifyOption{qs.WithArrayFormat(qs.ArrayFormatBrackets), qs.WithEncode(false)},
+			goOpts:   []qs.StringifyOption{qs.WithStringifyArrayFormat(qs.ArrayFormatBrackets), qs.WithStringifyEncode(false)},
 			jsOpts:   `{ arrayFormat: "brackets", encode: false }`,
 			expected: "a[]=b&a[]=c",
 		},
 		{
 			name:     "repeat",
-			goOpts:   []qs.StringifyOption{qs.WithArrayFormat(qs.ArrayFormatRepeat), qs.WithEncode(false)},
+			goOpts:   []qs.StringifyOption{qs.WithStringifyArrayFormat(qs.ArrayFormatRepeat), qs.WithStringifyEncode(false)},
 			jsOpts:   `{ arrayFormat: "repeat", encode: false }`,
 			expected: "a=b&a=c",
 		},
 		{
 			name:     "comma",
-			goOpts:   []qs.StringifyOption{qs.WithArrayFormat(qs.ArrayFormatComma), qs.WithEncode(false)},
+			goOpts:   []qs.StringifyOption{qs.WithStringifyArrayFormat(qs.ArrayFormatComma), qs.WithStringifyEncode(false)},
 			jsOpts:   `{ arrayFormat: "comma", encode: false }`,
 			expected: "a=b,c",
 		},

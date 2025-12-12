@@ -23,7 +23,7 @@ func TestAllowDots_ReadmeExamples(t *testing.T) {
 		if !strings.Contains(readme, `qs.stringify({ a: { b: "c" } }, { encode: false })`) {
 			t.Fatalf("README.md missing JS example for default stringify")
 		}
-		goQS, err := qs.Stringify(input, qs.WithEncode(false))
+		goQS, err := qs.Stringify(input, qs.WithStringifyEncode(false))
 		if err != nil {
 			t.Fatalf("go stringify: %v", err)
 		}
@@ -40,7 +40,7 @@ func TestAllowDots_ReadmeExamples(t *testing.T) {
 		if !strings.Contains(readme, `qs.stringify({ a: { b: "c" } }, { allowDots: true, encode: false })`) {
 			t.Fatalf("README.md missing JS example for allowDots stringify")
 		}
-		goQS, err := qs.Stringify(input, qs.WithStringifyAllowDots(true), qs.WithEncode(false))
+		goQS, err := qs.Stringify(input, qs.WithStringifyAllowDots(true), qs.WithStringifyEncode(false))
 		if err != nil {
 			t.Fatalf("go stringify: %v", err)
 		}
@@ -75,7 +75,7 @@ func TestAllowDots_ReadmeExamples(t *testing.T) {
 		if !strings.Contains(readme, `qs.parse("a.b=c", { allowDots: true })`) {
 			t.Fatalf("README.md missing JS example for allowDots parse")
 		}
-		goParsed, err := qs.Parse("a.b=c", qs.WithAllowDots(true))
+		goParsed, err := qs.Parse("a.b=c", qs.WithParseAllowDots(true))
 		if err != nil {
 			t.Fatalf("go parse: %v", err)
 		}

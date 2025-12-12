@@ -265,75 +265,75 @@ func TestNormalizeParseOptions(t *testing.T) {
 
 func TestFunctionalOptions(t *testing.T) {
 	t.Run("WithAllowDots", func(t *testing.T) {
-		opts := applyParseOptions(WithAllowDots(true))
+		opts := applyParseOptions(WithParseAllowDots(true))
 		if !opts.AllowDots {
-			t.Error("WithAllowDots(true) should set AllowDots to true")
+			t.Error("WithParseAllowDots(true) should set AllowDots to true")
 		}
 	})
 
 	t.Run("WithAllowEmptyArrays", func(t *testing.T) {
-		opts := applyParseOptions(WithAllowEmptyArrays(true))
+		opts := applyParseOptions(WithParseAllowEmptyArrays(true))
 		if !opts.AllowEmptyArrays {
-			t.Error("WithAllowEmptyArrays(true) should set AllowEmptyArrays to true")
+			t.Error("WithParseAllowEmptyArrays(true) should set AllowEmptyArrays to true")
 		}
 	})
 
 	t.Run("WithAllowPrototypes", func(t *testing.T) {
-		opts := applyParseOptions(WithAllowPrototypes(true))
+		opts := applyParseOptions(WithParseAllowPrototypes(true))
 		if !opts.AllowPrototypes {
-			t.Error("WithAllowPrototypes(true) should set AllowPrototypes to true")
+			t.Error("WithParseAllowPrototypes(true) should set AllowPrototypes to true")
 		}
 	})
 
 	t.Run("WithAllowSparse", func(t *testing.T) {
-		opts := applyParseOptions(WithAllowSparse(true))
+		opts := applyParseOptions(WithParseAllowSparse(true))
 		if !opts.AllowSparse {
-			t.Error("WithAllowSparse(true) should set AllowSparse to true")
+			t.Error("WithParseAllowSparse(true) should set AllowSparse to true")
 		}
 	})
 
 	t.Run("WithArrayLimit", func(t *testing.T) {
-		opts := applyParseOptions(WithArrayLimit(100))
+		opts := applyParseOptions(WithParseArrayLimit(100))
 		if opts.ArrayLimit != 100 {
-			t.Errorf("WithArrayLimit(100) = %d, want 100", opts.ArrayLimit)
+			t.Errorf("WithParseArrayLimit(100) = %d, want 100", opts.ArrayLimit)
 		}
 	})
 
 	t.Run("WithArrayLimit zero", func(t *testing.T) {
-		opts := applyParseOptions(WithArrayLimit(0))
+		opts := applyParseOptions(WithParseArrayLimit(0))
 		if opts.ArrayLimit != 0 {
-			t.Errorf("WithArrayLimit(0) = %d, want 0", opts.ArrayLimit)
+			t.Errorf("WithParseArrayLimit(0) = %d, want 0", opts.ArrayLimit)
 		}
 	})
 
 	t.Run("WithCharset", func(t *testing.T) {
-		opts := applyParseOptions(WithCharset(CharsetISO88591))
+		opts := applyParseOptions(WithParseCharset(CharsetISO88591))
 		if opts.Charset != CharsetISO88591 {
-			t.Errorf("WithCharset(ISO88591) = %q, want %q", opts.Charset, CharsetISO88591)
+			t.Errorf("WithParseCharset(ISO88591) = %q, want %q", opts.Charset, CharsetISO88591)
 		}
 	})
 
 	t.Run("WithCharsetSentinel", func(t *testing.T) {
-		opts := applyParseOptions(WithCharsetSentinel(true))
+		opts := applyParseOptions(WithParseCharsetSentinel(true))
 		if !opts.CharsetSentinel {
-			t.Error("WithCharsetSentinel(true) should set CharsetSentinel to true")
+			t.Error("WithParseCharsetSentinel(true) should set CharsetSentinel to true")
 		}
 	})
 
 	t.Run("WithComma", func(t *testing.T) {
-		opts := applyParseOptions(WithComma(true))
+		opts := applyParseOptions(WithParseComma(true))
 		if !opts.Comma {
-			t.Error("WithComma(true) should set Comma to true")
+			t.Error("WithParseComma(true) should set Comma to true")
 		}
 	})
 
 	t.Run("WithDecodeDotInKeys enables AllowDots", func(t *testing.T) {
-		opts := applyParseOptions(WithDecodeDotInKeys(true))
+		opts := applyParseOptions(WithParseDecodeDotInKeys(true))
 		if !opts.DecodeDotInKeys {
-			t.Error("WithDecodeDotInKeys(true) should set DecodeDotInKeys to true")
+			t.Error("WithParseDecodeDotInKeys(true) should set DecodeDotInKeys to true")
 		}
 		if !opts.AllowDots {
-			t.Error("WithDecodeDotInKeys(true) should also enable AllowDots")
+			t.Error("WithParseDecodeDotInKeys(true) should also enable AllowDots")
 		}
 	})
 
@@ -341,22 +341,22 @@ func TestFunctionalOptions(t *testing.T) {
 		customDecoder := func(s string, c Charset, k string) (string, error) {
 			return s, nil
 		}
-		opts := applyParseOptions(WithDecoder(customDecoder))
+		opts := applyParseOptions(WithParseDecoder(customDecoder))
 		if opts.Decoder == nil {
 			t.Error("WithDecoder should set Decoder")
 		}
 	})
 
 	t.Run("WithDelimiter", func(t *testing.T) {
-		opts := applyParseOptions(WithDelimiter(";"))
+		opts := applyParseOptions(WithParseDelimiter(";"))
 		if opts.Delimiter != ";" {
-			t.Errorf("WithDelimiter(;) = %q, want ;", opts.Delimiter)
+			t.Errorf("WithParseDelimiter(;) = %q, want ;", opts.Delimiter)
 		}
 	})
 
 	t.Run("WithDelimiterRegexp clears Delimiter", func(t *testing.T) {
 		re := regexp.MustCompile("[&;]")
-		opts := applyParseOptions(WithDelimiterRegexp(re))
+		opts := applyParseOptions(WithParseDelimiterRegexp(re))
 		if opts.DelimiterRegexp != re {
 			t.Error("WithDelimiterRegexp should set DelimiterRegexp")
 		}
@@ -367,7 +367,7 @@ func TestFunctionalOptions(t *testing.T) {
 
 	t.Run("WithDelimiter clears DelimiterRegexp", func(t *testing.T) {
 		re := regexp.MustCompile("[&;]")
-		opts := applyParseOptions(WithDelimiterRegexp(re), WithDelimiter(";"))
+		opts := applyParseOptions(WithParseDelimiterRegexp(re), WithParseDelimiter(";"))
 		if opts.DelimiterRegexp != nil {
 			t.Error("WithDelimiter should clear DelimiterRegexp")
 		}
@@ -377,44 +377,44 @@ func TestFunctionalOptions(t *testing.T) {
 	})
 
 	t.Run("WithDepth", func(t *testing.T) {
-		opts := applyParseOptions(WithDepth(10))
+		opts := applyParseOptions(WithParseDepth(10))
 		if opts.Depth != 10 {
-			t.Errorf("WithDepth(10) = %d, want 10", opts.Depth)
+			t.Errorf("WithParseDepth(10) = %d, want 10", opts.Depth)
 		}
 	})
 
 	t.Run("WithDepth zero", func(t *testing.T) {
-		opts := applyParseOptions(WithDepth(0))
+		opts := applyParseOptions(WithParseDepth(0))
 		if opts.Depth != 0 {
-			t.Errorf("WithDepth(0) = %d, want 0", opts.Depth)
+			t.Errorf("WithParseDepth(0) = %d, want 0", opts.Depth)
 		}
 	})
 
 	t.Run("WithDuplicates", func(t *testing.T) {
-		opts := applyParseOptions(WithDuplicates(DuplicateLast))
+		opts := applyParseOptions(WithParseDuplicates(DuplicateLast))
 		if opts.Duplicates != DuplicateLast {
-			t.Errorf("WithDuplicates(last) = %q, want %q", opts.Duplicates, DuplicateLast)
+			t.Errorf("WithParseDuplicates(last) = %q, want %q", opts.Duplicates, DuplicateLast)
 		}
 	})
 
 	t.Run("WithIgnoreQueryPrefix", func(t *testing.T) {
-		opts := applyParseOptions(WithIgnoreQueryPrefix(true))
+		opts := applyParseOptions(WithParseIgnoreQueryPrefix(true))
 		if !opts.IgnoreQueryPrefix {
-			t.Error("WithIgnoreQueryPrefix(true) should set IgnoreQueryPrefix to true")
+			t.Error("WithParseIgnoreQueryPrefix(true) should set IgnoreQueryPrefix to true")
 		}
 	})
 
 	t.Run("WithInterpretNumericEntities", func(t *testing.T) {
-		opts := applyParseOptions(WithInterpretNumericEntities(true))
+		opts := applyParseOptions(WithParseInterpretNumericEntities(true))
 		if !opts.InterpretNumericEntities {
-			t.Error("WithInterpretNumericEntities(true) should set InterpretNumericEntities to true")
+			t.Error("WithParseInterpretNumericEntities(true) should set InterpretNumericEntities to true")
 		}
 	})
 
 	t.Run("WithParameterLimit", func(t *testing.T) {
-		opts := applyParseOptions(WithParameterLimit(500))
+		opts := applyParseOptions(WithParseParameterLimit(500))
 		if opts.ParameterLimit != 500 {
-			t.Errorf("WithParameterLimit(500) = %d, want 500", opts.ParameterLimit)
+			t.Errorf("WithParseParameterLimit(500) = %d, want 500", opts.ParameterLimit)
 		}
 	})
 
@@ -426,39 +426,39 @@ func TestFunctionalOptions(t *testing.T) {
 	})
 
 	t.Run("WithPlainObjects", func(t *testing.T) {
-		opts := applyParseOptions(WithPlainObjects(true))
+		opts := applyParseOptions(WithParsePlainObjects(true))
 		if !opts.PlainObjects {
-			t.Error("WithPlainObjects(true) should set PlainObjects to true")
+			t.Error("WithParsePlainObjects(true) should set PlainObjects to true")
 		}
 	})
 
 	t.Run("WithStrictDepth", func(t *testing.T) {
-		opts := applyParseOptions(WithStrictDepth(true))
+		opts := applyParseOptions(WithParseStrictDepth(true))
 		if !opts.StrictDepth {
-			t.Error("WithStrictDepth(true) should set StrictDepth to true")
+			t.Error("WithParseStrictDepth(true) should set StrictDepth to true")
 		}
 	})
 
 	t.Run("WithStrictNullHandling", func(t *testing.T) {
-		opts := applyParseOptions(WithStrictNullHandling(true))
+		opts := applyParseOptions(WithParseStrictNullHandling(true))
 		if !opts.StrictNullHandling {
-			t.Error("WithStrictNullHandling(true) should set StrictNullHandling to true")
+			t.Error("WithParseStrictNullHandling(true) should set StrictNullHandling to true")
 		}
 	})
 
 	t.Run("WithThrowOnLimitExceeded", func(t *testing.T) {
-		opts := applyParseOptions(WithThrowOnLimitExceeded(true))
+		opts := applyParseOptions(WithParseThrowOnLimitExceeded(true))
 		if !opts.ThrowOnLimitExceeded {
-			t.Error("WithThrowOnLimitExceeded(true) should set ThrowOnLimitExceeded to true")
+			t.Error("WithParseThrowOnLimitExceeded(true) should set ThrowOnLimitExceeded to true")
 		}
 	})
 
 	t.Run("multiple options", func(t *testing.T) {
 		opts := applyParseOptions(
-			WithAllowDots(true),
-			WithDepth(10),
-			WithComma(true),
-			WithDelimiter(";"),
+			WithParseAllowDots(true),
+			WithParseDepth(10),
+			WithParseComma(true),
+			WithParseDelimiter(";"),
 		)
 		if !opts.AllowDots {
 			t.Error("AllowDots should be true")
@@ -602,7 +602,7 @@ func TestParseBasic(t *testing.T) {
 	})
 
 	t.Run("handles key without value with strictNullHandling", func(t *testing.T) {
-		result, err := Parse("a", WithStrictNullHandling(true))
+		result, err := Parse("a", WithParseStrictNullHandling(true))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -624,7 +624,7 @@ func TestParseQueryPrefix(t *testing.T) {
 	})
 
 	t.Run("strips ? with IgnoreQueryPrefix", func(t *testing.T) {
-		result, err := Parse("?a=b", WithIgnoreQueryPrefix(true))
+		result, err := Parse("?a=b", WithParseIgnoreQueryPrefix(true))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -646,7 +646,7 @@ func TestParseDelimiter(t *testing.T) {
 	})
 
 	t.Run("uses custom delimiter", func(t *testing.T) {
-		result, err := Parse("a=b;c=d", WithDelimiter(";"))
+		result, err := Parse("a=b;c=d", WithParseDelimiter(";"))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -660,7 +660,7 @@ func TestParseDelimiter(t *testing.T) {
 
 	t.Run("uses regexp delimiter", func(t *testing.T) {
 		re := regexp.MustCompile("[&;]")
-		result, err := Parse("a=b&c=d;e=f", WithDelimiterRegexp(re))
+		result, err := Parse("a=b&c=d;e=f", WithParseDelimiterRegexp(re))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -681,7 +681,7 @@ func TestParseDelimiter(t *testing.T) {
 
 func TestParseParameterLimit(t *testing.T) {
 	t.Run("respects parameter limit", func(t *testing.T) {
-		result, err := Parse("a=1&b=2&c=3&d=4&e=5", WithParameterLimit(3))
+		result, err := Parse("a=1&b=2&c=3&d=4&e=5", WithParseParameterLimit(3))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -691,14 +691,14 @@ func TestParseParameterLimit(t *testing.T) {
 	})
 
 	t.Run("returns error when limit exceeded with throwOnLimitExceeded", func(t *testing.T) {
-		_, err := Parse("a=1&b=2&c=3", WithParameterLimit(2), WithThrowOnLimitExceeded(true))
+		_, err := Parse("a=1&b=2&c=3", WithParseParameterLimit(2), WithParseThrowOnLimitExceeded(true))
 		if err != ErrParameterLimitExceeded {
 			t.Errorf("expected ErrParameterLimitExceeded, got %v", err)
 		}
 	})
 
 	t.Run("does not error when at limit with throwOnLimitExceeded", func(t *testing.T) {
-		result, err := Parse("a=1&b=2", WithParameterLimit(2), WithThrowOnLimitExceeded(true))
+		result, err := Parse("a=1&b=2", WithParseParameterLimit(2), WithParseThrowOnLimitExceeded(true))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -724,7 +724,7 @@ func TestParseDuplicates(t *testing.T) {
 	})
 
 	t.Run("keeps first with DuplicateFirst", func(t *testing.T) {
-		result, err := Parse("a=1&a=2", WithDuplicates(DuplicateFirst))
+		result, err := Parse("a=1&a=2", WithParseDuplicates(DuplicateFirst))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -734,7 +734,7 @@ func TestParseDuplicates(t *testing.T) {
 	})
 
 	t.Run("keeps last with DuplicateLast", func(t *testing.T) {
-		result, err := Parse("a=1&a=2", WithDuplicates(DuplicateLast))
+		result, err := Parse("a=1&a=2", WithParseDuplicates(DuplicateLast))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -756,7 +756,7 @@ func TestParseComma(t *testing.T) {
 	})
 
 	t.Run("splits by comma with Comma option", func(t *testing.T) {
-		result, err := Parse("a=1,2,3", WithComma(true))
+		result, err := Parse("a=1,2,3", WithParseComma(true))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -822,7 +822,7 @@ func TestParseURLEncoding(t *testing.T) {
 
 func TestParseCharsetSentinel(t *testing.T) {
 	t.Run("detects UTF-8 charset sentinel", func(t *testing.T) {
-		result, err := Parse("utf8=%E2%9C%93&a=b", WithCharsetSentinel(true))
+		result, err := Parse("utf8=%E2%9C%93&a=b", WithParseCharsetSentinel(true))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -836,7 +836,7 @@ func TestParseCharsetSentinel(t *testing.T) {
 	})
 
 	t.Run("detects ISO-8859-1 charset sentinel", func(t *testing.T) {
-		result, err := Parse("utf8=%26%2310003%3B&a=b", WithCharsetSentinel(true))
+		result, err := Parse("utf8=%26%2310003%3B&a=b", WithParseCharsetSentinel(true))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -854,8 +854,8 @@ func TestParseInterpretNumericEntities(t *testing.T) {
 	t.Run("interprets numeric entities with ISO-8859-1", func(t *testing.T) {
 		// The & must be URL-encoded as %26 to not be treated as delimiter
 		result, err := Parse("a=%26%239786%3B",
-			WithCharset(CharsetISO88591),
-			WithInterpretNumericEntities(true))
+			WithParseCharset(CharsetISO88591),
+			WithParseInterpretNumericEntities(true))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -866,7 +866,7 @@ func TestParseInterpretNumericEntities(t *testing.T) {
 
 	t.Run("does not interpret entities without option", func(t *testing.T) {
 		// The & must be URL-encoded as %26 to not be treated as delimiter
-		result, err := Parse("a=%26%239786%3B", WithCharset(CharsetISO88591))
+		result, err := Parse("a=%26%239786%3B", WithParseCharset(CharsetISO88591))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -881,7 +881,7 @@ func TestParseCustomDecoder(t *testing.T) {
 		customDecoder := func(s string, cs Charset, kind string) (string, error) {
 			return "decoded:" + s, nil
 		}
-		result, err := Parse("a=b", WithDecoder(customDecoder))
+		result, err := Parse("a=b", WithParseDecoder(customDecoder))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -973,7 +973,7 @@ func TestParseNestedObjects(t *testing.T) {
 	})
 
 	t.Run("custom depth limit", func(t *testing.T) {
-		result, err := Parse("a[b][c]=d", WithDepth(1))
+		result, err := Parse("a[b][c]=d", WithParseDepth(1))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -986,7 +986,7 @@ func TestParseNestedObjects(t *testing.T) {
 	})
 
 	t.Run("strictDepth returns error when exceeded", func(t *testing.T) {
-		_, err := Parse("a[b][c]=d", WithDepth(1), WithStrictDepth(true))
+		_, err := Parse("a[b][c]=d", WithParseDepth(1), WithParseStrictDepth(true))
 		if err != ErrDepthLimitExceeded {
 			t.Errorf("expected ErrDepthLimitExceeded, got %v", err)
 		}
@@ -995,7 +995,7 @@ func TestParseNestedObjects(t *testing.T) {
 
 func TestParseDotNotation(t *testing.T) {
 	t.Run("parses dot notation when enabled", func(t *testing.T) {
-		result, err := Parse("a.b.c=d", WithAllowDots(true))
+		result, err := Parse("a.b.c=d", WithParseAllowDots(true))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -1017,7 +1017,7 @@ func TestParseDotNotation(t *testing.T) {
 	})
 
 	t.Run("mixes dot and bracket notation", func(t *testing.T) {
-		result, err := Parse("a.b[c]=d", WithAllowDots(true))
+		result, err := Parse("a.b[c]=d", WithParseAllowDots(true))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -1059,7 +1059,7 @@ func TestParseArrays(t *testing.T) {
 	})
 
 	t.Run("converts to object when index exceeds arrayLimit", func(t *testing.T) {
-		result, err := Parse("a[100]=b", WithArrayLimit(20))
+		result, err := Parse("a[100]=b", WithParseArrayLimit(20))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -1087,7 +1087,7 @@ func TestParseArrays(t *testing.T) {
 	})
 
 	t.Run("handles sparse arrays", func(t *testing.T) {
-		result, err := Parse("a[0]=b&a[2]=c", WithAllowSparse(true))
+		result, err := Parse("a[0]=b&a[2]=c", WithParseAllowSparse(true))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -1171,7 +1171,7 @@ func TestParsePrototypeProtection(t *testing.T) {
 	t.Run("__proto__ is ALWAYS blocked even with AllowPrototypes", func(t *testing.T) {
 		// __proto__ is a security risk and should always be blocked
 		// This matches JS qs library behavior
-		result, err := Parse("__proto__=bad", WithAllowPrototypes(true))
+		result, err := Parse("__proto__=bad", WithParseAllowPrototypes(true))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -1193,7 +1193,7 @@ func TestParsePrototypeProtection(t *testing.T) {
 
 func TestParseAllowEmptyArrays(t *testing.T) {
 	t.Run("creates empty array with AllowEmptyArrays", func(t *testing.T) {
-		result, err := Parse("a[]=", WithAllowEmptyArrays(true))
+		result, err := Parse("a[]=", WithParseAllowEmptyArrays(true))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -1209,7 +1209,7 @@ func TestParseAllowEmptyArrays(t *testing.T) {
 
 func TestParseDecodeDotInKeys(t *testing.T) {
 	t.Run("decodes %2E as dot in keys", func(t *testing.T) {
-		result, err := Parse("a%2Eb=c", WithDecodeDotInKeys(true))
+		result, err := Parse("a%2Eb=c", WithParseDecodeDotInKeys(true))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -1277,7 +1277,7 @@ func TestJSParseSimpleString(t *testing.T) {
 		{"a[==]=23", nil, map[string]any{"a": map[string]any{"==": "23"}}},
 
 		// st.deepEqual(qs.parse('foo', { strictNullHandling: true }), { foo: null });
-		{"foo", []ParseOption{WithStrictNullHandling(true)}, map[string]any{"foo": nil}},
+		{"foo", []ParseOption{WithParseStrictNullHandling(true)}, map[string]any{"foo": nil}},
 
 		// st.deepEqual(qs.parse('foo'), { foo: '' });
 		{"foo", nil, map[string]any{"foo": ""}},
@@ -1301,7 +1301,7 @@ func TestJSParseSimpleString(t *testing.T) {
 		{"foo2=bar2&baz2=", nil, map[string]any{"foo2": "bar2", "baz2": ""}},
 
 		// st.deepEqual(qs.parse('foo=bar&baz', { strictNullHandling: true }), { foo: 'bar', baz: null });
-		{"foo=bar&baz", []ParseOption{WithStrictNullHandling(true)}, map[string]any{"foo": "bar", "baz": nil}},
+		{"foo=bar&baz", []ParseOption{WithParseStrictNullHandling(true)}, map[string]any{"foo": "bar", "baz": nil}},
 
 		// st.deepEqual(qs.parse('foo=bar&baz'), { foo: 'bar', baz: '' });
 		{"foo=bar&baz", nil, map[string]any{"foo": "bar", "baz": ""}},
@@ -1352,19 +1352,19 @@ func TestJSCommaFalse(t *testing.T) {
 // ===========================================
 func TestJSCommaTrue(t *testing.T) {
 	// st.deepEqual(qs.parse('a[]=b&a[]=c', { comma: true }), { a: ['b', 'c'] });
-	result, _ := Parse("a[]=b&a[]=c", WithComma(true))
+	result, _ := Parse("a[]=b&a[]=c", WithParseComma(true))
 	assertEqual(t, result, map[string]any{"a": []any{"b", "c"}}, "a[]=b&a[]=c with comma")
 
 	// st.deepEqual(qs.parse('a[0]=b&a[1]=c', { comma: true }), { a: ['b', 'c'] });
-	result, _ = Parse("a[0]=b&a[1]=c", WithComma(true))
+	result, _ = Parse("a[0]=b&a[1]=c", WithParseComma(true))
 	assertEqual(t, result, map[string]any{"a": []any{"b", "c"}}, "a[0]=b&a[1]=c with comma")
 
 	// st.deepEqual(qs.parse('a=b,c', { comma: true }), { a: ['b', 'c'] });
-	result, _ = Parse("a=b,c", WithComma(true))
+	result, _ = Parse("a=b,c", WithParseComma(true))
 	assertEqual(t, result, map[string]any{"a": []any{"b", "c"}}, "a=b,c with comma")
 
 	// st.deepEqual(qs.parse('a=b&a=c', { comma: true }), { a: ['b', 'c'] });
-	result, _ = Parse("a=b&a=c", WithComma(true))
+	result, _ = Parse("a=b&a=c", WithParseComma(true))
 	assertEqual(t, result, map[string]any{"a": []any{"b", "c"}}, "a=b&a=c with comma")
 }
 
@@ -1377,7 +1377,7 @@ func TestJSAllowsDotNotation(t *testing.T) {
 	assertEqual(t, result, map[string]any{"a.b": "c"}, "a.b=c without allowDots")
 
 	// st.deepEqual(qs.parse('a.b=c', { allowDots: true }), { a: { b: 'c' } });
-	result, _ = Parse("a.b=c", WithAllowDots(true))
+	result, _ = Parse("a.b=c", WithParseAllowDots(true))
 	assertEqual(t, result, map[string]any{"a": map[string]any{"b": "c"}}, "a.b=c with allowDots")
 }
 
@@ -1393,7 +1393,7 @@ func TestJSDecodeDotKeys(t *testing.T) {
 	}, "allowDots false, decodeDotInKeys false")
 
 	// with allowDots true and decodeDotInKeys false
-	result, _ = Parse("name.obj.first=John&name.obj.last=Doe", WithAllowDots(true))
+	result, _ = Parse("name.obj.first=John&name.obj.last=Doe", WithParseAllowDots(true))
 	assertEqual(t, result, map[string]any{
 		"name": map[string]any{
 			"obj": map[string]any{
@@ -1404,7 +1404,7 @@ func TestJSDecodeDotKeys(t *testing.T) {
 	}, "allowDots true, decodeDotInKeys false")
 
 	// with allowDots true and decodeDotInKeys false (encoded dot)
-	result, _ = Parse("name%252Eobj.first=John&name%252Eobj.last=Doe", WithAllowDots(true))
+	result, _ = Parse("name%252Eobj.first=John&name%252Eobj.last=Doe", WithParseAllowDots(true))
 	assertEqual(t, result, map[string]any{
 		"name%2Eobj": map[string]any{
 			"first": "John",
@@ -1413,7 +1413,7 @@ func TestJSDecodeDotKeys(t *testing.T) {
 	}, "allowDots true, encoded dot, decodeDotInKeys false")
 
 	// with allowDots true and decodeDotInKeys true
-	result, _ = Parse("name%252Eobj.first=John&name%252Eobj.last=Doe", WithAllowDots(true), WithDecodeDotInKeys(true))
+	result, _ = Parse("name%252Eobj.first=John&name%252Eobj.last=Doe", WithParseAllowDots(true), WithParseDecodeDotInKeys(true))
 	assertEqual(t, result, map[string]any{
 		"name.obj": map[string]any{
 			"first": "John",
@@ -1427,11 +1427,11 @@ func TestJSDecodeDotKeys(t *testing.T) {
 // ===========================================
 func TestJSAllowEmptyArrays(t *testing.T) {
 	// st.deepEqual(qs.parse('foo[]&bar=baz', { allowEmptyArrays: true }), { foo: [], bar: 'baz' });
-	result, _ := Parse("foo[]&bar=baz", WithAllowEmptyArrays(true))
+	result, _ := Parse("foo[]&bar=baz", WithParseAllowEmptyArrays(true))
 	assertEqual(t, result, map[string]any{"foo": []any{}, "bar": "baz"}, "allowEmptyArrays true")
 
 	// st.deepEqual(qs.parse('foo[]&bar=baz', { allowEmptyArrays: false }), { foo: [''], bar: 'baz' });
-	result, _ = Parse("foo[]&bar=baz", WithAllowEmptyArrays(false))
+	result, _ = Parse("foo[]&bar=baz", WithParseAllowEmptyArrays(false))
 	assertEqual(t, result, map[string]any{"foo": []any{""}, "bar": "baz"}, "allowEmptyArrays false")
 }
 
@@ -1439,7 +1439,7 @@ func TestJSAllowEmptyArrays(t *testing.T) {
 // JS Test: "allowEmptyArrays + strictNullHandling"
 // ===========================================
 func TestJSAllowEmptyArraysStrictNull(t *testing.T) {
-	result, _ := Parse("testEmptyArray[]", WithStrictNullHandling(true), WithAllowEmptyArrays(true))
+	result, _ := Parse("testEmptyArray[]", WithParseStrictNullHandling(true), WithParseAllowEmptyArrays(true))
 	assertEqual(t, result, map[string]any{"testEmptyArray": []any{}}, "allowEmptyArrays + strictNullHandling")
 }
 
@@ -1479,7 +1479,7 @@ func TestJSNestedStrings(t *testing.T) {
 // ===========================================
 func TestJSDepthOne(t *testing.T) {
 	// st.deepEqual(qs.parse('a[b][c]=d', { depth: 1 }), { a: { b: { '[c]': 'd' } } });
-	result, _ := Parse("a[b][c]=d", WithDepth(1))
+	result, _ := Parse("a[b][c]=d", WithParseDepth(1))
 	assertEqual(t, result, map[string]any{
 		"a": map[string]any{
 			"b": map[string]any{
@@ -1489,7 +1489,7 @@ func TestJSDepthOne(t *testing.T) {
 	}, "depth 1 - a[b][c]=d")
 
 	// st.deepEqual(qs.parse('a[b][c][d]=e', { depth: 1 }), { a: { b: { '[c][d]': 'e' } } });
-	result, _ = Parse("a[b][c][d]=e", WithDepth(1))
+	result, _ = Parse("a[b][c][d]=e", WithParseDepth(1))
 	assertEqual(t, result, map[string]any{
 		"a": map[string]any{
 			"b": map[string]any{
@@ -1504,11 +1504,11 @@ func TestJSDepthOne(t *testing.T) {
 // ===========================================
 func TestJSDepthZero(t *testing.T) {
 	// st.deepEqual(qs.parse('a[0]=b&a[1]=c', { depth: 0 }), { 'a[0]': 'b', 'a[1]': 'c' });
-	result, _ := Parse("a[0]=b&a[1]=c", WithDepth(0))
+	result, _ := Parse("a[0]=b&a[1]=c", WithParseDepth(0))
 	assertEqual(t, result, map[string]any{"a[0]": "b", "a[1]": "c"}, "depth 0 - arrays")
 
 	// st.deepEqual(qs.parse('a[0][0]=b&a[0][1]=c&a[1]=d&e=2', { depth: 0 }), { 'a[0][0]': 'b', 'a[0][1]': 'c', 'a[1]': 'd', e: '2' });
-	result, _ = Parse("a[0][0]=b&a[0][1]=c&a[1]=d&e=2", WithDepth(0))
+	result, _ = Parse("a[0][0]=b&a[0][1]=c&a[1]=d&e=2", WithParseDepth(0))
 	assertEqual(t, result, map[string]any{
 		"a[0][0]": "b",
 		"a[0][1]": "c",
@@ -1556,11 +1556,11 @@ func TestJSMixedArrays(t *testing.T) {
 		{"a[]=b&a=c", nil, map[string]any{"a": []any{"b", "c"}}},
 		{"a[0]=b&a=c", nil, map[string]any{"a": []any{"b", "c"}}},
 		{"a=b&a[0]=c", nil, map[string]any{"a": []any{"b", "c"}}},
-		{"a[1]=b&a=c", []ParseOption{WithArrayLimit(20)}, map[string]any{"a": []any{"b", "c"}}},
-		{"a[]=b&a=c", []ParseOption{WithArrayLimit(0)}, map[string]any{"a": []any{"b", "c"}}},
+		{"a[1]=b&a=c", []ParseOption{WithParseArrayLimit(20)}, map[string]any{"a": []any{"b", "c"}}},
+		{"a[]=b&a=c", []ParseOption{WithParseArrayLimit(0)}, map[string]any{"a": []any{"b", "c"}}},
 		{"a[]=b&a=c", nil, map[string]any{"a": []any{"b", "c"}}},
-		{"a=b&a[1]=c", []ParseOption{WithArrayLimit(20)}, map[string]any{"a": []any{"b", "c"}}},
-		{"a=b&a[]=c", []ParseOption{WithArrayLimit(0)}, map[string]any{"a": []any{"b", "c"}}},
+		{"a=b&a[1]=c", []ParseOption{WithParseArrayLimit(20)}, map[string]any{"a": []any{"b", "c"}}},
+		{"a=b&a[]=c", []ParseOption{WithParseArrayLimit(0)}, map[string]any{"a": []any{"b", "c"}}},
 		{"a=b&a[]=c", nil, map[string]any{"a": []any{"b", "c"}}},
 	}
 
@@ -1607,11 +1607,11 @@ func TestJSArrayIndices(t *testing.T) {
 	assertEqual(t, result, map[string]any{"a": []any{"b", "c"}}, "two indices")
 
 	// st.deepEqual(qs.parse('a[1]=c', { arrayLimit: 20 }), { a: ['c'] });
-	result, _ = Parse("a[1]=c", WithArrayLimit(20))
+	result, _ = Parse("a[1]=c", WithParseArrayLimit(20))
 	assertEqual(t, result, map[string]any{"a": []any{"c"}}, "sparse compacted")
 
 	// st.deepEqual(qs.parse('a[1]=c', { arrayLimit: 0 }), { a: { 1: 'c' } });
-	result, _ = Parse("a[1]=c", WithArrayLimit(0))
+	result, _ = Parse("a[1]=c", WithParseArrayLimit(0))
 	assertEqual(t, result, map[string]any{"a": map[string]any{"1": "c"}}, "arrayLimit 0 = object")
 
 	// st.deepEqual(qs.parse('a[1]=c'), { a: ['c'] });
@@ -1624,11 +1624,11 @@ func TestJSArrayIndices(t *testing.T) {
 // ===========================================
 func TestJSArrayLimitIndices(t *testing.T) {
 	// st.deepEqual(qs.parse('a[20]=a', { arrayLimit: 20 }), { a: ['a'] });
-	result, _ := Parse("a[20]=a", WithArrayLimit(20))
+	result, _ := Parse("a[20]=a", WithParseArrayLimit(20))
 	assertEqual(t, result, map[string]any{"a": []any{"a"}}, "at limit = array")
 
 	// st.deepEqual(qs.parse('a[21]=a', { arrayLimit: 20 }), { a: { 21: 'a' } });
-	result, _ = Parse("a[21]=a", WithArrayLimit(20))
+	result, _ = Parse("a[21]=a", WithParseArrayLimit(20))
 	assertEqual(t, result, map[string]any{"a": map[string]any{"21": "a"}}, "over limit = object")
 
 	// st.deepEqual(qs.parse('a[20]=a'), { a: ['a'] });
@@ -1750,28 +1750,28 @@ func TestJSArraysToObjects(t *testing.T) {
 // ===========================================
 func TestJSArraysToObjectsDotNotation(t *testing.T) {
 	// st.deepEqual(qs.parse('foo[0].baz=bar&fool.bad=baz', { allowDots: true }), { foo: [{ baz: 'bar' }], fool: { bad: 'baz' } });
-	result, _ := Parse("foo[0].baz=bar&fool.bad=baz", WithAllowDots(true))
+	result, _ := Parse("foo[0].baz=bar&fool.bad=baz", WithParseAllowDots(true))
 	assertEqual(t, result, map[string]any{
 		"foo":  []any{map[string]any{"baz": "bar"}},
 		"fool": map[string]any{"bad": "baz"},
 	}, "dot notation with array")
 
 	// st.deepEqual(qs.parse('foo[0].baz=bar&fool.bad.boo=baz', { allowDots: true }), { foo: [{ baz: 'bar' }], fool: { bad: { boo: 'baz' } } });
-	result, _ = Parse("foo[0].baz=bar&fool.bad.boo=baz", WithAllowDots(true))
+	result, _ = Parse("foo[0].baz=bar&fool.bad.boo=baz", WithParseAllowDots(true))
 	assertEqual(t, result, map[string]any{
 		"foo":  []any{map[string]any{"baz": "bar"}},
 		"fool": map[string]any{"bad": map[string]any{"boo": "baz"}},
 	}, "dot notation nested")
 
 	// st.deepEqual(qs.parse('foo[0][0].baz=bar&fool.bad=baz', { allowDots: true }), { foo: [[{ baz: 'bar' }]], fool: { bad: 'baz' } });
-	result, _ = Parse("foo[0][0].baz=bar&fool.bad=baz", WithAllowDots(true))
+	result, _ = Parse("foo[0][0].baz=bar&fool.bad=baz", WithParseAllowDots(true))
 	assertEqual(t, result, map[string]any{
 		"foo":  []any{[]any{map[string]any{"baz": "bar"}}},
 		"fool": map[string]any{"bad": "baz"},
 	}, "nested array with dot")
 
 	// st.deepEqual(qs.parse('foo.bad=baz&foo[0]=bar', { allowDots: true }), { foo: { bad: 'baz', 0: 'bar' } });
-	result, _ = Parse("foo.bad=baz&foo[0]=bar", WithAllowDots(true))
+	result, _ = Parse("foo.bad=baz&foo[0]=bar", WithParseAllowDots(true))
 	assertEqual(t, result, map[string]any{
 		"foo": map[string]any{"bad": "baz", "0": "bar"},
 	}, "dot then bracket")
@@ -1793,7 +1793,7 @@ func TestJSPruneUndefined(t *testing.T) {
 // ===========================================
 func TestJSMalformedUri(t *testing.T) {
 	// st.deepEqual(qs.parse('{%:%}', { strictNullHandling: true }), { '{%:%}': null });
-	result, _ := Parse("{%:%}", WithStrictNullHandling(true))
+	result, _ := Parse("{%:%}", WithParseStrictNullHandling(true))
 	assertEqual(t, result, map[string]any{"{%:%}": nil}, "malformed as key null")
 
 	// st.deepEqual(qs.parse('{%:%}='), { '{%:%}': '' });
@@ -1840,15 +1840,15 @@ func TestJSEmptyStringsInArrays(t *testing.T) {
 	assertEqual(t, result, map[string]any{"a": []any{"b", "", "c"}}, "empty string in array")
 
 	// st.deepEqual(qs.parse('a[0]=b&a[1]&a[2]=c&a[19]=', { strictNullHandling: true, arrayLimit: 20 }), { a: ['b', null, 'c', ''] });
-	result, _ = Parse("a[0]=b&a[1]&a[2]=c&a[19]=", WithStrictNullHandling(true), WithArrayLimit(20))
+	result, _ = Parse("a[0]=b&a[1]&a[2]=c&a[19]=", WithParseStrictNullHandling(true), WithParseArrayLimit(20))
 	assertEqual(t, result, map[string]any{"a": []any{"b", nil, "c", ""}}, "null then empty")
 
 	// st.deepEqual(qs.parse('a[]=b&a[]&a[]=c&a[]=', { strictNullHandling: true, arrayLimit: 0 }), { a: ['b', null, 'c', ''] });
-	result, _ = Parse("a[]=b&a[]&a[]=c&a[]=", WithStrictNullHandling(true), WithArrayLimit(0))
+	result, _ = Parse("a[]=b&a[]&a[]=c&a[]=", WithParseStrictNullHandling(true), WithParseArrayLimit(0))
 	assertEqual(t, result, map[string]any{"a": []any{"b", nil, "c", ""}}, "brackets null then empty")
 
 	// st.deepEqual(qs.parse('a[0]=b&a[1]=&a[2]=c&a[19]', { strictNullHandling: true, arrayLimit: 20 }), { a: ['b', '', 'c', null] });
-	result, _ = Parse("a[0]=b&a[1]=&a[2]=c&a[19]", WithStrictNullHandling(true), WithArrayLimit(20))
+	result, _ = Parse("a[0]=b&a[1]=&a[2]=c&a[19]", WithParseStrictNullHandling(true), WithParseArrayLimit(20))
 	assertEqual(t, result, map[string]any{"a": []any{"b", "", "c", nil}}, "empty then null")
 
 	// st.deepEqual(qs.parse('a[]=&a[]=b&a[]=c'), { a: ['', 'b', 'c'] });
@@ -1861,23 +1861,23 @@ func TestJSEmptyStringsInArrays(t *testing.T) {
 // ===========================================
 func TestJSCompactsSparseArrays(t *testing.T) {
 	// st.deepEqual(qs.parse('a[10]=1&a[2]=2', { arrayLimit: 20 }), { a: ['2', '1'] });
-	result, _ := Parse("a[10]=1&a[2]=2", WithArrayLimit(20))
+	result, _ := Parse("a[10]=1&a[2]=2", WithParseArrayLimit(20))
 	assertEqual(t, result, map[string]any{"a": []any{"2", "1"}}, "compacted sparse")
 
 	// st.deepEqual(qs.parse('a[1][b][2][c]=1', { arrayLimit: 20 }), { a: [{ b: [{ c: '1' }] }] });
-	result, _ = Parse("a[1][b][2][c]=1", WithArrayLimit(20))
+	result, _ = Parse("a[1][b][2][c]=1", WithParseArrayLimit(20))
 	assertEqual(t, result, map[string]any{
 		"a": []any{map[string]any{"b": []any{map[string]any{"c": "1"}}}},
 	}, "nested compacted")
 
 	// st.deepEqual(qs.parse('a[1][2][3][c]=1', { arrayLimit: 20 }), { a: [[[{ c: '1' }]]] });
-	result, _ = Parse("a[1][2][3][c]=1", WithArrayLimit(20))
+	result, _ = Parse("a[1][2][3][c]=1", WithParseArrayLimit(20))
 	assertEqual(t, result, map[string]any{
 		"a": []any{[]any{[]any{map[string]any{"c": "1"}}}},
 	}, "deeply nested compacted")
 
 	// st.deepEqual(qs.parse('a[1][2][3][c][1]=1', { arrayLimit: 20 }), { a: [[[{ c: ['1'] }]]] });
-	result, _ = Parse("a[1][2][3][c][1]=1", WithArrayLimit(20))
+	result, _ = Parse("a[1][2][3][c][1]=1", WithParseArrayLimit(20))
 	assertEqual(t, result, map[string]any{
 		"a": []any{[]any{[]any{map[string]any{"c": []any{"1"}}}}},
 	}, "deeply nested with array value")
@@ -1888,12 +1888,12 @@ func TestJSCompactsSparseArrays(t *testing.T) {
 // ===========================================
 func TestJSParsesSparseArrays(t *testing.T) {
 	// st.deepEqual(qs.parse('a[4]=1&a[1]=2', { allowSparse: true }), { a: [, '2', , , '1'] });
-	result, _ := Parse("a[4]=1&a[1]=2", WithAllowSparse(true))
+	result, _ := Parse("a[4]=1&a[1]=2", WithParseAllowSparse(true))
 	expected := []any{nil, "2", nil, nil, "1"}
 	assertEqual(t, result, map[string]any{"a": expected}, "sparse array")
 
 	// st.deepEqual(qs.parse('a[1][b][2][c]=1', { allowSparse: true }), { a: [, { b: [, , { c: '1' }] }] });
-	result, _ = Parse("a[1][b][2][c]=1", WithAllowSparse(true))
+	result, _ = Parse("a[1][b][2][c]=1", WithParseAllowSparse(true))
 	assertEqual(t, result, map[string]any{
 		"a": []any{nil, map[string]any{"b": []any{nil, nil, map[string]any{"c": "1"}}}},
 	}, "nested sparse")
@@ -1904,7 +1904,7 @@ func TestJSParsesSparseArrays(t *testing.T) {
 // ===========================================
 func TestJSAlternativeDelimiter(t *testing.T) {
 	// st.deepEqual(qs.parse('a=b;c=d', { delimiter: ';' }), { a: 'b', c: 'd' });
-	result, _ := Parse("a=b;c=d", WithDelimiter(";"))
+	result, _ := Parse("a=b;c=d", WithParseDelimiter(";"))
 	assertEqual(t, result, map[string]any{"a": "b", "c": "d"}, "semicolon delimiter")
 }
 
@@ -1914,7 +1914,7 @@ func TestJSAlternativeDelimiter(t *testing.T) {
 func TestJSRegExpDelimiter(t *testing.T) {
 	// st.deepEqual(qs.parse('a=b; c=d', { delimiter: /[;,] */ }), { a: 'b', c: 'd' });
 	re := regexp.MustCompile(`[;,] *`)
-	result, _ := Parse("a=b; c=d", WithDelimiterRegexp(re))
+	result, _ := Parse("a=b; c=d", WithParseDelimiterRegexp(re))
 	assertEqual(t, result, map[string]any{"a": "b", "c": "d"}, "regexp delimiter")
 }
 
@@ -1923,7 +1923,7 @@ func TestJSRegExpDelimiter(t *testing.T) {
 // ===========================================
 func TestJSParameterLimit(t *testing.T) {
 	// st.deepEqual(qs.parse('a=b&c=d', { parameterLimit: 1 }), { a: 'b' });
-	result, _ := Parse("a=b&c=d", WithParameterLimit(1))
+	result, _ := Parse("a=b&c=d", WithParseParameterLimit(1))
 	assertEqual(t, result, map[string]any{"a": "b"}, "parameter limit 1")
 }
 
@@ -1932,27 +1932,27 @@ func TestJSParameterLimit(t *testing.T) {
 // ===========================================
 func TestJSArrayLimitOverride(t *testing.T) {
 	// st.deepEqual(qs.parse('a[0]=b', { arrayLimit: -1 }), { a: { 0: 'b' } });
-	result, _ := Parse("a[0]=b", WithArrayLimit(-1))
+	result, _ := Parse("a[0]=b", WithParseArrayLimit(-1))
 	assertEqual(t, result, map[string]any{"a": map[string]any{"0": "b"}}, "arrayLimit -1")
 
 	// st.deepEqual(qs.parse('a[0]=b', { arrayLimit: 0 }), { a: ['b'] });
-	result, _ = Parse("a[0]=b", WithArrayLimit(0))
+	result, _ = Parse("a[0]=b", WithParseArrayLimit(0))
 	assertEqual(t, result, map[string]any{"a": []any{"b"}}, "arrayLimit 0")
 
 	// st.deepEqual(qs.parse('a[-1]=b', { arrayLimit: -1 }), { a: { '-1': 'b' } });
-	result, _ = Parse("a[-1]=b", WithArrayLimit(-1))
+	result, _ = Parse("a[-1]=b", WithParseArrayLimit(-1))
 	assertEqual(t, result, map[string]any{"a": map[string]any{"-1": "b"}}, "negative index, limit -1")
 
 	// st.deepEqual(qs.parse('a[-1]=b', { arrayLimit: 0 }), { a: { '-1': 'b' } });
-	result, _ = Parse("a[-1]=b", WithArrayLimit(0))
+	result, _ = Parse("a[-1]=b", WithParseArrayLimit(0))
 	assertEqual(t, result, map[string]any{"a": map[string]any{"-1": "b"}}, "negative index, limit 0")
 
 	// st.deepEqual(qs.parse('a[0]=b&a[1]=c', { arrayLimit: -1 }), { a: { 0: 'b', 1: 'c' } });
-	result, _ = Parse("a[0]=b&a[1]=c", WithArrayLimit(-1))
+	result, _ = Parse("a[0]=b&a[1]=c", WithParseArrayLimit(-1))
 	assertEqual(t, result, map[string]any{"a": map[string]any{"0": "b", "1": "c"}}, "multiple with limit -1")
 
 	// st.deepEqual(qs.parse('a[0]=b&a[1]=c', { arrayLimit: 0 }), { a: { 0: 'b', 1: 'c' } });
-	result, _ = Parse("a[0]=b&a[1]=c", WithArrayLimit(0))
+	result, _ = Parse("a[0]=b&a[1]=c", WithParseArrayLimit(0))
 	assertEqual(t, result, map[string]any{"a": map[string]any{"0": "b", "1": "c"}}, "multiple with limit 0")
 }
 
@@ -1980,15 +1980,15 @@ func TestJSDisableArrayParsing(t *testing.T) {
 // ===========================================
 func TestJSQueryPrefix(t *testing.T) {
 	// st.deepEqual(qs.parse('?foo=bar', { ignoreQueryPrefix: true }), { foo: 'bar' });
-	result, _ := Parse("?foo=bar", WithIgnoreQueryPrefix(true))
+	result, _ := Parse("?foo=bar", WithParseIgnoreQueryPrefix(true))
 	assertEqual(t, result, map[string]any{"foo": "bar"}, "strip prefix")
 
 	// st.deepEqual(qs.parse('foo=bar', { ignoreQueryPrefix: true }), { foo: 'bar' });
-	result, _ = Parse("foo=bar", WithIgnoreQueryPrefix(true))
+	result, _ = Parse("foo=bar", WithParseIgnoreQueryPrefix(true))
 	assertEqual(t, result, map[string]any{"foo": "bar"}, "no prefix")
 
 	// st.deepEqual(qs.parse('?foo=bar', { ignoreQueryPrefix: false }), { '?foo': 'bar' });
-	result, _ = Parse("?foo=bar", WithIgnoreQueryPrefix(false))
+	result, _ = Parse("?foo=bar", WithParseIgnoreQueryPrefix(false))
 	assertEqual(t, result, map[string]any{"?foo": "bar"}, "keep prefix")
 }
 
@@ -1997,25 +1997,25 @@ func TestJSQueryPrefix(t *testing.T) {
 // ===========================================
 func TestJSCommaAsArrayDivider(t *testing.T) {
 	// st.deepEqual(qs.parse('foo=bar,tee', { comma: true }), { foo: ['bar', 'tee'] });
-	result, _ := Parse("foo=bar,tee", WithComma(true))
+	result, _ := Parse("foo=bar,tee", WithParseComma(true))
 	assertEqual(t, result, map[string]any{"foo": []any{"bar", "tee"}}, "simple comma")
 
 	// st.deepEqual(qs.parse('foo[bar]=coffee,tee', { comma: true }), { foo: { bar: ['coffee', 'tee'] } });
-	result, _ = Parse("foo[bar]=coffee,tee", WithComma(true))
+	result, _ = Parse("foo[bar]=coffee,tee", WithParseComma(true))
 	assertEqual(t, result, map[string]any{
 		"foo": map[string]any{"bar": []any{"coffee", "tee"}},
 	}, "nested comma")
 
 	// st.deepEqual(qs.parse('foo=', { comma: true }), { foo: '' });
-	result, _ = Parse("foo=", WithComma(true))
+	result, _ = Parse("foo=", WithParseComma(true))
 	assertEqual(t, result, map[string]any{"foo": ""}, "empty with comma")
 
 	// st.deepEqual(qs.parse('foo', { comma: true }), { foo: '' });
-	result, _ = Parse("foo", WithComma(true))
+	result, _ = Parse("foo", WithParseComma(true))
 	assertEqual(t, result, map[string]any{"foo": ""}, "no value with comma")
 
 	// st.deepEqual(qs.parse('foo', { comma: true, strictNullHandling: true }), { foo: null });
-	result, _ = Parse("foo", WithComma(true), WithStrictNullHandling(true))
+	result, _ = Parse("foo", WithParseComma(true), WithParseStrictNullHandling(true))
 	assertEqual(t, result, map[string]any{"foo": nil}, "null with comma")
 }
 
@@ -2024,25 +2024,25 @@ func TestJSCommaAsArrayDivider(t *testing.T) {
 // ===========================================
 func TestJSBracketsArrayOfArrays(t *testing.T) {
 	// st.deepEqual(qs.parse('foo[]=1,2,3&foo[]=4,5,6', { comma: true }), { foo: [['1', '2', '3'], ['4', '5', '6']] });
-	result, _ := Parse("foo[]=1,2,3&foo[]=4,5,6", WithComma(true))
+	result, _ := Parse("foo[]=1,2,3&foo[]=4,5,6", WithParseComma(true))
 	assertEqual(t, result, map[string]any{
 		"foo": []any{[]any{"1", "2", "3"}, []any{"4", "5", "6"}},
 	}, "array of arrays")
 
 	// st.deepEqual(qs.parse('foo[]=1,2,3&foo[]=', { comma: true }), { foo: [['1', '2', '3'], ''] });
-	result, _ = Parse("foo[]=1,2,3&foo[]=", WithComma(true))
+	result, _ = Parse("foo[]=1,2,3&foo[]=", WithParseComma(true))
 	assertEqual(t, result, map[string]any{
 		"foo": []any{[]any{"1", "2", "3"}, ""},
 	}, "array then empty")
 
 	// st.deepEqual(qs.parse('foo[]=1,2,3&foo[]=,', { comma: true }), { foo: [['1', '2', '3'], ['', '']] });
-	result, _ = Parse("foo[]=1,2,3&foo[]=,", WithComma(true))
+	result, _ = Parse("foo[]=1,2,3&foo[]=,", WithParseComma(true))
 	assertEqual(t, result, map[string]any{
 		"foo": []any{[]any{"1", "2", "3"}, []any{"", ""}},
 	}, "array then comma only")
 
 	// st.deepEqual(qs.parse('foo[]=1,2,3&foo[]=a', { comma: true }), { foo: [['1', '2', '3'], 'a'] });
-	result, _ = Parse("foo[]=1,2,3&foo[]=a", WithComma(true))
+	result, _ = Parse("foo[]=1,2,3&foo[]=a", WithParseComma(true))
 	assertEqual(t, result, map[string]any{
 		"foo": []any{[]any{"1", "2", "3"}, "a"},
 	}, "array then single")
@@ -2053,15 +2053,15 @@ func TestJSBracketsArrayOfArrays(t *testing.T) {
 // ===========================================
 func TestJSPercentEncodedComma(t *testing.T) {
 	// st.deepEqual(qs.parse('foo=a%2Cb', { comma: true }), { foo: 'a,b' });
-	result, _ := Parse("foo=a%2Cb", WithComma(true))
+	result, _ := Parse("foo=a%2Cb", WithParseComma(true))
 	assertEqual(t, result, map[string]any{"foo": "a,b"}, "encoded comma not split")
 
 	// st.deepEqual(qs.parse('foo=a%2C%20b,d', { comma: true }), { foo: ['a, b', 'd'] });
-	result, _ = Parse("foo=a%2C%20b,d", WithComma(true))
+	result, _ = Parse("foo=a%2C%20b,d", WithParseComma(true))
 	assertEqual(t, result, map[string]any{"foo": []any{"a, b", "d"}}, "mixed encoded and literal")
 
 	// st.deepEqual(qs.parse('foo=a%2C%20b,c%2C%20d', { comma: true }), { foo: ['a, b', 'c, d'] });
-	result, _ = Parse("foo=a%2C%20b,c%2C%20d", WithComma(true))
+	result, _ = Parse("foo=a%2C%20b,c%2C%20d", WithParseComma(true))
 	assertEqual(t, result, map[string]any{"foo": []any{"a, b", "c, d"}}, "both encoded")
 }
 
@@ -2070,15 +2070,15 @@ func TestJSPercentEncodedComma(t *testing.T) {
 // ===========================================
 func TestJSPrototypeProtection(t *testing.T) {
 	// st.deepEqual(qs.parse('a[hasOwnProperty]=b', { allowPrototypes: false }), {});
-	result, _ := Parse("a[hasOwnProperty]=b", WithAllowPrototypes(false))
+	result, _ := Parse("a[hasOwnProperty]=b", WithParseAllowPrototypes(false))
 	assertEqual(t, result, map[string]any{}, "hasOwnProperty blocked")
 
 	// st.deepEqual(qs.parse('hasOwnProperty=b', { allowPrototypes: false }), {});
-	result, _ = Parse("hasOwnProperty=b", WithAllowPrototypes(false))
+	result, _ = Parse("hasOwnProperty=b", WithParseAllowPrototypes(false))
 	assertEqual(t, result, map[string]any{}, "top-level hasOwnProperty blocked")
 
 	// st.deepEqual(qs.parse('toString', { allowPrototypes: false }), {});
-	result, _ = Parse("toString", WithAllowPrototypes(false))
+	result, _ = Parse("toString", WithParseAllowPrototypes(false))
 	assertEqual(t, result, map[string]any{}, "toString blocked")
 }
 
@@ -2087,17 +2087,17 @@ func TestJSPrototypeProtection(t *testing.T) {
 // ===========================================
 func TestJSAllowPrototypes(t *testing.T) {
 	// st.deepEqual(qs.parse('a[hasOwnProperty]=b', { allowPrototypes: true }), { a: { hasOwnProperty: 'b' } });
-	result, _ := Parse("a[hasOwnProperty]=b", WithAllowPrototypes(true))
+	result, _ := Parse("a[hasOwnProperty]=b", WithParseAllowPrototypes(true))
 	assertEqual(t, result, map[string]any{
 		"a": map[string]any{"hasOwnProperty": "b"},
 	}, "hasOwnProperty allowed")
 
 	// st.deepEqual(qs.parse('hasOwnProperty=b', { allowPrototypes: true }), { hasOwnProperty: 'b' });
-	result, _ = Parse("hasOwnProperty=b", WithAllowPrototypes(true))
+	result, _ = Parse("hasOwnProperty=b", WithParseAllowPrototypes(true))
 	assertEqual(t, result, map[string]any{"hasOwnProperty": "b"}, "top-level hasOwnProperty allowed")
 
 	// st.deepEqual(qs.parse('toString', { allowPrototypes: true }), { toString: '' });
-	result, _ = Parse("toString", WithAllowPrototypes(true))
+	result, _ = Parse("toString", WithParseAllowPrototypes(true))
 	assertEqual(t, result, map[string]any{"toString": ""}, "toString allowed")
 }
 
@@ -2152,7 +2152,7 @@ func TestJSAddKeysToObjects(t *testing.T) {
 	}, "toString blocked")
 
 	// st.deepEqual(qs.parse('a[b]=c&a=toString', { allowPrototypes: true }), { a: { b: 'c', toString: true } });
-	result, _ = Parse("a[b]=c&a=toString", WithAllowPrototypes(true))
+	result, _ = Parse("a[b]=c&a=toString", WithParseAllowPrototypes(true))
 	assertEqual(t, result, map[string]any{
 		"a": map[string]any{"b": "c", "toString": true},
 	}, "toString allowed")
@@ -2165,14 +2165,14 @@ func TestJSDunderProto(t *testing.T) {
 	// var payload = 'categories[__proto__]=login&categories[__proto__]&categories[length]=42';
 	// var result = qs.parse(payload, { allowPrototypes: true });
 	// st.deepEqual(result, { categories: { length: '42' } });
-	result, _ := Parse("categories[__proto__]=login&categories[__proto__]&categories[length]=42", WithAllowPrototypes(true))
+	result, _ := Parse("categories[__proto__]=login&categories[__proto__]&categories[length]=42", WithParseAllowPrototypes(true))
 	assertEqual(t, result, map[string]any{
 		"categories": map[string]any{"length": "42"},
 	}, "__proto__ ignored")
 
 	// var query = qs.parse('categories[__proto__]=cats&categories[__proto__]=dogs&categories[some][json]=toInject', { allowPrototypes: true });
 	// st.deepEqual(query.categories, { some: { json: 'toInject' } });
-	result, _ = Parse("categories[__proto__]=cats&categories[__proto__]=dogs&categories[some][json]=toInject", WithAllowPrototypes(true))
+	result, _ = Parse("categories[__proto__]=cats&categories[__proto__]=dogs&categories[some][json]=toInject", WithParseAllowPrototypes(true))
 	assertEqual(t, result, map[string]any{
 		"categories": map[string]any{
 			"some": map[string]any{"json": "toInject"},
@@ -2180,7 +2180,7 @@ func TestJSDunderProto(t *testing.T) {
 	}, "__proto__ values ignored")
 
 	// st.deepEqual(qs.parse('foo[__proto__][hidden]=value&foo[bar]=stuffs', { allowPrototypes: true }), { foo: { bar: 'stuffs' } });
-	result, _ = Parse("foo[__proto__][hidden]=value&foo[bar]=stuffs", WithAllowPrototypes(true))
+	result, _ = Parse("foo[__proto__][hidden]=value&foo[bar]=stuffs", WithParseAllowPrototypes(true))
 	assertEqual(t, result, map[string]any{
 		"foo": map[string]any{"bar": "stuffs"},
 	}, "__proto__ nested ignored")
@@ -2191,7 +2191,7 @@ func TestJSDunderProto(t *testing.T) {
 // ===========================================
 func TestJSCharset(t *testing.T) {
 	// st.deepEqual(qs.parse('%A2=%BD', { charset: 'iso-8859-1' }), { '¢': '½' });
-	result, _ := Parse("%A2=%BD", WithCharset(CharsetISO88591))
+	result, _ := Parse("%A2=%BD", WithParseCharset(CharsetISO88591))
 	assertEqual(t, result, map[string]any{"¢": "½"}, "iso-8859-1 charset")
 }
 
@@ -2205,17 +2205,17 @@ func TestJSCharsetSentinel(t *testing.T) {
 
 	// prefers utf-8 charset specified by sentinel to default iso-8859-1
 	result, _ := Parse("utf8="+urlEncodedCheckmarkInUtf8+"&"+urlEncodedOSlashInUtf8+"="+urlEncodedOSlashInUtf8,
-		WithCharsetSentinel(true), WithCharset(CharsetISO88591))
+		WithParseCharsetSentinel(true), WithParseCharset(CharsetISO88591))
 	assertEqual(t, result, map[string]any{"ø": "ø"}, "utf8 sentinel overrides iso")
 
 	// prefers iso-8859-1 charset specified by sentinel to default utf-8
 	result, _ = Parse("utf8="+urlEncodedNumCheckmark+"&"+urlEncodedOSlashInUtf8+"="+urlEncodedOSlashInUtf8,
-		WithCharsetSentinel(true), WithCharset(CharsetUTF8))
+		WithParseCharsetSentinel(true), WithParseCharset(CharsetUTF8))
 	assertEqual(t, result, map[string]any{"Ã¸": "Ã¸"}, "iso sentinel overrides utf8")
 
 	// does not require utf8 sentinel to be defined before parameters
 	result, _ = Parse("a="+urlEncodedOSlashInUtf8+"&utf8="+urlEncodedNumCheckmark,
-		WithCharsetSentinel(true), WithCharset(CharsetUTF8))
+		WithParseCharsetSentinel(true), WithParseCharset(CharsetUTF8))
 	assertEqual(t, result, map[string]any{"a": "Ã¸"}, "sentinel position independent")
 }
 
@@ -2227,16 +2227,16 @@ func TestJSNumericEntities(t *testing.T) {
 
 	// st.deepEqual(qs.parse('foo=' + urlEncodedNumSmiley, { charset: 'iso-8859-1', interpretNumericEntities: true }), { foo: '☺' });
 	result, _ := Parse("foo="+urlEncodedNumSmiley,
-		WithCharset(CharsetISO88591), WithInterpretNumericEntities(true))
+		WithParseCharset(CharsetISO88591), WithParseInterpretNumericEntities(true))
 	assertEqual(t, result, map[string]any{"foo": "☺"}, "numeric entity interpreted")
 
 	// st.deepEqual(qs.parse('foo=' + urlEncodedNumSmiley, { charset: 'iso-8859-1' }), { foo: '&#9786;' });
-	result, _ = Parse("foo="+urlEncodedNumSmiley, WithCharset(CharsetISO88591))
+	result, _ = Parse("foo="+urlEncodedNumSmiley, WithParseCharset(CharsetISO88591))
 	assertEqual(t, result, map[string]any{"foo": "&#9786;"}, "numeric entity not interpreted")
 
 	// st.deepEqual(qs.parse('foo=' + urlEncodedNumSmiley, { charset: 'utf-8', interpretNumericEntities: true }), { foo: '&#9786;' });
 	result, _ = Parse("foo="+urlEncodedNumSmiley,
-		WithCharset(CharsetUTF8), WithInterpretNumericEntities(true))
+		WithParseCharset(CharsetUTF8), WithParseInterpretNumericEntities(true))
 	assertEqual(t, result, map[string]any{"foo": "&#9786;"}, "numeric entity not interpreted in utf8")
 }
 
@@ -2249,7 +2249,7 @@ func TestJSNoParentFound(t *testing.T) {
 	assertEqual(t, result, map[string]any{"0": "", "a": "b"}, "empty bracket as index")
 
 	// st.deepEqual(qs.parse('[]&a=b', { strictNullHandling: true }), { 0: null, a: 'b' });
-	result, _ = Parse("[]&a=b", WithStrictNullHandling(true))
+	result, _ = Parse("[]&a=b", WithParseStrictNullHandling(true))
 	assertEqual(t, result, map[string]any{"0": nil, "a": "b"}, "empty bracket null")
 
 	// st.deepEqual(qs.parse('[foo]=bar'), { foo: 'bar' });
@@ -2266,15 +2266,15 @@ func TestJSDuplicatesOption(t *testing.T) {
 	assertEqual(t, result, map[string]any{"foo": []any{"bar", "baz"}}, "default combine")
 
 	// t.deepEqual(qs.parse('foo=bar&foo=baz', { duplicates: 'combine' }), { foo: ['bar', 'baz'] });
-	result, _ = Parse("foo=bar&foo=baz", WithDuplicates(DuplicateCombine))
+	result, _ = Parse("foo=bar&foo=baz", WithParseDuplicates(DuplicateCombine))
 	assertEqual(t, result, map[string]any{"foo": []any{"bar", "baz"}}, "explicit combine")
 
 	// t.deepEqual(qs.parse('foo=bar&foo=baz', { duplicates: 'first' }), { foo: 'bar' });
-	result, _ = Parse("foo=bar&foo=baz", WithDuplicates(DuplicateFirst))
+	result, _ = Parse("foo=bar&foo=baz", WithParseDuplicates(DuplicateFirst))
 	assertEqual(t, result, map[string]any{"foo": "bar"}, "first")
 
 	// t.deepEqual(qs.parse('foo=bar&foo=baz', { duplicates: 'last' }), { foo: 'baz' });
-	result, _ = Parse("foo=bar&foo=baz", WithDuplicates(DuplicateLast))
+	result, _ = Parse("foo=bar&foo=baz", WithParseDuplicates(DuplicateLast))
 	assertEqual(t, result, map[string]any{"foo": "baz"}, "last")
 }
 
@@ -2283,19 +2283,19 @@ func TestJSDuplicatesOption(t *testing.T) {
 // ===========================================
 func TestJSStrictDepthThrow(t *testing.T) {
 	// throws when depth exceeds limit with strictDepth: true
-	_, err := Parse("a[b][c][d][e][f][g][h][i]=j", WithDepth(1), WithStrictDepth(true))
+	_, err := Parse("a[b][c][d][e][f][g][h][i]=j", WithParseDepth(1), WithParseStrictDepth(true))
 	if err != ErrDepthLimitExceeded {
 		t.Errorf("expected ErrDepthLimitExceeded, got %v", err)
 	}
 
 	// throws for multiple nested arrays
-	_, err = Parse("a[0][1][2][3][4]=b", WithDepth(3), WithStrictDepth(true))
+	_, err = Parse("a[0][1][2][3][4]=b", WithParseDepth(3), WithParseStrictDepth(true))
 	if err != ErrDepthLimitExceeded {
 		t.Errorf("expected ErrDepthLimitExceeded for arrays, got %v", err)
 	}
 
 	// throws for nested objects and arrays
-	_, err = Parse("a[b][c][0][d][e]=f", WithDepth(3), WithStrictDepth(true))
+	_, err = Parse("a[b][c][0][d][e]=f", WithParseDepth(3), WithParseStrictDepth(true))
 	if err != ErrDepthLimitExceeded {
 		t.Errorf("expected ErrDepthLimitExceeded for mixed, got %v", err)
 	}
@@ -2306,20 +2306,20 @@ func TestJSStrictDepthThrow(t *testing.T) {
 // ===========================================
 func TestJSStrictDepthNoThrow(t *testing.T) {
 	// when depth is 0 and strictDepth true, do not throw
-	_, err := Parse("a[b][c][d][e]=true&a[b][c][d][f]=42", WithDepth(0), WithStrictDepth(true))
+	_, err := Parse("a[b][c][d][e]=true&a[b][c][d][f]=42", WithParseDepth(0), WithParseStrictDepth(true))
 	if err != nil {
 		t.Errorf("depth 0 should not throw, got %v", err)
 	}
 
 	// parses successfully when within limit
-	result, err := Parse("a[b]=c", WithDepth(1), WithStrictDepth(true))
+	result, err := Parse("a[b]=c", WithParseDepth(1), WithParseStrictDepth(true))
 	if err != nil {
 		t.Errorf("should not throw when within limit, got %v", err)
 	}
 	assertEqual(t, result, map[string]any{"a": map[string]any{"b": "c"}}, "within depth limit")
 
 	// does not throw when exactly at limit
-	result, err = Parse("a[b][c]=d", WithDepth(2), WithStrictDepth(true))
+	result, err = Parse("a[b][c]=d", WithParseDepth(2), WithParseStrictDepth(true))
 	if err != nil {
 		t.Errorf("should not throw at exact limit, got %v", err)
 	}
@@ -2333,24 +2333,24 @@ func TestJSStrictDepthNoThrow(t *testing.T) {
 // ===========================================
 func TestJSParameterLimitTests(t *testing.T) {
 	// does not throw when within limit
-	result, err := Parse("a=1&b=2&c=3", WithParameterLimit(5), WithThrowOnLimitExceeded(true))
+	result, err := Parse("a=1&b=2&c=3", WithParseParameterLimit(5), WithParseThrowOnLimitExceeded(true))
 	if err != nil {
 		t.Errorf("should not throw within limit, got %v", err)
 	}
 	assertEqual(t, result, map[string]any{"a": "1", "b": "2", "c": "3"}, "within parameter limit")
 
 	// throws when exceeded
-	_, err = Parse("a=1&b=2&c=3&d=4&e=5&f=6", WithParameterLimit(3), WithThrowOnLimitExceeded(true))
+	_, err = Parse("a=1&b=2&c=3&d=4&e=5&f=6", WithParseParameterLimit(3), WithParseThrowOnLimitExceeded(true))
 	if err != ErrParameterLimitExceeded {
 		t.Errorf("expected ErrParameterLimitExceeded, got %v", err)
 	}
 
 	// silently truncates without throwOnLimitExceeded
-	result, _ = Parse("a=1&b=2&c=3&d=4&e=5", WithParameterLimit(3))
+	result, _ = Parse("a=1&b=2&c=3&d=4&e=5", WithParseParameterLimit(3))
 	assertEqual(t, result, map[string]any{"a": "1", "b": "2", "c": "3"}, "truncated silently")
 
 	// silently truncates with throwOnLimitExceeded: false
-	result, _ = Parse("a=1&b=2&c=3&d=4&e=5", WithParameterLimit(3), WithThrowOnLimitExceeded(false))
+	result, _ = Parse("a=1&b=2&c=3&d=4&e=5", WithParseParameterLimit(3), WithParseThrowOnLimitExceeded(false))
 	assertEqual(t, result, map[string]any{"a": "1", "b": "2", "c": "3"}, "truncated with false")
 }
 
@@ -2359,20 +2359,20 @@ func TestJSParameterLimitTests(t *testing.T) {
 // ===========================================
 func TestJSArrayLimitTests(t *testing.T) {
 	// does not throw when within limit
-	result, err := Parse("a[]=1&a[]=2&a[]=3", WithArrayLimit(5), WithThrowOnLimitExceeded(true))
+	result, err := Parse("a[]=1&a[]=2&a[]=3", WithParseArrayLimit(5), WithParseThrowOnLimitExceeded(true))
 	if err != nil {
 		t.Errorf("should not throw within array limit, got %v", err)
 	}
 	assertEqual(t, result, map[string]any{"a": []any{"1", "2", "3"}}, "within array limit")
 
 	// throws when exceeded
-	_, err = Parse("a[]=1&a[]=2&a[]=3&a[]=4", WithArrayLimit(3), WithThrowOnLimitExceeded(true))
+	_, err = Parse("a[]=1&a[]=2&a[]=3&a[]=4", WithParseArrayLimit(3), WithParseThrowOnLimitExceeded(true))
 	if err != ErrArrayLimitExceeded {
 		t.Errorf("expected ErrArrayLimitExceeded, got %v", err)
 	}
 
 	// converts to object when index greater than limit
-	result, _ = Parse("a[1]=1&a[2]=2&a[3]=3&a[4]=4&a[5]=5&a[6]=6", WithArrayLimit(5))
+	result, _ = Parse("a[1]=1&a[2]=2&a[3]=3&a[4]=4&a[5]=5&a[6]=6", WithParseArrayLimit(5))
 	assertEqual(t, result, map[string]any{
 		"a": map[string]any{"1": "1", "2": "2", "3": "3", "4": "4", "5": "5", "6": "6"},
 	}, "converted to object")
@@ -2462,7 +2462,7 @@ func TestJSParameterLimitInfinity(t *testing.T) {
 	input := strings.Join(parts, "&")
 
 	// With math.MaxInt, all parameters should be parsed
-	result, err := Parse(input, WithParameterLimit(int(^uint(0)>>1))) // math.MaxInt
+	result, err := Parse(input, WithParseParameterLimit(int(^uint(0)>>1))) // math.MaxInt
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -2484,7 +2484,7 @@ func TestJSVeryLongArray(t *testing.T) {
 	input := strings.Join(parts, "&")
 
 	// Should parse without error
-	result, err := Parse(input, WithParameterLimit(10000), WithArrayLimit(10000))
+	result, err := Parse(input, WithParseParameterLimit(10000), WithParseArrayLimit(10000))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -2507,7 +2507,7 @@ func TestJSIgnoreUnknownUTF8Sentinel(t *testing.T) {
 	// When charset sentinel is enabled but utf8 has unknown value:
 	// - charset should remain default (UTF-8)
 	// - utf8 parameter should be included in result as regular param
-	result, err := Parse("utf8=unknown&a=%C3%B8", WithCharsetSentinel(true), WithCharset(CharsetUTF8))
+	result, err := Parse("utf8=unknown&a=%C3%B8", WithParseCharsetSentinel(true), WithParseCharset(CharsetUTF8))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -2533,7 +2533,7 @@ func TestJSUTF8SentinelDetectsISO(t *testing.T) {
 	// When charset sentinel is present for ISO-8859-1, should switch charset
 	// Note: default charset is UTF-8, but sentinel should switch to ISO-8859-1
 	result, err := Parse("utf8="+urlEncodedNumCheckmark+"&a="+urlEncodedOSlashInUtf8,
-		WithCharsetSentinel(true))
+		WithParseCharsetSentinel(true))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -2547,13 +2547,13 @@ func TestJSUTF8SentinelDetectsISO(t *testing.T) {
 // ===========================================
 // JS Test: "interpretNumericEntities with comma:true and iso charset does not crash"
 // ===========================================
-func TestJSNumericEntitiesWithComma(t *testing.T) {
+func TestJSNumericEntitiesWithParseComma(t *testing.T) {
 	urlEncodedNumSmiley := "%26%239786%3B"
 
 	result, err := Parse("foo="+urlEncodedNumSmiley+",bar",
-		WithCharset(CharsetISO88591),
-		WithInterpretNumericEntities(true),
-		WithComma(true))
+		WithParseCharset(CharsetISO88591),
+		WithParseInterpretNumericEntities(true),
+		WithParseComma(true))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -2581,14 +2581,14 @@ func TestJSNumericEntitiesWithComma(t *testing.T) {
 // ===========================================
 // JS Test: "use number decoder"
 // ===========================================
-func TestJSCustomDecoderWithComma(t *testing.T) {
+func TestJSCustomDecoderWithParseComma(t *testing.T) {
 	// Custom decoder that parses numbers
 	numberDecoder := func(str string, charset Charset, kind string) (string, error) {
 		// Just return the string, we'll check if comma parsing works with custom decoder
 		return str, nil
 	}
 
-	result, err := Parse("a=1,2,3", WithDecoder(numberDecoder), WithComma(true))
+	result, err := Parse("a=1,2,3", WithParseDecoder(numberDecoder), WithParseComma(true))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -2616,7 +2616,7 @@ func TestJSCustomEncoding(t *testing.T) {
 		return str, nil
 	}
 
-	result, err := Parse("a=hello&b=world", WithDecoder(customDecoder))
+	result, err := Parse("a=hello&b=world", WithParseDecoder(customDecoder))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -2640,7 +2640,7 @@ func TestJSDecodeKeyValueDifferently(t *testing.T) {
 		return "val_" + str, nil
 	}
 
-	result, err := Parse("a=b", WithDecoder(customDecoder))
+	result, err := Parse("a=b", WithParseDecoder(customDecoder))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -2663,7 +2663,7 @@ func TestJSCustomDecoderError(t *testing.T) {
 		return str, nil
 	}
 
-	_, err := Parse("badkey=value", WithDecoder(keyErrorDecoder))
+	_, err := Parse("badkey=value", WithParseDecoder(keyErrorDecoder))
 	if err == nil {
 		t.Error("expected error from key decoder")
 	}
@@ -2676,7 +2676,7 @@ func TestJSCustomDecoderError(t *testing.T) {
 		return str, nil
 	}
 
-	_, err = Parse("a=badvalue", WithDecoder(valueErrorDecoder))
+	_, err = Parse("a=badvalue", WithParseDecoder(valueErrorDecoder))
 	if err == nil {
 		t.Error("expected error from value decoder")
 	}
@@ -2755,7 +2755,7 @@ func TestJSJQueryParamStrings(t *testing.T) {
 // ===========================================
 func TestJSNoPercentUInISO(t *testing.T) {
 	// %uXXXX is not a valid escape sequence and should be preserved
-	result, err := Parse("a=%u0041", WithCharset(CharsetISO88591))
+	result, err := Parse("a=%u0041", WithParseCharset(CharsetISO88591))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -2771,7 +2771,7 @@ func TestJSNoPercentUInISO(t *testing.T) {
 // ===========================================
 func TestJSURLEncodedBracketsArrayOfArrays(t *testing.T) {
 	// st.deepEqual(qs.parse('foo%5B%5D=1,2,3&foo%5B%5D=4,5,6', { comma: true }), { foo: [['1', '2', '3'], ['4', '5', '6']] });
-	result, err := Parse("foo%5B%5D=1,2,3&foo%5B%5D=4,5,6", WithComma(true))
+	result, err := Parse("foo%5B%5D=1,2,3&foo%5B%5D=4,5,6", WithParseComma(true))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -2787,7 +2787,7 @@ func TestJSURLEncodedBracketsArrayOfArrays(t *testing.T) {
 func TestJSPlainObjects(t *testing.T) {
 	// In Go, PlainObjects doesn't have the same effect as JS (no prototype chain)
 	// but we test that the option is accepted and parsing works
-	result, err := Parse("a[b]=c", WithPlainObjects(true))
+	result, err := Parse("a[b]=c", WithParsePlainObjects(true))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -2801,7 +2801,7 @@ func TestJSPlainObjects(t *testing.T) {
 	}
 
 	// With plainObjects, prototype keys like "toString" should be allowed
-	result, err = Parse("toString=foo", WithPlainObjects(true))
+	result, err = Parse("toString=foo", WithParsePlainObjects(true))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -2842,7 +2842,7 @@ func TestJSMultipleEmptyKeys(t *testing.T) {
 
 func TestJSDelimiterEdgeCases(t *testing.T) {
 	// Multi-character delimiter
-	result, err := Parse("a=1||b=2||c=3", WithDelimiter("||"))
+	result, err := Parse("a=1||b=2||c=3", WithParseDelimiter("||"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -2869,7 +2869,7 @@ func TestDetailedJSCompat(t *testing.T) {
 		{"a[>=]=23", nil, map[string]any{"a": map[string]any{">=": "23"}}, "a[>=]=23"},
 		{"a[<=>]==23", nil, map[string]any{"a": map[string]any{"<=>": "=23"}}, "a[<=>]==23"},
 		{"a[==]=23", nil, map[string]any{"a": map[string]any{"==": "23"}}, "a[==]=23"},
-		{"foo", []ParseOption{WithStrictNullHandling(true)}, map[string]any{"foo": nil}, "foo strictNull"},
+		{"foo", []ParseOption{WithParseStrictNullHandling(true)}, map[string]any{"foo": nil}, "foo strictNull"},
 		{"foo", nil, map[string]any{"foo": ""}, "foo empty"},
 		{"foo=", nil, map[string]any{"foo": ""}, "foo="},
 		{"foo=bar", nil, map[string]any{"foo": "bar"}, "foo=bar"},
@@ -2882,11 +2882,11 @@ func TestDetailedJSCompat(t *testing.T) {
 		{"a[0]=b&a[1]=c", nil, map[string]any{"a": []any{"b", "c"}}, "a[0]=b&a[1]=c"},
 		{"a=b,c", nil, map[string]any{"a": "b,c"}, "a=b,c no comma"},
 		{"a=b&a=c", nil, map[string]any{"a": []any{"b", "c"}}, "a=b&a=c"},
-		{"a=b,c", []ParseOption{WithComma(true)}, map[string]any{"a": []any{"b", "c"}}, "a=b,c comma"},
+		{"a=b,c", []ParseOption{WithParseComma(true)}, map[string]any{"a": []any{"b", "c"}}, "a=b,c comma"},
 
 		// dot notation
 		{"a.b=c", nil, map[string]any{"a.b": "c"}, "a.b=c no dots"},
-		{"a.b=c", []ParseOption{WithAllowDots(true)}, map[string]any{"a": map[string]any{"b": "c"}}, "a.b=c dots"},
+		{"a.b=c", []ParseOption{WithParseAllowDots(true)}, map[string]any{"a": map[string]any{"b": "c"}}, "a.b=c dots"},
 
 		// nested
 		{"a[b]=c", nil, map[string]any{"a": map[string]any{"b": "c"}}, "a[b]=c"},
@@ -2894,24 +2894,24 @@ func TestDetailedJSCompat(t *testing.T) {
 		{"a[b][c][d][e][f][g][h]=i", nil, map[string]any{"a": map[string]any{"b": map[string]any{"c": map[string]any{"d": map[string]any{"e": map[string]any{"f": map[string]any{"[g][h]": "i"}}}}}}}, "depth 5 default"},
 
 		// depth
-		{"a[b][c]=d", []ParseOption{WithDepth(1)}, map[string]any{"a": map[string]any{"b": map[string]any{"[c]": "d"}}}, "depth 1"},
-		{"a[0]=b&a[1]=c", []ParseOption{WithDepth(0)}, map[string]any{"a[0]": "b", "a[1]": "c"}, "depth 0"},
+		{"a[b][c]=d", []ParseOption{WithParseDepth(1)}, map[string]any{"a": map[string]any{"b": map[string]any{"[c]": "d"}}}, "depth 1"},
+		{"a[0]=b&a[1]=c", []ParseOption{WithParseDepth(0)}, map[string]any{"a[0]": "b", "a[1]": "c"}, "depth 0"},
 
 		// arrays
 		{"a[]=b", nil, map[string]any{"a": []any{"b"}}, "a[]=b"},
 		{"a[1]=c&a[0]=b&a[2]=d", nil, map[string]any{"a": []any{"b", "c", "d"}}, "reorder indices"},
-		{"a[1]=c", []ParseOption{WithArrayLimit(20)}, map[string]any{"a": []any{"c"}}, "sparse compact"},
-		{"a[1]=c", []ParseOption{WithArrayLimit(0)}, map[string]any{"a": map[string]any{"1": "c"}}, "arrayLimit 0"},
-		{"a[20]=a", []ParseOption{WithArrayLimit(20)}, map[string]any{"a": []any{"a"}}, "at limit"},
-		{"a[21]=a", []ParseOption{WithArrayLimit(20)}, map[string]any{"a": map[string]any{"21": "a"}}, "over limit"},
+		{"a[1]=c", []ParseOption{WithParseArrayLimit(20)}, map[string]any{"a": []any{"c"}}, "sparse compact"},
+		{"a[1]=c", []ParseOption{WithParseArrayLimit(0)}, map[string]any{"a": map[string]any{"1": "c"}}, "arrayLimit 0"},
+		{"a[20]=a", []ParseOption{WithParseArrayLimit(20)}, map[string]any{"a": []any{"a"}}, "at limit"},
+		{"a[21]=a", []ParseOption{WithParseArrayLimit(20)}, map[string]any{"a": map[string]any{"21": "a"}}, "over limit"},
 
 		// sparse compact
-		{"a[10]=1&a[2]=2", []ParseOption{WithArrayLimit(20)}, map[string]any{"a": []any{"2", "1"}}, "sparse compact"},
+		{"a[10]=1&a[2]=2", []ParseOption{WithParseArrayLimit(20)}, map[string]any{"a": []any{"2", "1"}}, "sparse compact"},
 
 		// prototype
-		{"a[hasOwnProperty]=b", []ParseOption{WithAllowPrototypes(false)}, map[string]any{}, "hasOwn blocked"},
-		{"hasOwnProperty=b", []ParseOption{WithAllowPrototypes(false)}, map[string]any{}, "top hasOwn blocked"},
-		{"a[hasOwnProperty]=b", []ParseOption{WithAllowPrototypes(true)}, map[string]any{"a": map[string]any{"hasOwnProperty": "b"}}, "hasOwn allowed"},
+		{"a[hasOwnProperty]=b", []ParseOption{WithParseAllowPrototypes(false)}, map[string]any{}, "hasOwn blocked"},
+		{"hasOwnProperty=b", []ParseOption{WithParseAllowPrototypes(false)}, map[string]any{}, "top hasOwn blocked"},
+		{"a[hasOwnProperty]=b", []ParseOption{WithParseAllowPrototypes(true)}, map[string]any{"a": map[string]any{"hasOwnProperty": "b"}}, "hasOwn allowed"},
 
 		// special
 		{"a[b]=c&a=d", nil, map[string]any{"a": map[string]any{"b": "c", "d": true}}, "add key to obj"},
@@ -2920,15 +2920,15 @@ func TestDetailedJSCompat(t *testing.T) {
 
 		// duplicates
 		{"foo=bar&foo=baz", nil, map[string]any{"foo": []any{"bar", "baz"}}, "dup combine"},
-		{"foo=bar&foo=baz", []ParseOption{WithDuplicates(DuplicateFirst)}, map[string]any{"foo": "bar"}, "dup first"},
-		{"foo=bar&foo=baz", []ParseOption{WithDuplicates(DuplicateLast)}, map[string]any{"foo": "baz"}, "dup last"},
+		{"foo=bar&foo=baz", []ParseOption{WithParseDuplicates(DuplicateFirst)}, map[string]any{"foo": "bar"}, "dup first"},
+		{"foo=bar&foo=baz", []ParseOption{WithParseDuplicates(DuplicateLast)}, map[string]any{"foo": "baz"}, "dup last"},
 
 		// empty arrays
-		{"foo[]&bar=baz", []ParseOption{WithAllowEmptyArrays(true)}, map[string]any{"foo": []any{}, "bar": "baz"}, "empty array true"},
-		{"foo[]&bar=baz", []ParseOption{WithAllowEmptyArrays(false)}, map[string]any{"foo": []any{""}, "bar": "baz"}, "empty array false"},
+		{"foo[]&bar=baz", []ParseOption{WithParseAllowEmptyArrays(true)}, map[string]any{"foo": []any{}, "bar": "baz"}, "empty array true"},
+		{"foo[]&bar=baz", []ParseOption{WithParseAllowEmptyArrays(false)}, map[string]any{"foo": []any{""}, "bar": "baz"}, "empty array false"},
 
 		// charset
-		{"%A2=%BD", []ParseOption{WithCharset(CharsetISO88591)}, map[string]any{"¢": "½"}, "iso-8859-1"},
+		{"%A2=%BD", []ParseOption{WithParseCharset(CharsetISO88591)}, map[string]any{"¢": "½"}, "iso-8859-1"},
 	}
 
 	for _, tt := range tests {
@@ -2972,28 +2972,28 @@ func TestDetailedJSCompat2(t *testing.T) {
 		{`pets=["tobi"]`, nil, map[string]any{"pets": `["tobi"]`}, "brackets val"},
 
 		// Malformed
-		{"{%:%}", []ParseOption{WithStrictNullHandling(true)}, map[string]any{"{%:%}": nil}, "malformed null"},
+		{"{%:%}", []ParseOption{WithParseStrictNullHandling(true)}, map[string]any{"{%:%}": nil}, "malformed null"},
 		{"foo=%:%}", nil, map[string]any{"foo": "%:%}"}, "malformed val"},
 
 		// __proto__ always blocked
-		{"categories[__proto__]=login&categories[length]=42", []ParseOption{WithAllowPrototypes(true)}, map[string]any{"categories": map[string]any{"length": "42"}}, "__proto__ blocked"},
-		{"__proto__=bad", []ParseOption{WithAllowPrototypes(true)}, map[string]any{}, "__proto__ top"},
+		{"categories[__proto__]=login&categories[length]=42", []ParseOption{WithParseAllowPrototypes(true)}, map[string]any{"categories": map[string]any{"length": "42"}}, "__proto__ blocked"},
+		{"__proto__=bad", []ParseOption{WithParseAllowPrototypes(true)}, map[string]any{}, "__proto__ top"},
 
 		// Encoded brackets
 		{"a%5Bb%5D=c", nil, map[string]any{"a": map[string]any{"b": "c"}}, "enc brackets"},
 		{"%5B0%5D=a&%5B1%5D=b", nil, map[string]any{"0": "a", "1": "b"}, "enc bracket idx"},
 
 		// Charset sentinel
-		{"utf8=%E2%9C%93&a=b", []ParseOption{WithCharsetSentinel(true)}, map[string]any{"a": "b"}, "charset sentinel"},
+		{"utf8=%E2%9C%93&a=b", []ParseOption{WithParseCharsetSentinel(true)}, map[string]any{"a": "b"}, "charset sentinel"},
 
 		// Numeric entities
-		{"foo=%26%239786%3B", []ParseOption{WithCharset(CharsetISO88591), WithInterpretNumericEntities(true)}, map[string]any{"foo": "☺"}, "numeric entity"},
+		{"foo=%26%239786%3B", []ParseOption{WithParseCharset(CharsetISO88591), WithParseInterpretNumericEntities(true)}, map[string]any{"foo": "☺"}, "numeric entity"},
 
 		// Parameter limit
-		{"a=b&c=d&e=f", []ParseOption{WithParameterLimit(2)}, map[string]any{"a": "b", "c": "d"}, "param limit"},
+		{"a=b&c=d&e=f", []ParseOption{WithParseParameterLimit(2)}, map[string]any{"a": "b", "c": "d"}, "param limit"},
 
 		// StrictDepth ok
-		{"a[b][c]=d", []ParseOption{WithDepth(2), WithStrictDepth(true)}, map[string]any{"a": map[string]any{"b": map[string]any{"c": "d"}}}, "strictDepth ok"},
+		{"a[b][c]=d", []ParseOption{WithParseDepth(2), WithParseStrictDepth(true)}, map[string]any{"a": map[string]any{"b": map[string]any{"c": "d"}}}, "strictDepth ok"},
 	}
 
 	for _, tt := range tests {

@@ -20,7 +20,7 @@ func TestAddQueryPrefix_ReadmeExamples(t *testing.T) {
 		if !strings.Contains(readme, `qs.stringify({ a: "b" }, { encode: false })`) {
 			t.Fatalf("README.md missing JS example for default stringify")
 		}
-		goQS, err := qs.Stringify(map[string]any{"a": "b"}, qs.WithEncode(false))
+		goQS, err := qs.Stringify(map[string]any{"a": "b"}, qs.WithStringifyEncode(false))
 		if err != nil {
 			t.Fatalf("go stringify: %v", err)
 		}
@@ -40,7 +40,7 @@ func TestAddQueryPrefix_ReadmeExamples(t *testing.T) {
 		goQS, err := qs.Stringify(
 			map[string]any{"a": "b"},
 			qs.WithStringifyAddQueryPrefix(true),
-			qs.WithEncode(false),
+			qs.WithStringifyEncode(false),
 		)
 		if err != nil {
 			t.Fatalf("go stringify: %v", err)

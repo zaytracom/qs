@@ -21,7 +21,7 @@ func TestStrictNullHandling_ReadmeExamples(t *testing.T) {
 		if !strings.Contains(readme, `qs.stringify({ a: null }, { encode: false })`) {
 			t.Fatalf("README.md missing JS example for default stringify")
 		}
-		goQS, err := qs.Stringify(map[string]any{"a": nil}, qs.WithEncode(false))
+		goQS, err := qs.Stringify(map[string]any{"a": nil}, qs.WithStringifyEncode(false))
 		if err != nil {
 			t.Fatalf("go stringify: %v", err)
 		}
@@ -44,7 +44,7 @@ func TestStrictNullHandling_ReadmeExamples(t *testing.T) {
 		goQS, err := qs.Stringify(
 			map[string]any{"a": nil},
 			qs.WithStringifyStrictNullHandling(true),
-			qs.WithEncode(false),
+			qs.WithStringifyEncode(false),
 		)
 		if err != nil {
 			t.Fatalf("go stringify: %v", err)
@@ -83,7 +83,7 @@ func TestStrictNullHandling_ReadmeExamples(t *testing.T) {
 		if !strings.Contains(readme, `qs.parse("a&b=", { strictNullHandling: true })`) {
 			t.Fatalf("README.md missing JS example for strictNullHandling parse")
 		}
-		goParsed, err := qs.Parse("a&b=", qs.WithStrictNullHandling(true))
+		goParsed, err := qs.Parse("a&b=", qs.WithParseStrictNullHandling(true))
 		if err != nil {
 			t.Fatalf("go parse: %v", err)
 		}

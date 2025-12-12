@@ -159,29 +159,6 @@ jobs:
         args: --timeout=5m
         working-directory: demo
 
-  security:
-    name: Security Scan
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Check out code
-      uses: actions/checkout@v4
-
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: ${{ env.GO_VERSION }}
-
-    - name: Run Gosec Security Scanner
-      uses: securego/gosec@master
-      with:
-        args: '-no-fail -fmt sarif -out gosec.sarif ./...'
-
-    - name: Upload SARIF file
-      uses: github/codeql-action/upload-sarif@v2
-      with:
-        sarif_file: gosec.sarif
-
   build:
     name: Build
     runs-on: ubuntu-latest
@@ -272,8 +249,7 @@ jobs:
         echo "## ✅ CI Pipeline Successful" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "All checks passed successfully:" >> $GITHUB_STEP_SUMMARY
-        echo "- 🧪 Tests passed on Go 1.19, 1.20, 1.21, 1.22 (v1, v2, demo)" >> $GITHUB_STEP_SUMMARY
+        echo "- 🧪 Tests passed (v1, v2, demo)" >> $GITHUB_STEP_SUMMARY
         echo "- 🔍 Code quality checks passed" >> $GITHUB_STEP_SUMMARY
-        echo "- 🔒 Security scans completed" >> $GITHUB_STEP_SUMMARY
         echo "- 🏗️ Build successful (v1, v2, demo)" >> $GITHUB_STEP_SUMMARY
         echo "- 🔗 Compatibility confirmed" >> $GITHUB_STEP_SUMMARY

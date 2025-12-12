@@ -24,13 +24,13 @@ type UserWithDefaults struct {
 }
 
 type UserWithAllTypes struct {
-	Name     string  `query:"name"`
-	Age      int     `query:"age"`
-	Score    float64 `query:"score"`
-	Active   bool    `query:"active"`
-	Count    int64   `query:"count"`
-	ID       uint    `query:"id"`
-	Rating   float32 `query:"rating"`
+	Name   string  `query:"name"`
+	Age    int     `query:"age"`
+	Score  float64 `query:"score"`
+	Active bool    `query:"active"`
+	Count  int64   `query:"count"`
+	ID     uint    `query:"id"`
+	Rating float32 `query:"rating"`
 }
 
 type NestedAddress struct {
@@ -608,7 +608,7 @@ func TestParseToStructWithOptions(t *testing.T) {
 	}
 
 	var user DotNotationUser
-	err := ParseToStruct("name=John&profile.bio=Developer", &user, WithAllowDots(true))
+	err := ParseToStruct("name=John&profile.bio=Developer", &user, WithParseAllowDots(true))
 	if err != nil {
 		t.Fatalf("ParseToStruct() error = %v", err)
 	}
@@ -629,7 +629,7 @@ func TestMarshalWithOptions(t *testing.T) {
 	}
 
 	// Test with brackets format
-	str, err := Marshal(user, WithArrayFormat(ArrayFormatBrackets))
+	str, err := Marshal(user, WithStringifyArrayFormat(ArrayFormatBrackets))
 	if err != nil {
 		t.Fatalf("Marshal() error = %v", err)
 	}
@@ -722,7 +722,7 @@ func TestEmptyStringConversions(t *testing.T) {
 // =============================================================================
 
 // TestParseToStructWithAllowDots tests dot notation parsing into structs
-func TestParseToStructWithAllowDots(t *testing.T) {
+func TestParseToStructWithParseAllowDots(t *testing.T) {
 	type Profile struct {
 		Bio      string `query:"bio"`
 		Location string `query:"location"`
@@ -741,7 +741,7 @@ func TestParseToStructWithAllowDots(t *testing.T) {
 	err := ParseToStruct(
 		"name=John&profile.bio=Developer&profile.location=NYC&settings.theme=dark&settings.notifications=true",
 		&user,
-		WithAllowDots(true),
+		WithParseAllowDots(true),
 	)
 	if err != nil {
 		t.Fatalf("ParseToStruct() error = %v", err)
@@ -784,7 +784,7 @@ func TestParseToStructWithDepthLimit(t *testing.T) {
 	err := ParseToStruct(
 		"level1[level2][level3][value]=deep",
 		&root,
-		WithDepth(2),
+		WithParseDepth(2),
 	)
 	if err != nil {
 		t.Fatalf("ParseToStruct() error = %v", err)
@@ -796,7 +796,7 @@ func TestParseToStructWithDepthLimit(t *testing.T) {
 }
 
 // TestParseToStructWithArrayLimit tests array limit with struct slices
-func TestParseToStructWithArrayLimit(t *testing.T) {
+func TestParseToStructWithParseArrayLimit(t *testing.T) {
 	type Container struct {
 		Items []string `query:"items"`
 	}
@@ -805,7 +805,7 @@ func TestParseToStructWithArrayLimit(t *testing.T) {
 	err := ParseToStruct(
 		"items[0]=a&items[1]=b&items[100]=c",
 		&container,
-		WithArrayLimit(50),
+		WithParseArrayLimit(50),
 	)
 	if err != nil {
 		t.Fatalf("ParseToStruct() error = %v", err)
@@ -819,7 +819,7 @@ func TestParseToStructWithArrayLimit(t *testing.T) {
 }
 
 // TestParseToStructWithComma tests comma-separated values into slices
-func TestParseToStructWithComma(t *testing.T) {
+func TestParseToStructWithParseComma(t *testing.T) {
 	type Filter struct {
 		Tags     []string `query:"tags"`
 		Statuses []string `query:"statuses"`
@@ -830,7 +830,7 @@ func TestParseToStructWithComma(t *testing.T) {
 	err := ParseToStruct(
 		"tags=go,rust,python&statuses=active,pending&single=value",
 		&filter,
-		WithComma(true),
+		WithParseComma(true),
 	)
 	if err != nil {
 		t.Fatalf("ParseToStruct() error = %v", err)
@@ -852,7 +852,7 @@ func TestParseToStructWithComma(t *testing.T) {
 }
 
 // TestParseToStructWithStrictNullHandling tests null handling in structs
-func TestParseToStructWithStrictNullHandling(t *testing.T) {
+func TestParseToStructWithParseStrictNullHandling(t *testing.T) {
 	type Config struct {
 		Name    string  `query:"name"`
 		Value   *string `query:"value"`
@@ -863,7 +863,7 @@ func TestParseToStructWithStrictNullHandling(t *testing.T) {
 	err := ParseToStruct(
 		"name=test&value&enabled",
 		&config,
-		WithStrictNullHandling(true),
+		WithParseStrictNullHandling(true),
 	)
 	if err != nil {
 		t.Fatalf("ParseToStruct() error = %v", err)
@@ -877,7 +877,7 @@ func TestParseToStructWithStrictNullHandling(t *testing.T) {
 }
 
 // TestParseToStructWithCharset tests charset handling
-func TestParseToStructWithCharset(t *testing.T) {
+func TestParseToStructWithParseCharset(t *testing.T) {
 	type Message struct {
 		Text string `query:"text"`
 	}
@@ -886,7 +886,7 @@ func TestParseToStructWithCharset(t *testing.T) {
 	err := ParseToStruct(
 		"text=%E4%B8%AD%E6%96%87", // "中文" in UTF-8
 		&msg,
-		WithCharset(CharsetUTF8),
+		WithParseCharset(CharsetUTF8),
 	)
 	if err != nil {
 		t.Fatalf("ParseToStruct() error = %v", err)
@@ -898,7 +898,7 @@ func TestParseToStructWithCharset(t *testing.T) {
 }
 
 // TestParseToStructWithIgnoreQueryPrefix tests query prefix handling
-func TestParseToStructWithIgnoreQueryPrefix(t *testing.T) {
+func TestParseToStructWithParseIgnoreQueryPrefix(t *testing.T) {
 	type Query struct {
 		Search string `query:"search"`
 		Page   int    `query:"page"`
@@ -908,7 +908,7 @@ func TestParseToStructWithIgnoreQueryPrefix(t *testing.T) {
 	err := ParseToStruct(
 		"?search=golang&page=5",
 		&query,
-		WithIgnoreQueryPrefix(true),
+		WithParseIgnoreQueryPrefix(true),
 	)
 	if err != nil {
 		t.Fatalf("ParseToStruct() error = %v", err)
@@ -932,7 +932,7 @@ func TestMarshalWithArrayFormatBrackets(t *testing.T) {
 		Items: []string{"a", "b", "c"},
 	}
 
-	str, err := Marshal(container, WithArrayFormat(ArrayFormatBrackets))
+	str, err := Marshal(container, WithStringifyArrayFormat(ArrayFormatBrackets))
 	if err != nil {
 		t.Fatalf("Marshal() error = %v", err)
 	}
@@ -958,13 +958,13 @@ func TestMarshalWithArrayFormatRepeat(t *testing.T) {
 		Tags: []string{"go", "rust"},
 	}
 
-	str, err := Marshal(container, WithArrayFormat(ArrayFormatRepeat))
+	str, err := Marshal(container, WithStringifyArrayFormat(ArrayFormatRepeat))
 	if err != nil {
 		t.Fatalf("Marshal() error = %v", err)
 	}
 
 	// Should contain tags=go&tags=rust
-	parsed, _ := Parse(str, WithDuplicates(DuplicateCombine))
+	parsed, _ := Parse(str, WithParseDuplicates(DuplicateCombine))
 	tags, ok := parsed["tags"].([]any)
 	if !ok {
 		t.Fatalf("tags is not an array: %T", parsed["tags"])
@@ -984,7 +984,7 @@ func TestMarshalWithArrayFormatComma(t *testing.T) {
 		Items: []string{"x", "y", "z"},
 	}
 
-	str, err := Marshal(container, WithArrayFormat(ArrayFormatComma))
+	str, err := Marshal(container, WithStringifyArrayFormat(ArrayFormatComma))
 	if err != nil {
 		t.Fatalf("Marshal() error = %v", err)
 	}
@@ -996,7 +996,7 @@ func TestMarshalWithArrayFormatComma(t *testing.T) {
 	}
 
 	// Parse back with comma option
-	parsed, _ := Parse(str, WithComma(true))
+	parsed, _ := Parse(str, WithParseComma(true))
 
 	// With comma parsing, items could be an array or the raw value
 	switch items := parsed["items"].(type) {
@@ -1016,7 +1016,7 @@ func TestMarshalWithArrayFormatComma(t *testing.T) {
 }
 
 // TestMarshalWithAllowDots tests dot notation stringify
-func TestMarshalWithAllowDots(t *testing.T) {
+func TestMarshalWithParseAllowDots(t *testing.T) {
 	type Address struct {
 		City    string `query:"city"`
 		Country string `query:"country"`
@@ -1041,7 +1041,7 @@ func TestMarshalWithAllowDots(t *testing.T) {
 
 	// Should use dot notation: address.city=NYC
 	var result Person
-	err = ParseToStruct(str, &result, WithAllowDots(true))
+	err = ParseToStruct(str, &result, WithParseAllowDots(true))
 	if err != nil {
 		t.Fatalf("ParseToStruct() error = %v", err)
 	}
@@ -1055,7 +1055,7 @@ func TestMarshalWithAllowDots(t *testing.T) {
 }
 
 // TestMarshalWithSkipNulls tests null skipping
-func TestMarshalWithSkipNulls(t *testing.T) {
+func TestMarshalWithStringifySkipNulls(t *testing.T) {
 	type Config struct {
 		Name    string  `query:"name"`
 		Value   *string `query:"value"`
@@ -1068,7 +1068,7 @@ func TestMarshalWithSkipNulls(t *testing.T) {
 		Enabled: nil,
 	}
 
-	str, err := Marshal(config, WithSkipNulls(true))
+	str, err := Marshal(config, WithStringifySkipNulls(true))
 	if err != nil {
 		t.Fatalf("Marshal() error = %v", err)
 	}
@@ -1087,7 +1087,7 @@ func TestMarshalWithSkipNulls(t *testing.T) {
 }
 
 // TestMarshalWithStrictNullHandling tests strict null serialization
-func TestMarshalWithStrictNullHandling(t *testing.T) {
+func TestMarshalWithParseStrictNullHandling(t *testing.T) {
 	type Config struct {
 		Name  string `query:"name"`
 		Value any    `query:"value"`
@@ -1104,15 +1104,15 @@ func TestMarshalWithStrictNullHandling(t *testing.T) {
 	}
 
 	// With strictNullHandling, null values appear as key without =
-	parsed, _ := Parse(str, WithStrictNullHandling(true))
+	parsed, _ := Parse(str, WithParseStrictNullHandling(true))
 
 	if parsed["name"] != "test" {
 		t.Errorf("name = %v, want test", parsed["name"])
 	}
 }
 
-// TestMarshalWithAddQueryPrefix tests query prefix
-func TestMarshalWithAddQueryPrefix(t *testing.T) {
+// TestMarshalWithStringifyQueryPrefix tests query prefix
+func TestMarshalWithStringifyQueryPrefix(t *testing.T) {
 	type Query struct {
 		Search string `query:"search"`
 	}
@@ -1130,7 +1130,7 @@ func TestMarshalWithAddQueryPrefix(t *testing.T) {
 }
 
 // TestMarshalWithSort tests key sorting
-func TestMarshalWithSort(t *testing.T) {
+func TestMarshalWithStringifySort(t *testing.T) {
 	type Data struct {
 		Zebra  string `query:"zebra"`
 		Apple  string `query:"apple"`
@@ -1145,7 +1145,7 @@ func TestMarshalWithSort(t *testing.T) {
 		Banana: "b",
 	}
 
-	str, err := Marshal(data, WithSort(func(a, b string) bool {
+	str, err := Marshal(data, WithStringifySort(func(a, b string) bool {
 		return a < b
 	}))
 	if err != nil {
@@ -1161,7 +1161,7 @@ func TestMarshalWithSort(t *testing.T) {
 }
 
 // TestMarshalWithEncodeDotInKeys tests dot encoding in keys
-func TestMarshalWithEncodeDotInKeys(t *testing.T) {
+func TestMarshalWithStringifyEncodeDotInKeys(t *testing.T) {
 	type Config struct {
 		APIKey string `query:"api.key"`
 	}
@@ -1170,7 +1170,7 @@ func TestMarshalWithEncodeDotInKeys(t *testing.T) {
 
 	str, err := Marshal(config,
 		WithStringifyAllowDots(true),
-		WithEncodeDotInKeys(true),
+		WithStringifyEncodeDotInKeys(true),
 	)
 	if err != nil {
 		t.Fatalf("Marshal() error = %v", err)
@@ -1183,7 +1183,7 @@ func TestMarshalWithEncodeDotInKeys(t *testing.T) {
 }
 
 // TestMarshalWithFormat tests RFC1738 vs RFC3986 format
-func TestMarshalWithFormat(t *testing.T) {
+func TestMarshalWithStringifyFormat(t *testing.T) {
 	type Query struct {
 		Search string `query:"search"`
 	}
@@ -1191,7 +1191,7 @@ func TestMarshalWithFormat(t *testing.T) {
 	query := Query{Search: "hello world"}
 
 	// RFC3986 - spaces as %20
-	str3986, err := Marshal(query, WithFormat(FormatRFC3986))
+	str3986, err := Marshal(query, WithStringifyFormat(FormatRFC3986))
 	if err != nil {
 		t.Fatalf("Marshal() error = %v", err)
 	}
@@ -1201,7 +1201,7 @@ func TestMarshalWithFormat(t *testing.T) {
 	}
 
 	// RFC1738 - spaces as +
-	str1738, err := Marshal(query, WithFormat(FormatRFC1738))
+	str1738, err := Marshal(query, WithStringifyFormat(FormatRFC1738))
 	if err != nil {
 		t.Fatalf("Marshal() error = %v", err)
 	}
@@ -1238,7 +1238,7 @@ func TestRoundTripStructWithOptions(t *testing.T) {
 
 	// Marshal with options
 	str, err := Marshal(original,
-		WithArrayFormat(ArrayFormatIndices),
+		WithStringifyArrayFormat(ArrayFormatIndices),
 		WithStringifyAllowDots(false),
 	)
 	if err != nil {
@@ -1321,7 +1321,7 @@ func TestComplexNestedStructWithAllOptions(t *testing.T) {
 	}
 
 	var result User
-	err = Unmarshal(str, &result, WithAllowDots(true))
+	err = Unmarshal(str, &result, WithParseAllowDots(true))
 	if err != nil {
 		t.Fatalf("Unmarshal() error = %v", err)
 	}
@@ -1341,7 +1341,8 @@ func TestComplexNestedStructWithAllOptions(t *testing.T) {
 	}
 	if result.Profile.Settings.Notifications.Email != original.Profile.Settings.Notifications.Email {
 		t.Errorf("Notifications.Email = %v, want %v",
-			result.Profile.Settings.Notifications.Email, original.Profile.Settings.Notifications.Email)
+			result.Profile.Settings.Notifications.Email,
+			original.Profile.Settings.Notifications.Email)
 	}
 }
 
@@ -1491,14 +1492,14 @@ func TestStructWithInterfaceField(t *testing.T) {
 }
 
 // TestParseToStructWithDuplicates tests duplicate key handling
-func TestParseToStructWithDuplicates(t *testing.T) {
+func TestParseToStructWithParseDuplicates(t *testing.T) {
 	type Data struct {
 		Values []string `query:"v"`
 	}
 
 	// Test combine (default)
 	var dataCombine Data
-	err := ParseToStruct("v=a&v=b&v=c", &dataCombine, WithDuplicates(DuplicateCombine))
+	err := ParseToStruct("v=a&v=b&v=c", &dataCombine, WithParseDuplicates(DuplicateCombine))
 	if err != nil {
 		t.Fatalf("ParseToStruct() error = %v", err)
 	}
@@ -1511,7 +1512,7 @@ func TestParseToStructWithDuplicates(t *testing.T) {
 		Value string `query:"v"`
 	}
 	var dataFirst SingleData
-	err = ParseToStruct("v=first&v=second", &dataFirst, WithDuplicates(DuplicateFirst))
+	err = ParseToStruct("v=first&v=second", &dataFirst, WithParseDuplicates(DuplicateFirst))
 	if err != nil {
 		t.Fatalf("ParseToStruct() error = %v", err)
 	}
@@ -1521,7 +1522,7 @@ func TestParseToStructWithDuplicates(t *testing.T) {
 
 	// Test last
 	var dataLast SingleData
-	err = ParseToStruct("v=first&v=last", &dataLast, WithDuplicates(DuplicateLast))
+	err = ParseToStruct("v=first&v=last", &dataLast, WithParseDuplicates(DuplicateLast))
 	if err != nil {
 		t.Fatalf("ParseToStruct() error = %v", err)
 	}
@@ -1551,7 +1552,7 @@ func TestMarshalWithCustomDelimiter(t *testing.T) {
 
 	// Parse back with same delimiter
 	var result Data
-	err = Unmarshal(str, &result, WithDelimiter(";"))
+	err = Unmarshal(str, &result, WithParseDelimiter(";"))
 	if err != nil {
 		t.Fatalf("Unmarshal() error = %v", err)
 	}
@@ -1562,14 +1563,14 @@ func TestMarshalWithCustomDelimiter(t *testing.T) {
 }
 
 // TestMarshalWithEncodeValuesOnly tests encodeValuesOnly option
-func TestMarshalWithEncodeValuesOnly(t *testing.T) {
+func TestMarshalWithStringifyEncodeValuesOnly(t *testing.T) {
 	type Data struct {
 		Key string `query:"a[b]"`
 	}
 
 	data := Data{Key: "hello world"}
 
-	str, err := Marshal(data, WithEncodeValuesOnly(true))
+	str, err := Marshal(data, WithStringifyEncodeValuesOnly(true))
 	if err != nil {
 		t.Fatalf("Marshal() error = %v", err)
 	}
@@ -1584,7 +1585,7 @@ func TestMarshalWithEncodeValuesOnly(t *testing.T) {
 }
 
 // TestMarshalWithFilter tests filter option
-func TestMarshalWithFilter(t *testing.T) {
+func TestMarshalWithStringifyFilter(t *testing.T) {
 	type Data struct {
 		A string `query:"a"`
 		B string `query:"b"`
@@ -1594,7 +1595,7 @@ func TestMarshalWithFilter(t *testing.T) {
 	data := Data{A: "1", B: "2", C: "3"}
 
 	// Filter as array of keys
-	str, err := Marshal(data, WithFilter([]string{"a", "c"}))
+	str, err := Marshal(data, WithStringifyFilter([]string{"a", "c"}))
 	if err != nil {
 		t.Fatalf("Marshal() error = %v", err)
 	}
