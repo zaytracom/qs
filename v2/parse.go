@@ -386,9 +386,6 @@ func WithParseArrays(v bool) ParseOption {
 	}
 }
 
-// Alias for consistency (ParseArrays already has Parse prefix)
-var WithParseParseArrays = WithParseArrays
-
 // WithParsePlainObjects creates objects without prototype.
 func WithParsePlainObjects(v bool) ParseOption {
 	return func(o *ParseOptions) {
