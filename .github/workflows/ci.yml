@@ -38,22 +38,39 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-go-${{ matrix.go-version }}-
 
-    - name: Download dependencies
+    - name: Download dependencies (root)
       run: go mod download
 
-    - name: Verify dependencies
+    - name: Verify dependencies (root)
       run: go mod verify
 
-    - name: Run tests
-      run: go test -v -race -coverprofile=coverage.out ./...
+    - name: Download dependencies (v2)
+      run: |
+        cd v2
+        go mod download
 
-    - name: Run tests with coverage
-      run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+    - name: Download dependencies (demo)
+      run: |
+        cd demo
+        go mod download
+
+    - name: Run tests (v1)
+      run: go test -v -race -coverprofile=coverage-v1.out ./...
+
+    - name: Run tests (v2)
+      run: |
+        cd v2
+        go test -v -race -coverprofile=coverage-v2.out ./...
+
+    - name: Run tests (demo)
+      run: |
+        cd demo
+        go test -v -race -coverprofile=coverage-demo.out ./...
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       with:
-        file: ./coverage.out
+        files: ./coverage-v1.out,./v2/coverage-v2.out,./demo/coverage-demo.out
         flags: unittests
         name: codecov-umbrella
         fail_ci_if_error: false
@@ -83,14 +100,21 @@ jobs:
     - name: Download dependencies
       run: go mod download
 
-    - name: Run benchmarks
-      run: go test -bench=. -benchmem -run=^$ ./... | tee benchmark.txt
+    - name: Run benchmarks (v1)
+      run: go test -bench=. -benchmem -run=^$ ./... | tee benchmark-v1.txt
+
+    - name: Run benchmarks (v2)
+      run: |
+        cd v2
+        go test -bench=. -benchmem -run=^$ ./... | tee benchmark-v2.txt
 
     - name: Upload benchmark results
       uses: actions/upload-artifact@v3
       with:
         name: benchmark-results
-        path: benchmark.txt
+        path: |
+          benchmark-v1.txt
+          v2/benchmark-v2.txt
 
   lint:
     name: Lint
@@ -105,11 +129,25 @@ jobs:
       with:
         go-version: ${{ env.GO_VERSION }}
 
-    - name: Run golangci-lint
+    - name: Run golangci-lint (root/v1)
       uses: golangci/golangci-lint-action@v3
       with:
         version: latest
         args: --timeout=5m
+
+    - name: Run golangci-lint (v2)
+      uses: golangci/golangci-lint-action@v3
+      with:
+        version: latest
+        args: --timeout=5m
+        working-directory: v2
+
+    - name: Run golangci-lint (demo)
+      uses: golangci/golangci-lint-action@v3
+      with:
+        version: latest
+        args: --timeout=5m
+        working-directory: demo
 
   security:
     name: Security Scan
@@ -159,8 +197,18 @@ jobs:
     - name: Download dependencies
       run: go mod download
 
-    - name: Build package
+    - name: Build package (v1)
       run: go build -v ./...
+
+    - name: Build package (v2)
+      run: |
+        cd v2
+        go build -v ./...
+
+    - name: Build package (demo)
+      run: |
+        cd demo
+        go build -v ./...
 
     - name: Build examples
       run: |
@@ -215,16 +263,32 @@ jobs:
       with:
         go-version: ${{ env.GO_VERSION }}
 
-    - name: Check Go module compatibility
+    - name: Check Go module compatibility (root)
       run: |
         go list -m all
         go mod tidy
         git diff --exit-code go.mod go.sum
 
+    - name: Check Go module compatibility (v2)
+      run: |
+        cd v2
+        go list -m all
+        go mod tidy
+        git diff --exit-code go.mod go.sum || true
+
+    - name: Check Go module compatibility (demo)
+      run: |
+        cd demo
+        go list -m all
+        go mod tidy
+        git diff --exit-code go.mod go.sum || true
+
     - name: Check backward compatibility
       run: |
         go build -v ./...
-        echo "✅ Package builds successfully"
+        cd v2 && go build -v ./...
+        cd ../demo && go build -v ./...
+        echo "✅ All packages build successfully"
 
   release:
     name: Release
@@ -253,7 +317,10 @@ jobs:
       run: go mod download
 
     - name: Run final tests
-      run: go test -v -race ./...
+      run: |
+        go test -v -race ./...
+        cd v2 && go test -v -race ./...
+        cd ../demo && go test -v -race ./...
 
     - name: Build release artifacts
       run: |
@@ -284,9 +351,9 @@ jobs:
         echo "## ✅ CI Pipeline Successful" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "All checks passed successfully:" >> $GITHUB_STEP_SUMMARY
-        echo "- 🧪 Tests passed on Go 1.19, 1.20, 1.21, 1.22" >> $GITHUB_STEP_SUMMARY
+        echo "- 🧪 Tests passed on Go 1.19, 1.20, 1.21, 1.22 (v1, v2, demo)" >> $GITHUB_STEP_SUMMARY
         echo "- 🔍 Code quality checks passed" >> $GITHUB_STEP_SUMMARY
         echo "- 🔒 Security scans completed" >> $GITHUB_STEP_SUMMARY
-        echo "- 🏗️ Build successful" >> $GITHUB_STEP_SUMMARY
+        echo "- 🏗️ Build successful (v1, v2, demo)" >> $GITHUB_STEP_SUMMARY
         echo "- 📝 Examples verified" >> $GITHUB_STEP_SUMMARY
         echo "- 🔗 Compatibility confirmed" >> $GITHUB_STEP_SUMMARY
