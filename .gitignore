@@ -53,3 +53,4 @@ coverage.out
 coverage.html
 
 .ref/
+.gocache/
