@@ -35,30 +35,32 @@ This document outlines the complete implementation plan for porting the JavaScri
     - RFC3986 returns value unchanged
     - Unknown format fallback to RFC3986
 
-- [ ] **1.3 Utility Functions (utils.go)**
-  - [ ] `hexTable` - Pre-computed hex encoding table (256 entries)
-  - [ ] `encode(str, charset, format)` - RFC-compliant URL encoding
+- [x] **1.3 Utility Functions (utils.go)** ✅ DONE
+  - [x] `hexTable` - Pre-computed hex encoding table (256 entries)
+  - [x] `Encode(str, charset, format)` - RFC-compliant URL encoding
     - Handle UTF-8 encoding
     - Handle ISO-8859-1 encoding
     - Handle surrogate pairs
     - Support RFC1738/RFC3986 formats
-  - [ ] `decode(str, charset)` - URL decoding
+  - [x] `Decode(str, charset)` - URL decoding
     - Handle `+` as space
     - Handle UTF-8 decoding
     - Handle ISO-8859-1 decoding
     - Graceful fallback on invalid sequences
-  - [ ] `merge(target, source, options)` - Deep merge objects
-  - [ ] `compact(value)` - Remove sparse array holes
-  - [ ] `arrayToObject(source, options)` - Convert array to object
-  - [ ] `isRegExp(obj)` - Check if value is regexp (Go: pattern matching)
-  - [ ] `combine(a, b)` - Combine arrays
-  - [ ] `maybeMap(val, fn)` - Map function over value or array
-  - **Tests**:
+  - [x] `Merge(target, source, allowPrototypes)` - Deep merge objects
+  - [x] `Compact(value)` - Remove sparse array holes
+  - [x] `ArrayToObject(source)` - Convert array to object
+  - [x] `IsRegExp(obj)` - Check if value is regexp
+  - [x] `Combine(a, b)` - Combine arrays
+  - [x] `MaybeMap(val, fn)` - Map function over value or array
+  - [x] `Assign(target, source)` - Copy map keys
+  - **Tests**: ✅ All passing (utils_test.go)
     - Encode special characters correctly
     - Decode URL-encoded strings
     - Merge nested objects
     - Compact sparse arrays
     - Handle edge cases (empty strings, nil values)
+    - Round-trip encode/decode
 
 ---
 
