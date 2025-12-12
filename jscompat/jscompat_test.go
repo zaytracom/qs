@@ -1,10 +1,15 @@
 package jscompat
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -15,14 +20,39 @@ import (
 // runJS executes a JavaScript snippet and returns the output
 func runJS(t *testing.T, code string) string {
 	t.Helper()
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skipf("node is required for jscompat tests: %v", err)
+	}
+
+	jscompatDir, err := jscompatRootDir()
+	if err != nil {
+		t.Fatalf("failed to locate jscompat directory: %v", err)
+	}
+
 	fullCode := `const qs = require('qs');` + code
-	cmd := exec.Command("node", "-e", fullCode)
-	cmd.Dir = "/Users/phl/Projects/qs/jscompat"
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "node", "-e", fullCode)
+	cmd.Dir = jscompatDir
 	out, err := cmd.CombinedOutput()
+	if ctx.Err() != nil {
+		t.Fatalf("JS execution timed out: %v\nOutput: %s", ctx.Err(), string(out))
+	}
 	if err != nil {
 		t.Fatalf("JS execution failed: %v\nOutput: %s", err, string(out))
 	}
 	return strings.TrimSpace(string(out))
+}
+
+func jscompatRootDir() (string, error) {
+	_, thisFile, _, ok := runtime.Caller(0)
+	if !ok {
+		return "", errors.New("runtime.Caller failed")
+	}
+	// This file lives in <repo>/jscompat/jscompat_test.go
+	return filepath.Dir(thisFile), nil
 }
 
 // toJSON converts any value to JSON string for comparison
@@ -59,7 +89,8 @@ func compareQueryStrings(t *testing.T, goQS, jsQS string) bool {
 	return reflect.DeepEqual(goParams, jsParams)
 }
 
-// parseQueryString parses a query string into a map of key -> sorted values
+// parseQueryString parses a query string into a map of key -> values.
+// Values are sorted to make comparison independent of param order.
 func parseQueryString(s string) map[string][]string {
 	return parseQueryStringWithDelimiter(s, "&")
 }
@@ -86,6 +117,9 @@ func parseQueryStringWithDelimiter(s, delimiter string) map[string][]string {
 			val = part[idx+1:]
 		}
 		result[key] = append(result[key], val)
+	}
+	for k := range result {
+		sort.Strings(result[k])
 	}
 	return result
 }
@@ -1040,12 +1074,20 @@ func TestCustomDecoder(t *testing.T) {
 func TestEncodeDisabled(t *testing.T) {
 	input := map[string]any{"a": "hello world", "b": "foo&bar"}
 
-	goResult, err := qs.Stringify(input, qs.WithEncode(false))
+	goResult, err := qs.Stringify(input,
+		qs.WithEncode(false),
+		qs.WithSort(func(a, b string) bool { return a < b }),
+	)
 	if err != nil {
 		t.Fatalf("Stringify failed: %v", err)
 	}
 
-	jsResult := runJS(t, `console.log(qs.stringify({ a: "hello world", b: "foo&bar" }, { encode: false }));`)
+	jsResult := runJS(t, `
+		console.log(qs.stringify({ a: "hello world", b: "foo&bar" }, {
+			encode: false,
+			sort: (a, b) => a.localeCompare(b)
+		}));
+	`)
 
 	if goResult != jsResult {
 		t.Errorf("Stringify mismatch:\nGo: %s\nJS: %s", goResult, jsResult)
@@ -1556,17 +1598,34 @@ func TestSerializeDateDefault(t *testing.T) {
 	`)
 
 	// Compare parsed values since format might differ slightly
-	goParsed, _ := qs.Parse(goResult)
+	goParsed, err := qs.Parse(goResult)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
 	jsParsedJSON := runJS(t, `console.log(JSON.stringify(qs.parse(`+"`"+jsResult+"`"+`)));`)
 
-	goDateStr := goParsed["date"].(string)
+	goDateStr, ok := goParsed["date"].(string)
+	if !ok {
+		t.Fatalf("expected Go parsed date to be string, got %T", goParsed["date"])
+	}
 	var jsParsed map[string]any
-	json.Unmarshal([]byte(jsParsedJSON), &jsParsed)
-	jsDateStr := jsParsed["date"].(string)
+	if err := json.Unmarshal([]byte(jsParsedJSON), &jsParsed); err != nil {
+		t.Fatalf("JSON unmarshal failed: %v", err)
+	}
+	jsDateStr, ok := jsParsed["date"].(string)
+	if !ok {
+		t.Fatalf("expected JS parsed date to be string, got %T", jsParsed["date"])
+	}
 
 	// Both should represent the same date
-	goTime, _ := time.Parse(time.RFC3339, goDateStr)
-	jsTime, _ := time.Parse(time.RFC3339, jsDateStr)
+	goTime, err := time.Parse(time.RFC3339Nano, goDateStr)
+	if err != nil {
+		t.Fatalf("failed to parse Go time %q: %v", goDateStr, err)
+	}
+	jsTime, err := time.Parse(time.RFC3339Nano, jsDateStr)
+	if err != nil {
+		t.Fatalf("failed to parse JS time %q: %v", jsDateStr, err)
+	}
 
 	if !goTime.Equal(jsTime) {
 		t.Errorf("Date values differ:\nGo: %s (%v)\nJS: %s (%v)", goDateStr, goTime, jsDateStr, jsTime)
