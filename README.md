@@ -111,9 +111,9 @@ zaytra is **3-26x faster** than alternatives for encoding.
 
 | Benchmark | zaytra | gorilla | google | go-playground | ajg |
 |:----------|-------:|--------:|-------:|--------------:|----:|
-| Simple struct | 12 μs | 2 μs | — | 515 ns | 2.9 μs |
-| Nested struct | 14 μs | — | — | 800 ns | — |
-| Array struct | 17 μs | — | — | 834 ns | — |
+| Simple struct | 12 μs | 2 μs | — | 502 ns | 2.9 μs |
+| Nested struct | 14 μs | — | — | 805 ns | 3.9 μs |
+| Array struct | 17 μs | 1.3 μs | — | 816 ns | 3.5 μs |
 | Dynamic map | 90 μs | — | — | — | — |
 
 ## Documentation

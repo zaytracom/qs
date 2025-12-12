@@ -487,7 +487,26 @@ func BenchmarkDecode_DynamicMap_GoogleQS(b *testing.B) {
 
 // =============================================================================
 // FAIR DECODE Benchmarks: All libraries parse from raw query string
-// This is the honest comparison - everyone starts from string input
+// Each library uses its native format for fair comparison
+// =============================================================================
+
+// Query strings in each library's native format
+var (
+	// Simple: all libraries use the same flat format
+	// "name=John&age=30&email=john%40example.com&active=true"
+
+	// Nested: different formats per library
+	nestedQueryStringDot      = "profile.name=John&profile.age=30&settings.theme=dark&settings.lang=en"       // go-playground, ajg
+	nestedQueryStringBracket  = "profile[name]=John&profile[age]=30&settings[theme]=dark&settings[lang]=en"   // zaytra
+
+	// Array: different formats per library
+	arrayQueryStringRepeat  = "tags=go&tags=rust&tags=python&tags=javascript&tags=typescript"                           // gorilla, go-playground
+	arrayQueryStringIndices = "tags[0]=go&tags[1]=rust&tags[2]=python&tags[3]=javascript&tags[4]=typescript"            // zaytra
+	arrayQueryStringDot     = "tags.0=go&tags.1=rust&tags.2=python&tags.3=javascript&tags.4=typescript"                 // ajg
+)
+
+// =============================================================================
+// FAIR DECODE: Simple struct (all use same format)
 // =============================================================================
 
 func BenchmarkFairDecode_Simple_ZaytraQS(b *testing.B) {
@@ -551,23 +570,22 @@ func BenchmarkFairDecode_Simple_AjgForm(b *testing.B) {
 }
 
 // =============================================================================
-// FAIR DECODE Benchmarks: Nested struct (from raw query string)
-// NOTE: go-playground uses DOT notation (profile.name), zaytra uses BRACKET (profile[name])
-// These are different formats - can't be compared directly!
+// FAIR DECODE: Nested struct (each library uses its native format)
 // =============================================================================
-
-// Dot notation query string for go-playground
-var nestedQueryStringDot = "profile.name=John&profile.age=30&settings.theme=dark&settings.lang=en"
 
 func BenchmarkFairDecode_Nested_ZaytraQS(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		var s NestedStruct
-		err := zaytraq.Unmarshal(nestedQueryString, &s) // bracket notation
+		err := zaytraq.Unmarshal(nestedQueryStringBracket, &s)
 		if err != nil {
 			b.Fatal(err)
 		}
 	}
+}
+
+func BenchmarkFairDecode_Nested_GorillaSchema(b *testing.B) {
+	b.Skip("gorilla/schema does not support nested struct decoding")
 }
 
 func BenchmarkFairDecode_Nested_PlaygroundForm(b *testing.B) {
@@ -575,7 +593,7 @@ func BenchmarkFairDecode_Nested_PlaygroundForm(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		values, err := url.ParseQuery(nestedQueryStringDot) // dot notation
+		values, err := url.ParseQuery(nestedQueryStringDot)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -587,19 +605,47 @@ func BenchmarkFairDecode_Nested_PlaygroundForm(b *testing.B) {
 	}
 }
 
-// =============================================================================
-// FAIR DECODE Benchmarks: Array struct (from raw query string)
-// NOTE: go-playground uses repeat format (tags=a&tags=b), zaytra uses indices (tags[0]=a)
-// =============================================================================
+func BenchmarkFairDecode_Nested_AjgForm(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		values, err := url.ParseQuery(nestedQueryStringDot)
+		if err != nil {
+			b.Fatal(err)
+		}
+		var s NestedStruct
+		err = ajgform.DecodeValues(&s, values)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
 
-// Repeat format query string for go-playground
-var arrayQueryStringRepeat = "tags=go&tags=rust&tags=python&tags=javascript&tags=typescript"
+// =============================================================================
+// FAIR DECODE: Array struct (each library uses its native format)
+// =============================================================================
 
 func BenchmarkFairDecode_Array_ZaytraQS(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		var s ArrayStruct
-		err := zaytraq.Unmarshal(arrayQueryString, &s) // indices notation
+		err := zaytraq.Unmarshal(arrayQueryStringIndices, &s)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkFairDecode_Array_GorillaSchema(b *testing.B) {
+	decoder := schema.NewDecoder()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		values, err := url.ParseQuery(arrayQueryStringRepeat)
+		if err != nil {
+			b.Fatal(err)
+		}
+		var s ArrayStruct
+		err = decoder.Decode(&s, values)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -611,12 +657,27 @@ func BenchmarkFairDecode_Array_PlaygroundForm(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		values, err := url.ParseQuery(arrayQueryStringRepeat) // repeat format
+		values, err := url.ParseQuery(arrayQueryStringRepeat)
 		if err != nil {
 			b.Fatal(err)
 		}
 		var s ArrayStruct
 		err = decoder.Decode(&s, values)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkFairDecode_Array_AjgForm(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		values, err := url.ParseQuery(arrayQueryStringDot)
+		if err != nil {
+			b.Fatal(err)
+		}
+		var s ArrayStruct
+		err = ajgform.DecodeValues(&s, values)
 		if err != nil {
 			b.Fatal(err)
 		}
