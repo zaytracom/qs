@@ -2,7 +2,7 @@
 
 This example demonstrates how to build Strapi-compatible query strings using the `qs` library.
 
-Strapi uses a specific query string format for filtering, sorting, pagination, and population of related data.
+Strapi uses a specific query string format for filtering, sorting, pagination, and population of related data. The key option here is `encodeValuesOnly: true` (JS) / `WithEncodeValuesOnly(true)` (Go), which keeps bracket characters in keys unencoded for better readability while still encoding special characters in values.
 
 ## Filtering with operators
 
@@ -141,3 +141,4 @@ qs.Stringify(
 )
 // filters[status][$eq]=published&pagination[page]=1&pagination[pageSize]=25&populate[author][fields][0]=name&sort[0]=createdAt:desc
 ```
+

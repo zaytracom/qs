@@ -1,9 +1,8 @@
 # strictNullHandling / StrictNullHandling
 
-The `strictNullHandling` option (JS) / `WithStrictNullHandling(true)` (Go, Parse) and `WithStringifyStrictNullHandling(true)` (Go, Stringify) changes how `null` is handled:
+The `strictNullHandling` option (JS) / `WithStrictNullHandling(true)` (Go, Parse) and `WithStringifyStrictNullHandling(true)` (Go, Stringify) changes how `null` is handled.
 
-- when stringifying, `null` becomes a key without `=` (e.g., `a` instead of `a=`)
-- when parsing, a key without a value is treated as `null`, not as an empty string
+By default, `null` values are stringified as empty strings (`a=`) and keys without values are parsed as empty strings. With `strictNullHandling`, you can distinguish between `null` and empty string: `null` is serialized without `=` (just `a`), and keys without `=` are parsed back as `null`.
 
 ## Stringify (without and with strictNullHandling)
 

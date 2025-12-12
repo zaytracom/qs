@@ -2,6 +2,8 @@
 
 The `addQueryPrefix` option (JS) / `WithStringifyAddQueryPrefix(true)` (Go) adds a leading `?` when stringifying.
 
+By default, `qs.stringify` returns just the key-value pairs (e.g., `a=b&c=d`). When building a complete URL, you often need the `?` prefix. Instead of manually concatenating `"?" + qs.stringify(...)`, enable this option to include it automatically.
+
 JS:
 
 ```js

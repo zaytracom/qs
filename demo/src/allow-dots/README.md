@@ -2,6 +2,8 @@
 
 The `allowDots` option (JS) / `WithAllowDots(true)` (Go, Parse) and `WithStringifyAllowDots(true)` (Go, Stringify) enables dot notation support for nested objects.
 
+By default, nested objects use bracket notation (`a[b]=c`). With `allowDots` enabled, you can use the more compact dot notation (`a.b=c`). This works both ways: when stringifying objects and when parsing query strings back into nested structures.
+
 ## Stringify (without and with allowDots)
 
 JS:

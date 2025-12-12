@@ -2,6 +2,8 @@
 
 The `delimiter` option (JS) / `WithDelimiter(...)` (Go, Parse) and `WithStringifyDelimiter(...)` (Go, Stringify) sets the separator between `key=value` pairs.
 
+The default delimiter is `&`, but some systems use `;` or other characters. This option lets you customize the separator for both parsing and stringifying to match your requirements.
+
 Below we also set key sorting to ensure stable output.
 
 ## Stringify (custom delimiter)

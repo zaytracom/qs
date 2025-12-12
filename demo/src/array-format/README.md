@@ -2,6 +2,8 @@
 
 The `arrayFormat` option (JS) / `WithArrayFormat(...)` (Go) determines how arrays are serialized.
 
+Different backends expect different array formats: `indices` (default) produces `a[0]=b&a[1]=c`, `brackets` produces `a[]=b&a[]=c`, `repeat` produces `a=b&a=c`, and `comma` produces `a=b,c`. Choose the format that matches your server's expectations.
+
 In all examples below, we disable URL-encoding for easier readability.
 
 JS:

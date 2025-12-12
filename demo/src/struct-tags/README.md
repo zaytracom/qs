@@ -2,6 +2,8 @@
 
 In Go, you can work not only with `map[string]any`, but also with typed structs using `query` struct tags.
 
+Use `qs.Marshal` to convert a struct to a query string, and `qs.Unmarshal` to parse a query string directly into a struct. Field names are specified via `` `query:"name"` `` tags. Both functions support all the same options as `Stringify` and `Parse` respectively.
+
 ## Marshal struct → query string
 
 Go:
