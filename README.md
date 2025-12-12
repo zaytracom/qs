@@ -42,23 +42,27 @@ go get github.com/zaytracom/qs/v2
 
 ## 📊 Performance
 
-### Stringify — lower is better
+### Stringify (struct → query string) — lower is better
 
-| Benchmark | zaytra | gorilla | go-playground | ajg | google |
-|:----------|-------:|--------:|--------------:|----:|-------:|
-| Simple struct | 97 ns | 667 ns | 317 ns | 1438 ns | 959 ns |
-| Nested struct | 101 ns | — | 396 ns | 2563 ns | 1349 ns |
-| Array struct | 97 ns | — | 509 ns | 2181 ns | 848 ns |
-| Dynamic map | 17 μs | — | — | — | — |
+| Benchmark | zaytra | gorilla | google | go-playground | ajg |
+|:----------|-------:|--------:|-------:|--------------:|----:|
+| Simple struct | **96 ns** | 667 ns | 952 ns | 314 ns | 1430 ns |
+| Nested struct | **98 ns** | — | 1340 ns | 397 ns | 2592 ns |
+| Array struct | **95 ns** | — | 820 ns | 501 ns | 2107 ns |
+| Dynamic map | 16 μs | — | — | — | — |
 
-### Parse — lower is better
+zaytra is **3-26x faster** than alternatives for encoding.
 
-| Benchmark | zaytra | gorilla | go-playground | ajg | google |
-|:----------|-------:|--------:|--------------:|----:|-------:|
-| Simple struct | 12.4 μs | 1.7 μs | 121 ns | 2.5 μs | — |
-| Nested struct | 14.7 μs | — | 343 ns | — | — |
-| Array struct | 16.6 μs | — | 402 ns | — | — |
-| Dynamic map | 91 μs | — | — | — | — |
+### Parse (query string → struct) — lower is better
+
+| Benchmark | zaytra | gorilla | google | go-playground | ajg |
+|:----------|-------:|--------:|-------:|--------------:|----:|
+| Simple struct | 12 μs | 2 μs | — | 515 ns | 2.9 μs |
+| Nested struct | 14 μs | — | — | 800 ns | — |
+| Array struct | 17 μs | — | — | 834 ns | — |
+| Dynamic map | 90 μs | — | — | — | — |
+
+> **Note:** Parse is slower because zaytra builds a full nested `map[string]any` tree first (like JS `qs`), enabling dynamic map support and JS compatibility. Other libraries decode directly into structs using different query formats (dot notation vs bracket notation).
 
 ## 📚 Documentation
 
