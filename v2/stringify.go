@@ -58,6 +58,9 @@ type StringifyOptions struct {
 	// Default: false
 	AllowDots bool
 
+	// allowDotsSet tracks if AllowDots was explicitly set (internal use only)
+	allowDotsSet bool
+
 	// AllowEmptyArrays outputs key[] for empty arrays.
 	// When false, empty arrays produce no output.
 	// Default: false
@@ -240,8 +243,11 @@ func normalizeStringifyOptions(opts *StringifyOptions) (StringifyOptions, error)
 		result.SerializeDate = defaultSerializeDate
 	}
 
-	// If EncodeDotInKeys is true, AllowDots should also be true
-	if result.EncodeDotInKeys && !result.AllowDots {
+	// If EncodeDotInKeys is true and AllowDots was NOT explicitly set, set AllowDots to true
+	// JS: allowDots = typeof opts.allowDots === 'undefined'
+	//     ? opts.encodeDotInKeys === true ? true : defaults.allowDots
+	//     : !!opts.allowDots;
+	if result.EncodeDotInKeys && !result.allowDotsSet {
 		result.AllowDots = true
 	}
 
@@ -262,6 +268,7 @@ func WithStringifyAddQueryPrefix(v bool) StringifyOption {
 func WithStringifyAllowDots(v bool) StringifyOption {
 	return func(o *StringifyOptions) {
 		o.AllowDots = v
+		o.allowDotsSet = true
 	}
 }
 
@@ -318,9 +325,7 @@ func WithEncode(v bool) StringifyOption {
 func WithEncodeDotInKeys(v bool) StringifyOption {
 	return func(o *StringifyOptions) {
 		o.EncodeDotInKeys = v
-		if v {
-			o.AllowDots = true
-		}
+		// Note: AllowDots is set in normalizeStringifyOptions if not explicitly set
 	}
 }
 
@@ -509,8 +514,14 @@ func stringify(
 	// Apply filter function if provided
 	if filterFunc, ok := filter.(FilterFunc); ok {
 		obj = filterFunc(prefix, obj)
+		if obj == nil {
+			return []string{}, nil // Skip this key entirely
+		}
 	} else if fn, ok := filter.(func(string, any) any); ok {
 		obj = fn(prefix, obj)
+		if obj == nil {
+			return []string{}, nil // Skip this key entirely
+		}
 	}
 
 	// Handle time.Time
@@ -573,31 +584,44 @@ func stringify(
 				}
 			}
 			if len(encodedSlice) > 0 {
-				objKeys = []any{map[string]any{"value": strings.Join(encodedSlice, ",")}}
+				joined := strings.Join(encodedSlice, ",")
+				// JS: obj.join(',') || null - if result is empty string, use null
+				if joined == "" {
+					objKeys = []any{map[string]any{"value": nil}}
+				} else {
+					objKeys = []any{map[string]any{"value": joined}}
+				}
 			}
 		} else {
-			var joined string
 			if len(slice) > 0 {
 				strSlice := make([]string, len(slice))
 				for i, v := range slice {
 					strSlice[i] = toString(v)
 				}
-				joined = strings.Join(strSlice, ",")
-			}
-			if joined != "" || len(slice) > 0 {
-				objKeys = []any{map[string]any{"value": joined}}
+				joined := strings.Join(strSlice, ",")
+				// JS: obj.join(',') || null - if result is empty string, use null
+				if joined == "" {
+					objKeys = []any{map[string]any{"value": nil}}
+				} else {
+					objKeys = []any{map[string]any{"value": joined}}
+				}
 			}
 		}
+	} else if slice, ok := obj.([]any); ok {
+		// Array: use indices, NOT filter array
+		objKeys = make([]any, len(slice))
+		for i := range slice {
+			objKeys[i] = i
+		}
 	} else if filterSlice, ok := filter.([]string); ok {
-		// Filter is array of keys
+		// Object with filter array: use filter keys
 		objKeys = make([]any, len(filterSlice))
 		for i, k := range filterSlice {
 			objKeys[i] = k
 		}
 	} else {
-		// Get keys from object
-		switch v := obj.(type) {
-		case map[string]any:
+		// Get keys from object (map)
+		if v, ok := obj.(map[string]any); ok {
 			keys := make([]string, 0, len(v))
 			for k := range v {
 				keys = append(keys, k)
@@ -608,11 +632,6 @@ func stringify(
 			objKeys = make([]any, len(keys))
 			for i, k := range keys {
 				objKeys[i] = k
-			}
-		case []any:
-			objKeys = make([]any, len(v))
-			for i := range v {
-				objKeys[i] = i
 			}
 		}
 	}
@@ -659,11 +678,7 @@ func stringify(
 			}
 		}
 
-		// Skip nulls if requested, or skip nil in arrays (sparse array behavior like JS undefined)
-		if value == nil && isSlice(obj) {
-			// In arrays, nil represents undefined (sparse slot) - always skip
-			continue
-		}
+		// Skip nulls if requested (nil in Go represents null in JS)
 		if skipNulls && (value == nil || IsExplicitNull(value)) {
 			continue
 		}
