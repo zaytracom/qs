@@ -1662,3 +1662,45 @@ func BenchmarkParse_LargeComplex(b *testing.B) {
 		_, _, _ = Parse(arena, input, cfg)
 	}
 }
+
+// Benchmarks to verify O(n) linear scaling
+func BenchmarkParseBytes_Scale_1x(b *testing.B) {
+	// ~30 bytes
+	input := []byte("a[b][c]=1&x[y]=2&foo=bar")
+	arena := NewArena(8)
+	cfg := DefaultConfig()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _, _ = ParseBytes(arena, input, cfg)
+	}
+}
+
+func BenchmarkParseBytes_Scale_10x(b *testing.B) {
+	// ~300 bytes (10x)
+	base := "a[b][c]=1&x[y]=2&foo=bar&"
+	input := []byte(base + base + base + base + base + base + base + base + base + base)
+	arena := NewArena(64)
+	cfg := DefaultConfig()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _, _ = ParseBytes(arena, input, cfg)
+	}
+}
+
+func BenchmarkParseBytes_Scale_100x(b *testing.B) {
+	// ~3000 bytes (100x)
+	base := "a[b][c]=1&x[y]=2&foo=bar&"
+	var sb []byte
+	for i := 0; i < 100; i++ {
+		sb = append(sb, base...)
+	}
+	arena := NewArena(512)
+	cfg := DefaultConfig()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _, _ = ParseBytes(arena, sb, cfg)
+	}
+}
