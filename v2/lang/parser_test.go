@@ -259,14 +259,31 @@ func TestParse_ProtoKeyNormal(t *testing.T) {
 func TestParse_NoAllocs(t *testing.T) {
 	arena := NewArena(32)
 	cfg := DefaultConfig()
+	input := []byte("a[b]=1&c=d&e=f&g[h][0]=x")
 
 	allocs := testing.AllocsPerRun(1000, func() {
-		_, _, err := Parse(arena, "a[b]=1&c=d&e=f&g[h][0]=x", cfg)
+		_, _, err := ParseBytes(arena, input, cfg)
 		if err != nil {
 			panic(err)
 		}
 	})
 	if allocs != 0 {
 		t.Fatalf("allocs: got %v", allocs)
+	}
+}
+
+func TestParse_StringAllocs(t *testing.T) {
+	arena := NewArena(32)
+	cfg := DefaultConfig()
+
+	// Parse with string allocates once for string -> []byte conversion
+	allocs := testing.AllocsPerRun(1000, func() {
+		_, _, err := Parse(arena, "a[b]=1&c=d&e=f&g[h][0]=x", cfg)
+		if err != nil {
+			panic(err)
+		}
+	})
+	if allocs != 1 {
+		t.Fatalf("allocs: expected 1 got %v", allocs)
 	}
 }

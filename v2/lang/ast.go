@@ -1,53 +1,78 @@
 package lang
 
+// needsDecode checks if bytes contain % or + that need decoding.
+func needsDecode(b []byte) bool {
+	for _, c := range b {
+		if c == '%' || c == '+' {
+			return true
+		}
+	}
+	return false
+}
+
+// decodeInPlace decodes %XX and '+' in place.
+// Result is always <= len(b), so it's safe.
+// Returns the decoded slice (subslice of dst).
+func decodeInPlace(dst, src []byte) []byte {
+	dst = dst[:0]
+	for i := 0; i < len(src); i++ {
+		c := src[i]
+		switch c {
+		case '+':
+			dst = append(dst, ' ')
+		case '%':
+			if i+2 >= len(src) {
+				dst = append(dst, '%')
+				continue
+			}
+			hi := fromHex(src[i+1])
+			lo := fromHex(src[i+2])
+			if hi < 0 || lo < 0 {
+				dst = append(dst, '%')
+				continue
+			}
+			dst = append(dst, byte(hi<<4|lo))
+			i += 2
+		default:
+			dst = append(dst, c)
+		}
+	}
+	return dst
+}
+
+// DecodeBytes decodes %XX and '+' from span into arena's scratch buffer.
+// Returns the decoded bytes (valid until next decode call).
+// Zero-allocation for simple cases (no encoding).
+func (a *Arena) DecodeBytes(s Span) []byte {
+	raw := a.GetBytes(s)
+	if !needsDecode(raw) {
+		return raw
+	}
+	// Ensure scratch has enough capacity
+	if cap(a.scratch) < len(raw) {
+		a.scratch = make([]byte, 0, len(raw)*2)
+	}
+	a.scratch = decodeInPlace(a.scratch, raw)
+	return a.scratch
+}
+
 // DecodeString extracts and decodes a string (lazy decode).
 // It allocates only if decoding is needed.
 func (a *Arena) DecodeString(s Span, charset Charset) string {
-	raw := a.GetString(s)
+	raw := a.GetBytes(s)
 
 	// Fast path: no decoding needed.
-	needsDecode := false
-	for i := 0; i < len(raw); i++ {
-		if raw[i] == '%' || raw[i] == '+' {
-			needsDecode = true
-			break
-		}
-	}
-	if !needsDecode {
-		return raw
+	if !needsDecode(raw) {
+		return string(raw)
 	}
 
-	// Decode %XX and '+' -> space.
-	out := make([]byte, 0, len(raw))
-	for i := 0; i < len(raw); i++ {
-		c := raw[i]
-		switch c {
-		case '+':
-			out = append(out, ' ')
-		case '%':
-			if i+2 >= len(raw) {
-				// Invalid escape: keep as-is (graceful).
-				out = append(out, '%')
-				continue
-			}
-			hi := fromHex(raw[i+1])
-			lo := fromHex(raw[i+2])
-			if hi < 0 || lo < 0 {
-				// Invalid escape: keep as-is (graceful).
-				out = append(out, '%')
-				continue
-			}
-			out = append(out, byte(hi<<4|lo))
-			i += 2
-		default:
-			out = append(out, c)
-		}
+	// Decode into scratch buffer
+	if cap(a.scratch) < len(raw) {
+		a.scratch = make([]byte, 0, len(raw)*2)
 	}
+	out := decodeInPlace(a.scratch, raw)
 
 	// For ISO-8859-1, bytes map directly to Unicode code points 0x00..0xFF.
-	// For UTF-8, bytes are interpreted as UTF-8.
-	// Converting []byte -> string uses UTF-8; ISO callers should only pass
-	// input that was encoded as ISO-8859-1 bytes.
 	if charset == CharsetISO88591 {
 		runes := make([]rune, len(out))
 		for i, b := range out {
@@ -142,12 +167,15 @@ type QueryString struct {
 
 // Arena holds all AST nodes, enabling zero-allocation parsing when reused.
 type Arena struct {
-	Source string
+	Source []byte
 
 	Params     []Param
 	Segments   []Segment
 	Values     []Value
 	ValueParts []Span
+
+	// Scratch buffer for decoding - reused to avoid allocations.
+	scratch []byte
 }
 
 // NewArena allocates an arena with a capacity sized for typical inputs.
@@ -161,21 +189,40 @@ func NewArena(estimatedParams int) *Arena {
 		Segments:   make([]Segment, 0, estimatedParams*3),
 		Values:     make([]Value, 0, estimatedParams),
 		ValueParts: make([]Span, 0, estimatedParams),
+		scratch:    make([]byte, 0, 256),
 	}
 }
 
 // Reset clears the arena for reuse without deallocating.
 func (a *Arena) Reset(source string) {
+	// Convert string to []byte. This is the only allocation for input.
+	a.Source = []byte(source)
+	a.Params = a.Params[:0]
+	a.Segments = a.Segments[:0]
+	a.Values = a.Values[:0]
+	a.ValueParts = a.ValueParts[:0]
+	a.scratch = a.scratch[:0]
+}
+
+// ResetBytes clears the arena for reuse with []byte input (zero-copy).
+func (a *Arena) ResetBytes(source []byte) {
 	a.Source = source
 	a.Params = a.Params[:0]
 	a.Segments = a.Segments[:0]
 	a.Values = a.Values[:0]
 	a.ValueParts = a.ValueParts[:0]
+	a.scratch = a.scratch[:0]
 }
 
-// GetString returns the raw substring referenced by span (no decoding).
-func (a *Arena) GetString(s Span) string {
+// GetBytes returns the raw bytes referenced by span (no decoding, zero-copy).
+func (a *Arena) GetBytes(s Span) []byte {
 	start := int(s.Off)
 	end := start + int(s.Len)
 	return a.Source[start:end]
+}
+
+// GetString returns the raw substring referenced by span (no decoding).
+// This allocates a new string.
+func (a *Arena) GetString(s Span) string {
+	return string(a.GetBytes(s))
 }

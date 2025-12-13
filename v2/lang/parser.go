@@ -21,7 +21,7 @@ type Parser struct {
 	cfg Config
 
 	arena *Arena
-	src   string
+	src   []byte
 
 	// internal
 	sentinelChecked bool
@@ -34,7 +34,7 @@ func (p *Parser) Reset(arena *Arena, cfg Config) {
 		p.cfg.Delimiter = DefaultDelimiter
 	}
 	p.arena = arena
-	p.src = ""
+	p.src = nil
 	p.sentinelChecked = false
 	p.detectedCharset = p.cfg.Charset
 }
@@ -50,6 +50,25 @@ func (p *Parser) ParseInto(input string) (QueryString, Charset, error) {
 	p.sentinelChecked = false
 	p.detectedCharset = p.cfg.Charset
 
+	return p.doParse()
+}
+
+// ParseIntoBytes parses []byte input into the provided arena (zero-copy).
+func (p *Parser) ParseIntoBytes(input []byte) (QueryString, Charset, error) {
+	if p.arena == nil {
+		return QueryString{}, p.cfg.Charset, ErrNilArena
+	}
+
+	p.arena.ResetBytes(input)
+	p.src = p.arena.Source
+	p.sentinelChecked = false
+	p.detectedCharset = p.cfg.Charset
+
+	return p.doParse()
+}
+
+// doParse is the internal parsing logic.
+func (p *Parser) doParse() (QueryString, Charset, error) {
 	hasPrefix := len(p.src) > 0 && p.src[0] == '?'
 	start := 0
 	if hasPrefix && p.cfg.Flags.Has(FlagIgnoreQueryPrefix) {
@@ -181,6 +200,13 @@ func Parse(arena *Arena, input string, cfg Config) (QueryString, Charset, error)
 	var p Parser
 	p.Reset(arena, cfg)
 	return p.ParseInto(input)
+}
+
+// ParseBytes parses []byte input with cfg into arena (zero-copy, zero-alloc).
+func ParseBytes(arena *Arena, input []byte, cfg Config) (QueryString, Charset, error) {
+	var p Parser
+	p.Reset(arena, cfg)
+	return p.ParseIntoBytes(input)
 }
 
 func (p *Parser) emitParam(paramStart, keyEnd, paramEnd uint32, hasEquals bool) error {
@@ -668,7 +694,7 @@ func (p *Parser) makeSpan(start, end uint32) (Span, error) {
 	return Span{Off: start, Len: uint16(n)}, nil
 }
 
-func spanContainsByte(src string, sp Span, b byte) bool {
+func spanContainsByte(src []byte, sp Span, b byte) bool {
 	start := int(sp.Off)
 	end := start + int(sp.Len)
 	for i := start; i < end; i++ {
@@ -679,7 +705,7 @@ func spanContainsByte(src string, sp Span, b byte) bool {
 	return false
 }
 
-func lbracketTokenLen(src string, i, end int) int {
+func lbracketTokenLen(src []byte, i, end int) int {
 	if i >= end {
 		return 0
 	}
@@ -694,7 +720,7 @@ func lbracketTokenLen(src string, i, end int) int {
 	return 0
 }
 
-func rbracketTokenLen(src string, i, end int) int {
+func rbracketTokenLen(src []byte, i, end int) int {
 	if i >= end {
 		return 0
 	}
@@ -709,7 +735,7 @@ func rbracketTokenLen(src string, i, end int) int {
 	return 0
 }
 
-func dotTokenLen(src string, i, end int, allowEncoded bool) int {
+func dotTokenLen(src []byte, i, end int, allowEncoded bool) int {
 	if i >= end {
 		return 0
 	}
@@ -724,7 +750,7 @@ func dotTokenLen(src string, i, end int, allowEncoded bool) int {
 	return 0
 }
 
-func findBracketClose(src string, contentStart, end int) (pos, closeLen int, ok bool) {
+func findBracketClose(src []byte, contentStart, end int) (pos, closeLen int, ok bool) {
 	for i := contentStart; i < end; i++ {
 		if lbracketTokenLen(src, i, end) != 0 {
 			return 0, 0, false
@@ -736,7 +762,7 @@ func findBracketClose(src string, contentStart, end int) (pos, closeLen int, ok 
 	return 0, 0, false
 }
 
-func parseCanonicalUint(sp Span, src string) (uint32, bool) {
+func parseCanonicalUint(sp Span, src []byte) (uint32, bool) {
 	if sp.Len == 0 {
 		return 0, false
 	}
@@ -761,7 +787,7 @@ func parseCanonicalUint(sp Span, src string) (uint32, bool) {
 	return n, true
 }
 
-func spanEqualsASCII(src string, sp Span, s string) bool {
+func spanEqualsASCII(src []byte, sp Span, s string) bool {
 	if int(sp.Len) != len(s) {
 		return false
 	}
@@ -778,7 +804,7 @@ func spanEqualsASCII(src string, sp Span, s string) bool {
 	return true
 }
 
-func spanEqualsFoldASCII(src string, sp Span, s string) bool {
+func spanEqualsFoldASCII(src []byte, sp Span, s string) bool {
 	if int(sp.Len) != len(s) {
 		return false
 	}
@@ -800,7 +826,7 @@ func spanEqualsFoldASCII(src string, sp Span, s string) bool {
 	return true
 }
 
-func spanEqualsDecodedASCII(src string, sp Span, s string) bool {
+func spanEqualsDecodedASCII(src []byte, sp Span, s string) bool {
 	start := int(sp.Off)
 	end := start + int(sp.Len)
 	if start < 0 || end > len(src) {
@@ -843,7 +869,7 @@ func spanEqualsDecodedASCII(src string, sp Span, s string) bool {
 	return j == len(s)
 }
 
-func validatePercentEncoding(src string, sp Span) error {
+func validatePercentEncoding(src []byte, sp Span) error {
 	start := int(sp.Off)
 	end := start + int(sp.Len)
 	if start < 0 || end > len(src) {
