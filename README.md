@@ -40,14 +40,15 @@ Full-featured Go port of the popular JavaScript [`qs`](https://github.com/ljharb
 - ⚡ **Fast** — arena-backed parser, minimal allocations, single-pass processing.
 - 🧪 **Well-tested** — high test coverage, JS compatibility test suite, [benchmarks](#performance).
 
-### When should you use qs?
+### When should you use `qs`?
 
 Use `qs` if you need:
 
-- Nested filters / deep objects in URLs
-- Parsing into `map[string]any`, not only structs
-- JS `qs`-compatible query strings (Strapi, Keystone, custom APIs)
-- Strict validation and predictable behavior
+* Designing APIs that accept **large, dynamic, deeply nested query parameters**
+* Supporting **nested filters and deep object syntax** in URLs (e.g. `filter[price][gte]=100`)
+* Parsing query strings into **`map[string]any`**, not only predefined structs
+* Full **JavaScript `qs` compatibility** (Strapi, Keystone, JSON:API-style or custom APIs)
+* **Strict, predictable parsing and validation** of complex query strings
 
 ## Installation
 
