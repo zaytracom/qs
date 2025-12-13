@@ -93,7 +93,6 @@ func (p *Parser) doParse() (QueryString, Charset, error) {
 	state := stateKey
 	paramStart := uint32(start)
 	keyEnd := uint32(start)
-	hasEquals := false
 	bracketDepth := uint16(0)
 	firstIgnoredEquals := uint32(0)
 
@@ -112,18 +111,18 @@ func (p *Parser) doParse() (QueryString, Charset, error) {
 
 		if i == srcLen || c == p.cfg.Delimiter {
 			end := i
+			paramHasEquals := false
 			if state == stateKey {
 				keyEnd = end
-				hasEquals = false
 				if firstIgnoredEquals != 0 {
 					keyEnd = firstIgnoredEquals
-					hasEquals = true
+					paramHasEquals = true
 				}
 			} else {
-				hasEquals = true
+				paramHasEquals = true
 			}
 
-			if end > paramStart || hasEquals {
+			if end > paramStart || paramHasEquals {
 				if emitted >= limit {
 					if p.cfg.Flags.Has(FlagThrowOnLimitExceeded) {
 						return QueryString{}, p.detectedCharset, ErrParameterLimitExceeded
@@ -131,7 +130,7 @@ func (p *Parser) doParse() (QueryString, Charset, error) {
 					break
 				}
 				before := len(p.arena.Params)
-				if err := p.emitParam(paramStart, keyEnd, end, hasEquals); err != nil {
+				if err := p.emitParam(paramStart, keyEnd, end, paramHasEquals); err != nil {
 					return QueryString{}, p.detectedCharset, err
 				}
 				if len(p.arena.Params) != before {
@@ -145,7 +144,6 @@ func (p *Parser) doParse() (QueryString, Charset, error) {
 			paramStart = i + 1
 			state = stateKey
 			keyEnd = paramStart
-			hasEquals = false
 			bracketDepth = 0
 			firstIgnoredEquals = 0
 			continue
@@ -994,49 +992,6 @@ func spanEqualsFoldASCII(src []byte, sp Span, s string) bool {
 		}
 	}
 	return true
-}
-
-func spanEqualsDecodedASCII(src []byte, sp Span, s string) bool {
-	start := int(sp.Off)
-	end := start + int(sp.Len)
-	if start < 0 || end > len(src) {
-		return false
-	}
-
-	j := 0
-	for i := start; i < end; i++ {
-		if j >= len(s) {
-			return false
-		}
-		c := src[i]
-		switch c {
-		case '+':
-			if s[j] != ' ' {
-				return false
-			}
-			j++
-		case '%':
-			if i+2 >= end {
-				return false
-			}
-			hi := fromHex(src[i+1])
-			lo := fromHex(src[i+2])
-			if hi < 0 || lo < 0 {
-				return false
-			}
-			if byte(hi<<4|lo) != s[j] {
-				return false
-			}
-			i += 2
-			j++
-		default:
-			if c != s[j] {
-				return false
-			}
-			j++
-		}
-	}
-	return j == len(s)
 }
 
 func validatePercentEncoding(src []byte, sp Span) error {

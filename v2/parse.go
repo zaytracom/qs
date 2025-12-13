@@ -482,26 +482,6 @@ func decodeBrackets(s string) string {
 	return b.String()
 }
 
-// parseArrayValue handles comma-separated values and array limit checking.
-// Returns the value as-is, split by comma, or error if limit exceeded.
-func parseArrayValue(val string, opts *ParseOptions, currentArrayLength int) (any, error) {
-	if val != "" && opts.Comma && strings.Contains(val, ",") {
-		parts := strings.Split(val, ",")
-		// Convert []string to []any for consistent type handling
-		result := make([]any, len(parts))
-		for i, p := range parts {
-			result[i] = p
-		}
-		return result, nil
-	}
-
-	if opts.ThrowOnLimitExceeded && currentArrayLength >= opts.ArrayLimit {
-		return nil, ErrArrayLimitExceeded
-	}
-
-	return val, nil
-}
-
 // splitByDelimiter splits a string by either a string delimiter or regexp.
 // Unlike Go's SplitN (which keeps remainder in last element), this matches JS behavior:
 // JS "a&b&c".split("&", 2) returns ["a", "b"] - exactly limit parts, remainder discarded.
@@ -659,14 +639,6 @@ func parseKeys(givenKey string, val any, opts *ParseOptions, valuesParsed bool) 
 	}
 
 	return parseObject(keys, val, opts, valuesParsed), nil
-}
-
-// orderedResult holds parsed values with insertion order preserved.
-// This is needed because Go map iteration is randomized, but JS Object.keys()
-// returns keys in insertion order, which affects merge behavior.
-type orderedResult struct {
-	keys   []string       // keys in insertion order
-	values map[string]any // key-value pairs
 }
 
 // Parse parses a URL query string into a map.
