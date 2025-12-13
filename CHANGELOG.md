@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2025-12-13
+
+This is the first **stable** release of v2.
+
+### ✨ Added
+
+- Full coverage of the JavaScript `qs` option surface (Parse and Stringify)
+- Strict parsing mode (`strictMode`) for additional input validation (parse-only)
+- Expanded test suite and benchmarks
+
+### 🛠️ Changed
+
+- Parser architecture updated to an AST-based parser
+- Significant performance improvements across parsing and stringification
+
+### 📚 Documentation
+
+- Updated and expanded documentation for v2
+
 ## [2.0.0-beta.2] - 2025-12-12
 
 ### 💥 Breaking Changes

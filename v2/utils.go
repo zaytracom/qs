@@ -180,8 +180,24 @@ func Decode(str string, charset Charset) string {
 		return str
 	}
 
+	// Fast path: check if decoding is needed at all
+	hasPlus := strings.IndexByte(str, '+') >= 0
+	hasPercent := strings.IndexByte(str, '%') >= 0
+
+	// No encoding present - return as-is (most common case for keys)
+	if !hasPlus && !hasPercent {
+		return str
+	}
+
+	// Only + present, no % - simple space replacement
+	if !hasPercent {
+		return strings.ReplaceAll(str, "+", " ")
+	}
+
 	// Replace + with space first
-	str = strings.ReplaceAll(str, "+", " ")
+	if hasPlus {
+		str = strings.ReplaceAll(str, "+", " ")
+	}
 
 	if charset == CharsetISO88591 {
 		return decodeISO88591(str)
@@ -245,7 +261,7 @@ func unhex(c byte) int {
 //   - If target is nil/primitive and source is a map/slice, returns [target, source...]
 //   - If both are slices, merges by index (objects are recursively merged)
 //   - If both are maps, recursively merges keys
-func Merge(target, source any, allowPrototypes bool) any {
+func Merge(target, source any) any {
 	if source == nil {
 		return target
 	}
@@ -261,8 +277,7 @@ func Merge(target, source any, allowPrototypes bool) any {
 			return append(targetSlice, source)
 		}
 		if targetMap, ok := target.(map[string]any); ok {
-			key, isString := source.(string)
-			if isString && (allowPrototypes || !isPrototypeKey(key)) {
+			if key, isString := source.(string); isString {
 				targetMap[key] = true
 			}
 			return targetMap
@@ -307,7 +322,7 @@ func Merge(target, source any, allowPrototypes bool) any {
 
 				if (targetItemIsMap && itemIsMap) || (targetItemIsSlice && itemIsSlice) {
 					// Same complex types - merge recursively
-					targetSlice[i] = Merge(targetItem, item, allowPrototypes)
+					targetSlice[i] = Merge(targetItem, item)
 				} else {
 					// Different types or primitives - PUSH to end (like JS)
 					targetSlice = append(targetSlice, item)
@@ -335,7 +350,7 @@ func Merge(target, source any, allowPrototypes bool) any {
 	if sourceIsMap {
 		for key, value := range sourceMap {
 			if existing, exists := mergeTarget[key]; exists {
-				mergeTarget[key] = Merge(existing, value, allowPrototypes)
+				mergeTarget[key] = Merge(existing, value)
 			} else {
 				mergeTarget[key] = value
 			}
@@ -347,7 +362,7 @@ func Merge(target, source any, allowPrototypes bool) any {
 			key := strconv.Itoa(i)
 			if existing, exists := mergeTarget[key]; exists {
 				if value != nil {
-					mergeTarget[key] = Merge(existing, value, allowPrototypes)
+					mergeTarget[key] = Merge(existing, value)
 				}
 				// If value is nil and key exists, keep existing (don't overwrite with nil)
 			} else {
@@ -357,25 +372,6 @@ func Merge(target, source any, allowPrototypes bool) any {
 	}
 
 	return mergeTarget
-}
-
-// prototypeKeys are JavaScript Object prototype properties that should be blocked.
-var prototypeKeysMap = map[string]bool{
-	"__proto__":            true,
-	"constructor":          true,
-	"prototype":            true,
-	"toString":             true,
-	"toLocaleString":       true,
-	"valueOf":              true,
-	"hasOwnProperty":       true,
-	"isPrototypeOf":        true,
-	"propertyIsEnumerable": true,
-}
-
-// isPrototypeKey returns true if the key is a JavaScript prototype pollution key.
-// In Go this is less relevant, but we maintain compatibility.
-func isPrototypeKey(key string) bool {
-	return prototypeKeysMap[key]
 }
 
 // ArrayToObject converts a slice to a map with string indices as keys.

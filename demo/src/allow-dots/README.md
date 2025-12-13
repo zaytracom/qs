@@ -1,6 +1,6 @@
 # allowDots / AllowDots
 
-The `allowDots` option (JS) / `WithAllowDots(true)` (Go, Parse) and `WithStringifyAllowDots(true)` (Go, Stringify) enables dot notation support for nested objects.
+The `allowDots` option (JS) / `WithParseAllowDots(true)` (Go, Parse) and `WithStringifyAllowDots(true)` (Go, Stringify) enables dot notation support for nested objects.
 
 By default, nested objects use bracket notation (`a[b]=c`). With `allowDots` enabled, you can use the more compact dot notation (`a.b=c`). This works both ways: when stringifying objects and when parsing query strings back into nested structures.
 
@@ -19,13 +19,13 @@ qs.stringify({ a: { b: "c" } }, { allowDots: true, encode: false })
 Go:
 
 ```go
-qs.Stringify(map[string]any{"a": map[string]any{"b": "c"}}, qs.WithEncode(false))
+qs.Stringify(map[string]any{"a": map[string]any{"b": "c"}}, qs.WithStringifyEncode(false))
 // a[b]=c
 
 qs.Stringify(
   map[string]any{"a": map[string]any{"b": "c"}},
   qs.WithStringifyAllowDots(true),
-  qs.WithEncode(false),
+  qs.WithStringifyEncode(false),
 )
 // a.b=c
 ```
@@ -48,7 +48,6 @@ Go:
 qs.Parse("a.b=c")
 // {"a.b":"c"}
 
-qs.Parse("a.b=c", qs.WithAllowDots(true))
+qs.Parse("a.b=c", qs.WithParseAllowDots(true))
 // {"a":{"b":"c"}}
 ```
-

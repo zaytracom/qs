@@ -2,7 +2,7 @@
 
 This example demonstrates how to build Strapi-compatible query strings using the `qs` library.
 
-Strapi uses a specific query string format for filtering, sorting, pagination, and population of related data. The key option here is `encodeValuesOnly: true` (JS) / `WithEncodeValuesOnly(true)` (Go), which keeps bracket characters in keys unencoded for better readability while still encoding special characters in values.
+Strapi uses a specific query string format for filtering, sorting, pagination, and population of related data. The key option here is `encodeValuesOnly: true` (JS) / `WithStringifyEncodeValuesOnly(true)` (Go), which keeps bracket characters in keys unencoded for better readability while still encoding special characters in values.
 
 ## Filtering with operators
 
@@ -31,7 +31,7 @@ qs.Stringify(
       "createdAt": map[string]any{"$gte": "2023-01-01"},
     },
   },
-  qs.WithEncodeValuesOnly(true),
+  qs.WithStringifyEncodeValuesOnly(true),
 )
 // filters[title][$contains]=hello&filters[createdAt][$gte]=2023-01-01
 ```
@@ -50,7 +50,7 @@ Go:
 ```go
 qs.Stringify(
   map[string]any{"sort": []any{"title:asc", "createdAt:desc"}},
-  qs.WithEncodeValuesOnly(true),
+  qs.WithStringifyEncodeValuesOnly(true),
 )
 // sort[0]=title:asc&sort[1]=createdAt:desc
 ```
@@ -72,7 +72,7 @@ Go:
 ```go
 qs.Stringify(
   map[string]any{"pagination": map[string]any{"page": 1, "pageSize": 10}},
-  qs.WithEncodeValuesOnly(true),
+  qs.WithStringifyEncodeValuesOnly(true),
 )
 // pagination[page]=1&pagination[pageSize]=10
 ```
@@ -104,7 +104,7 @@ qs.Stringify(
       "categories": map[string]any{"fields": []any{"name"}},
     },
   },
-  qs.WithEncodeValuesOnly(true),
+  qs.WithStringifyEncodeValuesOnly(true),
 )
 // populate[author][fields][0]=name&populate[author][fields][1]=email&populate[categories][fields][0]=name
 ```
@@ -136,9 +136,8 @@ qs.Stringify(
     "pagination": map[string]any{"page": 1, "pageSize": 25},
     "populate":   map[string]any{"author": map[string]any{"fields": []any{"name"}}},
   },
-  qs.WithEncodeValuesOnly(true),
-  qs.WithSort(func(a, b string) bool { return a < b }),
+  qs.WithStringifyEncodeValuesOnly(true),
+  qs.WithStringifySort(func(a, b string) bool { return a < b }),
 )
 // filters[status][$eq]=published&pagination[page]=1&pagination[pageSize]=25&populate[author][fields][0]=name&sort[0]=createdAt:desc
 ```
-

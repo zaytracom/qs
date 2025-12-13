@@ -167,8 +167,10 @@ func generateGiantNestedData() map[string]any {
 	}
 }
 
-var giantNestedQueryString = generateGiantNestedQueryString()
-var giantNestedData = generateGiantNestedData()
+var (
+	giantNestedQueryString = generateGiantNestedQueryString()
+	giantNestedData        = generateGiantNestedData()
+)
 
 // =============================================================================
 // Benchmarks: Parse
@@ -348,4 +350,127 @@ func BenchmarkStringify_Giant_Parallel(b *testing.B) {
 			}
 		}
 	})
+}
+
+// =============================================================================
+// Benchmarks: UnmarshalBytes (direct AST → struct)
+// =============================================================================
+
+type SimpleStruct struct {
+	Name   string `query:"name"`
+	Age    string `query:"age"`
+	Email  string `query:"email"`
+	Active string `query:"active"`
+}
+
+type NestedStruct struct {
+	User struct {
+		Profile struct {
+			Name string `query:"name"`
+			Age  string `query:"age"`
+		} `query:"profile"`
+		Settings struct {
+			Theme string `query:"theme"`
+			Lang  string `query:"lang"`
+		} `query:"settings"`
+	} `query:"user"`
+}
+
+type ArrayStruct struct {
+	Items []string `query:"items"`
+}
+
+func BenchmarkUnmarshalBytes_Simple_Struct(b *testing.B) {
+	data := []byte(simpleQueryString)
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		var s SimpleStruct
+		err := UnmarshalBytes(data, &s)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkUnmarshalBytes_Simple_Map(b *testing.B) {
+	data := []byte(simpleQueryString)
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		var m map[string]any
+		err := UnmarshalBytes(data, &m)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkUnmarshalBytes_Nested_Struct(b *testing.B) {
+	data := []byte(nestedQueryString)
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		var s NestedStruct
+		err := UnmarshalBytes(data, &s)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkUnmarshalBytes_Array_Struct(b *testing.B) {
+	data := []byte(arrayQueryString)
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		var s ArrayStruct
+		err := UnmarshalBytes(data, &s)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkUnmarshalBytes_Giant_Map(b *testing.B) {
+	data := []byte(giantNestedQueryString)
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		var m map[string]any
+		err := UnmarshalBytes(data, &m)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// Comparison: Parse (old way) vs UnmarshalBytes (new way)
+func BenchmarkCompare_Simple_Parse(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_, err := Parse(simpleQueryString)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkCompare_Simple_UnmarshalMap(b *testing.B) {
+	data := []byte(simpleQueryString)
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		var m map[string]any
+		err := UnmarshalBytes(data, &m)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkCompare_Simple_UnmarshalStruct(b *testing.B) {
+	data := []byte(simpleQueryString)
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		var s SimpleStruct
+		err := UnmarshalBytes(data, &s)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
 }

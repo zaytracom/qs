@@ -173,7 +173,6 @@ func BenchmarkEncode_Simple_GoogleQS(b *testing.B) {
 	}
 }
 
-
 // =============================================================================
 // ENCODE Benchmarks: Nested struct (libraries that support it)
 // =============================================================================
@@ -224,7 +223,6 @@ func BenchmarkEncode_Nested_GoogleQS(b *testing.B) {
 	}
 }
 
-
 // =============================================================================
 // ENCODE Benchmarks: Array
 // =============================================================================
@@ -274,7 +272,6 @@ func BenchmarkEncode_Array_GoogleQS(b *testing.B) {
 		}
 	}
 }
-
 
 // =============================================================================
 // ENCODE Benchmarks: Giant nested map
@@ -496,13 +493,13 @@ var (
 	// "name=John&age=30&email=john%40example.com&active=true"
 
 	// Nested: different formats per library
-	nestedQueryStringDot      = "profile.name=John&profile.age=30&settings.theme=dark&settings.lang=en"       // go-playground, ajg
-	nestedQueryStringBracket  = "profile[name]=John&profile[age]=30&settings[theme]=dark&settings[lang]=en"   // zaytra
+	nestedQueryStringDot     = "profile.name=John&profile.age=30&settings.theme=dark&settings.lang=en"     // go-playground, ajg
+	nestedQueryStringBracket = "profile[name]=John&profile[age]=30&settings[theme]=dark&settings[lang]=en" // zaytra
 
 	// Array: different formats per library
-	arrayQueryStringRepeat  = "tags=go&tags=rust&tags=python&tags=javascript&tags=typescript"                           // gorilla, go-playground
-	arrayQueryStringIndices = "tags[0]=go&tags[1]=rust&tags[2]=python&tags[3]=javascript&tags[4]=typescript"            // zaytra
-	arrayQueryStringDot     = "tags.0=go&tags.1=rust&tags.2=python&tags.3=javascript&tags.4=typescript"                 // ajg
+	arrayQueryStringRepeat  = "tags=go&tags=rust&tags=python&tags=javascript&tags=typescript"                // gorilla, go-playground
+	arrayQueryStringIndices = "tags[0]=go&tags[1]=rust&tags[2]=python&tags[3]=javascript&tags[4]=typescript" // zaytra
+	arrayQueryStringDot     = "tags.0=go&tags.1=rust&tags.2=python&tags.3=javascript&tags.4=typescript"      // ajg
 )
 
 // =============================================================================
@@ -678,6 +675,58 @@ func BenchmarkFairDecode_Array_AjgForm(b *testing.B) {
 		}
 		var s ArrayStruct
 		err = ajgform.DecodeValues(&s, values)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// =============================================================================
+// NEW OPTIMIZED DECODE: UnmarshalBytes (direct AST → struct, no intermediate map)
+// =============================================================================
+
+func BenchmarkOptimized_Simple_ZaytraQS(b *testing.B) {
+	data := []byte(simpleQueryString)
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		var s SimpleStruct
+		err := zaytraq.UnmarshalBytes(data, &s)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkOptimized_Nested_ZaytraQS(b *testing.B) {
+	data := []byte(nestedQueryStringBracket)
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		var s NestedStruct
+		err := zaytraq.UnmarshalBytes(data, &s)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkOptimized_Array_ZaytraQS(b *testing.B) {
+	data := []byte(arrayQueryStringIndices)
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		var s ArrayStruct
+		err := zaytraq.UnmarshalBytes(data, &s)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkOptimized_DynamicMap_ZaytraQS(b *testing.B) {
+	data := []byte(giantNestedQueryString)
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		var m map[string]any
+		err := zaytraq.UnmarshalBytes(data, &m)
 		if err != nil {
 			b.Fatal(err)
 		}

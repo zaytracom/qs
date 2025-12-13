@@ -145,7 +145,7 @@ func TestDecode(t *testing.T) {
 func TestMerge(t *testing.T) {
 	t.Run("nil source returns target", func(t *testing.T) {
 		target := map[string]any{"a": "b"}
-		result := Merge(target, nil, false)
+		result := Merge(target, nil)
 		if m, ok := result.(map[string]any); !ok || m["a"] != "b" {
 			t.Errorf("expected target unchanged, got %v", result)
 		}
@@ -153,7 +153,7 @@ func TestMerge(t *testing.T) {
 
 	t.Run("primitive source appends to slice target", func(t *testing.T) {
 		target := []any{"a", "b"}
-		result := Merge(target, "c", false)
+		result := Merge(target, "c")
 		slice, ok := result.([]any)
 		if !ok || len(slice) != 3 || slice[2] != "c" {
 			t.Errorf("expected [a b c], got %v", result)
@@ -162,35 +162,26 @@ func TestMerge(t *testing.T) {
 
 	t.Run("primitive source sets key on map target", func(t *testing.T) {
 		target := map[string]any{"a": "b"}
-		result := Merge(target, "c", false)
+		result := Merge(target, "c")
 		m, ok := result.(map[string]any)
 		if !ok || m["c"] != true {
 			t.Errorf("expected {a:b, c:true}, got %v", result)
 		}
 	})
 
-	t.Run("prototype key blocked without allowPrototypes", func(t *testing.T) {
+	t.Run("prototype key is normal in Go", func(t *testing.T) {
 		target := map[string]any{}
-		result := Merge(target, "__proto__", false)
-		m := result.(map[string]any)
-		if _, exists := m["__proto__"]; exists {
-			t.Error("__proto__ should be blocked")
-		}
-	})
-
-	t.Run("prototype key allowed with allowPrototypes", func(t *testing.T) {
-		target := map[string]any{}
-		result := Merge(target, "__proto__", true)
+		result := Merge(target, "__proto__")
 		m := result.(map[string]any)
 		if m["__proto__"] != true {
-			t.Error("__proto__ should be allowed")
+			t.Error("__proto__ should be a normal key")
 		}
 	})
 
 	t.Run("merge two maps", func(t *testing.T) {
 		target := map[string]any{"a": "1"}
 		source := map[string]any{"b": "2"}
-		result := Merge(target, source, false)
+		result := Merge(target, source)
 		m := result.(map[string]any)
 		if m["a"] != "1" || m["b"] != "2" {
 			t.Errorf("expected {a:1, b:2}, got %v", result)
@@ -204,7 +195,7 @@ func TestMerge(t *testing.T) {
 		source := map[string]any{
 			"a": map[string]any{"y": "2"},
 		}
-		result := Merge(target, source, false)
+		result := Merge(target, source)
 		m := result.(map[string]any)
 		nested := m["a"].(map[string]any)
 		if nested["x"] != "1" || nested["y"] != "2" {
@@ -215,7 +206,7 @@ func TestMerge(t *testing.T) {
 	t.Run("merge slices", func(t *testing.T) {
 		target := []any{"a", "b"}
 		source := []any{"c", "d", "e"}
-		result := Merge(target, source, false)
+		result := Merge(target, source)
 		slice := result.([]any)
 		// Existing indices are kept, new ones added
 		if len(slice) < 3 {
@@ -224,7 +215,7 @@ func TestMerge(t *testing.T) {
 	})
 
 	t.Run("primitive target with map source", func(t *testing.T) {
-		result := Merge("a", map[string]any{"b": "c"}, false)
+		result := Merge("a", map[string]any{"b": "c"})
 		slice, ok := result.([]any)
 		if !ok || len(slice) != 2 {
 			t.Errorf("expected [a, {b:c}], got %v", result)

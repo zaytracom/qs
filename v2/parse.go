@@ -8,6 +8,15 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/zaytracom/qs/v2/lang"
+)
+
+// Pre-compiled regular expressions for performance.
+var (
+	numericEntityRe = regexp.MustCompile(`&#(\d+);`)
+	dotNotationRe   = regexp.MustCompile(`\.([^.\[]+)`)
+	bracketRe       = regexp.MustCompile(`(\[[^\[\]]*\])`)
 )
 
 // DuplicateHandling specifies how duplicate keys should be handled during parsing.
@@ -41,11 +50,6 @@ type ParseOptions struct {
 	// Only applies when the key ends with [].
 	// Default: false
 	AllowEmptyArrays bool
-
-	// AllowPrototypes allows keys that would overwrite Object prototype properties.
-	// In Go this is less relevant but maintained for JS compatibility.
-	// Default: false
-	AllowPrototypes bool
 
 	// AllowSparse preserves sparse arrays without compacting them.
 	// When false, arrays like [a, undefined, b] become [a, b].
@@ -116,11 +120,6 @@ type ParseOptions struct {
 	// Default: true
 	ParseArrays bool
 
-	// PlainObjects creates objects without prototype (Go: less relevant).
-	// Maintained for JS compatibility.
-	// Default: false
-	PlainObjects bool
-
 	// StrictDepth returns an error when input depth exceeds Depth option.
 	// When false, excess depth is preserved as a literal key.
 	// Default: false
@@ -135,6 +134,15 @@ type ParseOptions struct {
 	// When false, excess parameters/elements are silently ignored.
 	// Default: false
 	ThrowOnLimitExceeded bool
+
+	// StrictMode enables strict syntax validation.
+	// When true, returns errors for:
+	// - Unclosed or unmatched brackets
+	// - Empty keys
+	// - Invalid percent-encoding sequences
+	// - Leading/trailing/consecutive dots (when AllowDots is true)
+	// Default: false
+	StrictMode bool
 }
 
 // Default values for ParseOptions
@@ -158,7 +166,6 @@ func DefaultParseOptions() ParseOptions {
 	return ParseOptions{
 		AllowDots:                false,
 		AllowEmptyArrays:         false,
-		AllowPrototypes:          false,
 		AllowSparse:              false,
 		ArrayLimit:               DefaultArrayLimit,
 		Charset:                  CharsetUTF8,
@@ -174,7 +181,6 @@ func DefaultParseOptions() ParseOptions {
 		InterpretNumericEntities: false,
 		ParameterLimit:           DefaultParameterLimit,
 		ParseArrays:              true,
-		PlainObjects:             false,
 		StrictDepth:              false,
 		StrictNullHandling:       false,
 		ThrowOnLimitExceeded:     false,
@@ -192,6 +198,17 @@ var (
 	ErrParameterLimitExceeded  = errors.New("parameter limit exceeded")
 	ErrArrayLimitExceeded      = errors.New("array limit exceeded")
 	ErrDepthLimitExceeded      = errors.New("depth limit exceeded")
+)
+
+// Strict mode errors (re-exported from lang package)
+var (
+	ErrUnclosedBracket        = lang.ErrUnclosedBracket
+	ErrUnmatchedCloseBracket  = lang.ErrUnmatchedCloseBracket
+	ErrEmptyKey               = lang.ErrEmptyKey
+	ErrInvalidPercentEncoding = lang.ErrInvalidPercentEncoding
+	ErrConsecutiveDots        = lang.ErrConsecutiveDots
+	ErrLeadingDot             = lang.ErrLeadingDot
+	ErrTrailingDot            = lang.ErrTrailingDot
 )
 
 // Charset sentinel values for auto-detection
@@ -266,13 +283,6 @@ func WithParseAllowDots(v bool) ParseOption {
 func WithParseAllowEmptyArrays(v bool) ParseOption {
 	return func(o *ParseOptions) {
 		o.AllowEmptyArrays = v
-	}
-}
-
-// WithParseAllowPrototypes allows keys that would overwrite Object prototype properties.
-func WithParseAllowPrototypes(v bool) ParseOption {
-	return func(o *ParseOptions) {
-		o.AllowPrototypes = v
 	}
 }
 
@@ -386,13 +396,6 @@ func WithParseArrays(v bool) ParseOption {
 	}
 }
 
-// WithParsePlainObjects creates objects without prototype.
-func WithParsePlainObjects(v bool) ParseOption {
-	return func(o *ParseOptions) {
-		o.PlainObjects = v
-	}
-}
-
 // WithParseStrictDepth returns an error when input depth exceeds Depth option.
 func WithParseStrictDepth(v bool) ParseOption {
 	return func(o *ParseOptions) {
@@ -414,6 +417,15 @@ func WithParseThrowOnLimitExceeded(v bool) ParseOption {
 	}
 }
 
+// WithParseStrictMode enables strict syntax validation.
+// When true, returns errors for unclosed brackets, empty keys,
+// invalid percent-encoding, and dot notation issues.
+func WithParseStrictMode(v bool) ParseOption {
+	return func(o *ParseOptions) {
+		o.StrictMode = v
+	}
+}
+
 // applyParseOptions applies functional options to a ParseOptions struct.
 func applyParseOptions(opts ...ParseOption) ParseOptions {
 	// Start with defaults but use sentinel values for numeric fields
@@ -431,8 +443,7 @@ func applyParseOptions(opts ...ParseOption) ParseOptions {
 // interpretNumericEntities converts HTML numeric entities (&#NNN;) to characters.
 // e.g., "&#9786;" → "☺"
 func interpretNumericEntitiesFunc(str string) string {
-	re := regexp.MustCompile(`&#(\d+);`)
-	return re.ReplaceAllStringFunc(str, func(match string) string {
+	return numericEntityRe.ReplaceAllStringFunc(str, func(match string) string {
 		// Extract the number between &# and ;
 		numStr := match[2 : len(match)-1]
 		num, err := strconv.Atoi(numStr)
@@ -443,24 +454,32 @@ func interpretNumericEntitiesFunc(str string) string {
 	})
 }
 
-// parseArrayValue handles comma-separated values and array limit checking.
-// Returns the value as-is, split by comma, or error if limit exceeded.
-func parseArrayValue(val string, opts *ParseOptions, currentArrayLength int) (any, error) {
-	if val != "" && opts.Comma && strings.Contains(val, ",") {
-		parts := strings.Split(val, ",")
-		// Convert []string to []any for consistent type handling
-		result := make([]any, len(parts))
-		for i, p := range parts {
-			result[i] = p
+// decodeBrackets decodes URL-encoded brackets (%5B/%5D) in a single pass.
+func decodeBrackets(s string) string {
+	if !strings.Contains(s, "%5") {
+		return s
+	}
+
+	var b strings.Builder
+	b.Grow(len(s))
+
+	for i := 0; i < len(s); {
+		if i+2 < len(s) && s[i] == '%' && s[i+1] == '5' {
+			switch s[i+2] {
+			case 'B', 'b':
+				b.WriteByte('[')
+				i += 3
+				continue
+			case 'D', 'd':
+				b.WriteByte(']')
+				i += 3
+				continue
+			}
 		}
-		return result, nil
+		b.WriteByte(s[i])
+		i++
 	}
-
-	if opts.ThrowOnLimitExceeded && currentArrayLength >= opts.ArrayLimit {
-		return nil, ErrArrayLimitExceeded
-	}
-
-	return val, nil
+	return b.String()
 }
 
 // splitByDelimiter splits a string by either a string delimiter or regexp.
@@ -489,25 +508,6 @@ func splitByDelimiter(str string, delimiter string, delimiterRegexp *regexp.Rege
 	}
 
 	return parts
-}
-
-// prototypeKeys are JavaScript Object prototype properties that should be blocked.
-var prototypeKeys = map[string]bool{
-	"__proto__":   true,
-	"constructor": true,
-	"prototype":   true,
-	// Common Object.prototype methods
-	"toString":             true,
-	"toLocaleString":       true,
-	"valueOf":              true,
-	"hasOwnProperty":       true,
-	"isPrototypeOf":        true,
-	"propertyIsEnumerable": true,
-}
-
-// isPrototypeKey checks if a key is a JavaScript prototype property.
-func isPrototypeProp(key string) bool {
-	return prototypeKeys[key]
 }
 
 // parseObject builds a nested object structure from a chain of keys.
@@ -564,12 +564,9 @@ func parseObject(chain []string, val any, opts *ParseOptions, valuesParsed bool)
 				arr := make([]any, index+1)
 				arr[index] = leaf
 				obj = arr
-			} else if decodedRoot != "__proto__" {
+			} else {
 				// Regular object key
 				objMap[decodedRoot] = leaf
-				obj = objMap
-			} else {
-				// __proto__ is ALWAYS blocked, regardless of allowPrototypes (security)
 				obj = objMap
 			}
 		}
@@ -591,16 +588,11 @@ func parseKeys(givenKey string, val any, opts *ParseOptions, valuesParsed bool) 
 	key := givenKey
 	if opts.AllowDots {
 		// Replace .foo with [foo], but not dots inside brackets
-		// Pattern: \.([^.[]+) -> [$1]
-		re := regexp.MustCompile(`\.([^.\[]+)`)
-		key = re.ReplaceAllString(key, "[$1]")
+		key = dotNotationRe.ReplaceAllString(key, "[$1]")
 	}
 
-	// Regex to find bracket segments
-	brackets := regexp.MustCompile(`(\[[^\[\]]*\])`)
-
 	// Find first bracket segment
-	segment := brackets.FindStringIndex(key)
+	segment := bracketRe.FindStringIndex(key)
 
 	var parent string
 	if opts.Depth > 0 && segment != nil {
@@ -613,42 +605,23 @@ func parseKeys(givenKey string, val any, opts *ParseOptions, valuesParsed bool) 
 	var keys []string
 
 	if parent != "" {
-		// Check prototype pollution for parent key
-		if !opts.PlainObjects && isPrototypeProp(parent) {
-			if !opts.AllowPrototypes {
-				return nil, nil
-			}
-		}
 		keys = append(keys, parent)
 	}
 
 	// Loop through bracket segments up to depth limit
 	i := 0
-	child := regexp.MustCompile(`(\[[^\[\]]*\])`)
 	remaining := ""
 	if segment != nil && opts.Depth > 0 {
 		remaining = key[segment[0]:]
 	}
 
 	for opts.Depth > 0 && i < opts.Depth {
-		match := child.FindStringIndex(remaining)
+		match := bracketRe.FindStringIndex(remaining)
 		if match == nil {
 			break
 		}
 
 		seg := remaining[match[0]:match[1]]
-
-		// Check prototype pollution for this segment
-		innerKey := seg
-		if len(seg) >= 2 {
-			innerKey = seg[1 : len(seg)-1] // Remove brackets
-		}
-		if !opts.PlainObjects && isPrototypeProp(innerKey) {
-			if !opts.AllowPrototypes {
-				return nil, nil
-			}
-		}
-
 		keys = append(keys, seg)
 		remaining = remaining[match[1]:]
 		i++
@@ -666,211 +639,6 @@ func parseKeys(givenKey string, val any, opts *ParseOptions, valuesParsed bool) 
 	}
 
 	return parseObject(keys, val, opts, valuesParsed), nil
-}
-
-// orderedResult holds parsed values with insertion order preserved.
-// This is needed because Go map iteration is randomized, but JS Object.keys()
-// returns keys in insertion order, which affects merge behavior.
-type orderedResult struct {
-	keys   []string       // keys in insertion order
-	values map[string]any // key-value pairs
-}
-
-// parseValues parses a query string into a flat map of key-value pairs.
-// This is the first stage of parsing before nested object reconstruction.
-func parseValues(str string, opts *ParseOptions) (orderedResult, error) {
-	result := orderedResult{
-		keys:   make([]string, 0),
-		values: make(map[string]any),
-	}
-
-	// Strip query prefix if requested
-	cleanStr := str
-	if opts.IgnoreQueryPrefix && len(cleanStr) > 0 && cleanStr[0] == '?' {
-		cleanStr = cleanStr[1:]
-	}
-
-	// Decode URL-encoded brackets for easier parsing
-	cleanStr = strings.ReplaceAll(cleanStr, "%5B", "[")
-	cleanStr = strings.ReplaceAll(cleanStr, "%5b", "[")
-	cleanStr = strings.ReplaceAll(cleanStr, "%5D", "]")
-	cleanStr = strings.ReplaceAll(cleanStr, "%5d", "]")
-
-	// Calculate limit for splitting
-	limit := opts.ParameterLimit
-	if opts.ThrowOnLimitExceeded {
-		limit = opts.ParameterLimit + 1
-	}
-
-	// Split by delimiter
-	parts := splitByDelimiter(cleanStr, opts.Delimiter, opts.DelimiterRegexp, limit)
-
-	// Check parameter limit
-	if opts.ThrowOnLimitExceeded && len(parts) > opts.ParameterLimit {
-		return orderedResult{}, ErrParameterLimitExceeded
-	}
-
-	// Detect charset from sentinel
-	charset := opts.Charset
-	skipIndex := -1
-	if opts.CharsetSentinel {
-		for i, part := range parts {
-			if strings.HasPrefix(part, "utf8=") {
-				if part == charsetSentinel {
-					charset = CharsetUTF8
-					skipIndex = i // Only skip if valid sentinel
-				} else if part == isoSentinel {
-					charset = CharsetISO88591
-					skipIndex = i // Only skip if valid sentinel
-				}
-				// If utf8= has unknown value, don't skip - treat as regular param
-				break
-			}
-		}
-	}
-
-	// Default decoder function
-	defaultDecoder := func(s string, cs Charset, kind string) (string, error) {
-		return Decode(s, cs), nil
-	}
-
-	decoder := opts.Decoder
-	if decoder == nil {
-		decoder = defaultDecoder
-	}
-
-	// Parse each part
-	for i, part := range parts {
-		if i == skipIndex {
-			continue
-		}
-
-		if part == "" {
-			continue
-		}
-
-		// Find the = sign, handling bracket notation like "a[]=b"
-		bracketEqualsPos := strings.Index(part, "]=")
-		var pos int
-		if bracketEqualsPos == -1 {
-			pos = strings.Index(part, "=")
-		} else {
-			pos = bracketEqualsPos + 1
-		}
-
-		var key string
-		var val any
-
-		if pos == -1 {
-			// No = sign, key only
-			decoded, err := decoder(part, charset, "key")
-			if err != nil {
-				return orderedResult{}, err
-			}
-			key = decoded
-			if opts.StrictNullHandling {
-				// Use ExplicitNullValue marker to distinguish from sparse array slots
-				val = ExplicitNullValue
-			} else {
-				val = ""
-			}
-		} else {
-			// Has = sign
-			keyPart := part[:pos]
-			valPart := part[pos+1:]
-
-			decoded, err := decoder(keyPart, charset, "key")
-			if err != nil {
-				return orderedResult{}, err
-			}
-			key = decoded
-
-			if key == "" {
-				continue
-			}
-
-			// Get current array length for limit checking
-			currentLen := 0
-			if existing, ok := result.values[key]; ok {
-				if arr, isArr := existing.([]any); isArr {
-					currentLen = len(arr)
-				}
-			}
-
-			// Handle comma-separated values and array limit
-			parsedVal, err := parseArrayValue(valPart, opts, currentLen)
-			if err != nil {
-				return orderedResult{}, err
-			}
-
-			// Decode the value(s) with error handling
-			if slice, ok := parsedVal.([]any); ok {
-				decodedSlice := make([]any, len(slice))
-				for i, v := range slice {
-					if s, ok := v.(string); ok {
-						decoded, err := decoder(s, charset, "value")
-						if err != nil {
-							return orderedResult{}, err
-						}
-						decodedSlice[i] = decoded
-					} else {
-						decodedSlice[i] = v
-					}
-				}
-				val = decodedSlice
-			} else if s, ok := parsedVal.(string); ok {
-				decoded, err := decoder(s, charset, "value")
-				if err != nil {
-					return orderedResult{}, err
-				}
-				val = decoded
-			} else {
-				val = parsedVal
-			}
-		}
-
-		// Interpret numeric entities if enabled
-		if val != nil && opts.InterpretNumericEntities && charset == CharsetISO88591 {
-			if s, ok := val.(string); ok {
-				val = interpretNumericEntitiesFunc(s)
-			} else if arr, ok := val.([]any); ok {
-				for i, v := range arr {
-					if s, ok := v.(string); ok {
-						arr[i] = interpretNumericEntitiesFunc(s)
-					}
-				}
-			}
-		}
-
-		// Handle []= (empty bracket) notation - wrap in array
-		if strings.Contains(part, "[]=") {
-			if arr, ok := val.([]any); ok {
-				val = []any{arr}
-			}
-		}
-
-		// Handle duplicate keys
-		if key != "" {
-			if existing, exists := result.values[key]; exists {
-				switch opts.Duplicates {
-				case DuplicateCombine:
-					result.values[key] = Combine(existing, val)
-				case DuplicateFirst:
-					// Keep existing, do nothing
-				case DuplicateLast:
-					result.values[key] = val
-				default:
-					result.values[key] = Combine(existing, val)
-				}
-			} else {
-				// New key - track insertion order
-				result.keys = append(result.keys, key)
-				result.values[key] = val
-			}
-		}
-	}
-
-	return result, nil
 }
 
 // Parse parses a URL query string into a map.
@@ -900,27 +668,88 @@ func Parse(str string, opts ...ParseOption) (map[string]any, error) {
 		return make(map[string]any), nil
 	}
 
-	// Parse the query string into flat key-value pairs
-	tempObj, err := parseValues(str, &normalizedOpts)
+	// For regexp delimiter or multi-char string delimiter, fall back to split-based parsing
+	if normalizedOpts.DelimiterRegexp != nil || len(normalizedOpts.Delimiter) > 1 {
+		return parseWithRegexpDelimiter(str, &normalizedOpts)
+	}
+
+	// Build AST config from parse options
+	cfg := buildLangConfig(&normalizedOpts)
+
+	// Estimate arena size
+	arena := lang.NewArena(estimateParams(str))
+
+	// Parse directly with AST parser
+	qs, detectedCharset, err := lang.Parse(arena, str, cfg)
 	if err != nil {
+		if err == lang.ErrParameterLimitExceeded {
+			return nil, ErrParameterLimitExceeded
+		}
+		if err == lang.ErrDepthLimitExceeded {
+			return nil, ErrDepthLimitExceeded
+		}
 		return nil, err
 	}
 
-	// Build nested structure using parseKeys
-	// Iterate in insertion order (like JS Object.keys())
-	result := make(map[string]any)
+	// Use detected charset (from sentinel) if charset sentinel is enabled
+	charset := normalizedOpts.Charset
+	if normalizedOpts.CharsetSentinel {
+		charset = charsetFromLang(detectedCharset)
+	}
 
-	for _, key := range tempObj.keys {
-		val := tempObj.values[key]
-		// Parse nested keys and build object structure
-		newObj, err := parseKeys(key, val, &normalizedOpts, true)
-		if err != nil {
-			return nil, err
+	// Accumulate values by raw key, storing chain only once per unique key
+	type accumulated struct {
+		chain []string
+		val   any
+	}
+	keyOrder := make([]string, 0, qs.ParamLen)
+	keyData := make(map[string]*accumulated, qs.ParamLen)
+
+	for i := uint16(0); i < qs.ParamLen; i++ {
+		param := arena.Params[i]
+		rawKey := arena.GetString(param.Key.Raw)
+
+		if existing, exists := keyData[rawKey]; exists {
+			// Key already seen - just accumulate value
+			val, err := extractValue(arena, param, charset, &normalizedOpts)
+			if err != nil {
+				return nil, err
+			}
+
+			switch normalizedOpts.Duplicates {
+			case DuplicateFirst:
+				// Keep existing
+			case DuplicateLast:
+				existing.val = val
+			default:
+				if normalizedOpts.ThrowOnLimitExceeded {
+					if arr, isArr := existing.val.([]any); isArr && len(arr) >= normalizedOpts.ArrayLimit {
+						return nil, ErrArrayLimitExceeded
+					}
+				}
+				existing.val = Combine(existing.val, val)
+			}
+		} else {
+			// First occurrence - build full key info
+			info, err := buildKeyInfo(arena, param, charset, &normalizedOpts)
+			if err != nil {
+				return nil, err
+			}
+			if info == nil {
+				continue
+			}
+			keyOrder = append(keyOrder, rawKey)
+			keyData[rawKey] = &accumulated{chain: info.chain, val: info.val}
 		}
+	}
 
+	// Build nested structure from accumulated values
+	result := make(map[string]any)
+	for _, rawKey := range keyOrder {
+		data := keyData[rawKey]
+		newObj := parseObject(data.chain, data.val, &normalizedOpts, true)
 		if newObj != nil {
-			// Merge into result
-			merged := Merge(result, newObj, normalizedOpts.AllowPrototypes)
+			merged := Merge(result, newObj)
 			if m, ok := merged.(map[string]any); ok {
 				result = m
 			}
@@ -928,16 +757,490 @@ func Parse(str string, opts ...ParseOption) (map[string]any, error) {
 	}
 
 	// Compact sparse arrays if AllowSparse is false
-	// Compact will convert ExplicitNullValue markers to actual nil while preserving them
 	if !normalizedOpts.AllowSparse {
 		compacted := Compact(result)
 		if m, ok := compacted.(map[string]any); ok {
 			return m, nil
 		}
 	} else {
-		// Even with AllowSparse, we need to convert ExplicitNullValue markers to nil
 		convertExplicitNulls(result)
 	}
 
 	return result, nil
+}
+
+// buildLangConfig converts ParseOptions to lang.Config.
+func buildLangConfig(opts *ParseOptions) lang.Config {
+	cfg := lang.DefaultConfig()
+
+	// Delimiter (single byte only, regexp handled separately)
+	if opts.Delimiter != "" && len(opts.Delimiter) == 1 {
+		cfg.Delimiter = opts.Delimiter[0]
+	}
+
+	// Depth and limits
+	if opts.Depth >= 0 {
+		cfg.Depth = uint16(opts.Depth)
+	}
+	if opts.ArrayLimit >= 0 {
+		cfg.ArrayLimit = uint16(opts.ArrayLimit)
+	}
+	if opts.ParameterLimit >= 0 {
+		cfg.ParameterLimit = uint16(opts.ParameterLimit)
+	}
+
+	cfg.ParseArrays = opts.ParseArrays
+	cfg.Charset = charsetToLang(opts.Charset)
+
+	// Flags
+	if opts.AllowDots {
+		cfg.Flags |= lang.FlagAllowDots
+	}
+	if opts.Comma {
+		cfg.Flags |= lang.FlagComma
+	}
+	if opts.StrictNullHandling {
+		cfg.Flags |= lang.FlagStrictNullHandling
+	}
+	if opts.StrictDepth {
+		cfg.Flags |= lang.FlagStrictDepth
+	}
+	if opts.IgnoreQueryPrefix {
+		cfg.Flags |= lang.FlagIgnoreQueryPrefix
+	}
+	if opts.CharsetSentinel {
+		cfg.Flags |= lang.FlagCharsetSentinel
+	}
+	if opts.DecodeDotInKeys {
+		cfg.Flags |= lang.FlagDecodeDotInKeys
+	}
+	if opts.ThrowOnLimitExceeded {
+		cfg.Flags |= lang.FlagThrowOnLimitExceeded
+	}
+	if opts.StrictMode {
+		cfg.Flags |= lang.FlagStrictMode
+	}
+
+	return cfg
+}
+
+// keyInfoResult holds parsed key chain and value for accumulation.
+type keyInfoResult struct {
+	chain []string
+	val   any
+}
+
+// getDecoder returns the decoder function from options or default.
+func getDecoder(opts *ParseOptions) DecoderFunc {
+	if opts.Decoder != nil {
+		return opts.Decoder
+	}
+	return func(s string, cs Charset, kind string) (string, error) {
+		return Decode(s, cs), nil
+	}
+}
+
+// extractValue extracts only the value from a param (no chain building).
+func extractValue(arena *lang.Arena, param lang.Param, charset Charset, opts *ParseOptions) (any, error) {
+	decoder := getDecoder(opts)
+	key := param.Key
+
+	var val any
+	if !param.HasEquals {
+		if opts.StrictNullHandling {
+			val = ExplicitNullValue
+		} else {
+			val = ""
+		}
+	} else if param.ValueIdx != 0xFFFF {
+		v := arena.Values[param.ValueIdx]
+		switch v.Kind {
+		case lang.ValNull:
+			if opts.StrictNullHandling {
+				val = ExplicitNullValue
+			} else {
+				val = ""
+			}
+		case lang.ValComma:
+			parts := make([]any, v.PartsLen)
+			for j := uint8(0); j < v.PartsLen; j++ {
+				partSpan := arena.ValueParts[int(v.PartsOff)+int(j)]
+				decoded, err := decoder(arena.GetString(partSpan), charset, "value")
+				if err != nil {
+					return nil, err
+				}
+				parts[j] = decoded
+			}
+			val = parts
+		default:
+			decoded, err := decoder(arena.GetString(v.Raw), charset, "value")
+			if err != nil {
+				return nil, err
+			}
+			val = decoded
+		}
+	} else {
+		val = ""
+	}
+
+	if opts.InterpretNumericEntities && charset == CharsetISO88591 {
+		val = applyNumericEntities(val)
+	}
+
+	// Wrap comma-split array if key ends with []
+	if key.SegLen > 0 {
+		lastSeg := arena.Segments[int(key.SegStart)+int(key.SegLen)-1]
+		if lastSeg.Kind == lang.SegEmpty {
+			if arr, ok := val.([]any); ok {
+				val = []any{arr}
+			}
+		}
+	}
+
+	return val, nil
+}
+
+// applyNumericEntities interprets numeric entities in value.
+func applyNumericEntities(val any) any {
+	if s, ok := val.(string); ok {
+		return interpretNumericEntitiesFunc(s)
+	}
+	if arr, ok := val.([]any); ok {
+		for i, v := range arr {
+			if s, ok := v.(string); ok {
+				arr[i] = interpretNumericEntitiesFunc(s)
+			}
+		}
+	}
+	return val
+}
+
+// buildKeyInfo extracts key chain and value from AST param.
+func buildKeyInfo(arena *lang.Arena, param lang.Param, charset Charset, opts *ParseOptions) (*keyInfoResult, error) {
+	key := param.Key
+	if key.SegLen == 0 {
+		return nil, nil
+	}
+
+	decoder := getDecoder(opts)
+
+	// Get the value
+	val, err := extractValue(arena, param, charset, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build chain of keys from segments
+	chain := make([]string, 0, key.SegLen)
+	for j := uint8(0); j < key.SegLen; j++ {
+		seg := arena.Segments[int(key.SegStart)+int(j)]
+		decoded, err := decoder(arena.GetString(seg.Span), charset, "key")
+		if err != nil {
+			return nil, err
+		}
+
+		switch seg.Kind {
+		case lang.SegEmpty:
+			chain = append(chain, "[]")
+		case lang.SegLiteral:
+			chain = append(chain, "["+decoded+"]")
+		default: // SegIdent, SegIndex
+			if seg.Notation == lang.NotationRoot {
+				chain = append(chain, decoded)
+			} else {
+				chain = append(chain, "["+decoded+"]")
+			}
+		}
+	}
+
+	return &keyInfoResult{chain: chain, val: val}, nil
+}
+
+// parseWithRegexpDelimiter handles parsing when a regexp or multi-char delimiter is used.
+// This falls back to the split-based approach since lang.Parse only supports single-byte delimiters.
+func parseWithRegexpDelimiter(str string, opts *ParseOptions) (map[string]any, error) {
+	// Strip query prefix if requested
+	cleanStr := str
+	if opts.IgnoreQueryPrefix && len(cleanStr) > 0 && cleanStr[0] == '?' {
+		cleanStr = cleanStr[1:]
+	}
+
+	// Calculate limit for splitting
+	limit := opts.ParameterLimit
+	if opts.ThrowOnLimitExceeded {
+		limit = opts.ParameterLimit + 1
+	}
+
+	// Split by regexp delimiter
+	parts := splitByDelimiter(cleanStr, opts.Delimiter, opts.DelimiterRegexp, limit)
+
+	// Check parameter limit
+	if opts.ThrowOnLimitExceeded && len(parts) > opts.ParameterLimit {
+		return nil, ErrParameterLimitExceeded
+	}
+
+	// Detect charset from sentinel
+	charset := opts.Charset
+	skipIndex := -1
+	if opts.CharsetSentinel {
+		for i, part := range parts {
+			if strings.HasPrefix(part, "utf8=") {
+				if part == charsetSentinel {
+					charset = CharsetUTF8
+					skipIndex = i
+				} else if part == isoSentinel {
+					charset = CharsetISO88591
+					skipIndex = i
+				}
+				break
+			}
+		}
+	}
+
+	// Setup decoder
+	decoder := opts.Decoder
+	if decoder == nil {
+		decoder = func(s string, cs Charset, kind string) (string, error) {
+			return Decode(s, cs), nil
+		}
+	}
+
+	// Parse each part
+	result := make(map[string]any)
+	for i, part := range parts {
+		if i == skipIndex || part == "" {
+			continue
+		}
+
+		// Find the = separator (respecting brackets)
+		eqIdx := findEqualsOutsideBrackets(part)
+
+		var key, val string
+		hasEquals := false
+		if eqIdx >= 0 {
+			key = part[:eqIdx]
+			val = part[eqIdx+1:]
+			hasEquals = true
+		} else {
+			key = part
+		}
+
+		// Decode brackets in key
+		key = decodeBrackets(key)
+
+		// Decode key
+		decodedKey, err := decoder(key, charset, "key")
+		if err != nil {
+			return nil, err
+		}
+		if decodedKey == "" {
+			continue
+		}
+
+		// Handle value
+		var parsedVal any
+		if !hasEquals {
+			if opts.StrictNullHandling {
+				parsedVal = ExplicitNullValue
+			} else {
+				parsedVal = ""
+			}
+		} else {
+			// Handle comma values
+			if val != "" && opts.Comma && strings.Contains(val, ",") {
+				valParts := strings.Split(val, ",")
+				arr := make([]any, len(valParts))
+				for j, p := range valParts {
+					decoded, err := decoder(p, charset, "value")
+					if err != nil {
+						return nil, err
+					}
+					arr[j] = decoded
+				}
+				parsedVal = arr
+			} else {
+				decoded, err := decoder(val, charset, "value")
+				if err != nil {
+					return nil, err
+				}
+				parsedVal = decoded
+			}
+
+			// Interpret numeric entities if enabled
+			if opts.InterpretNumericEntities && charset == CharsetISO88591 {
+				if s, ok := parsedVal.(string); ok {
+					parsedVal = interpretNumericEntitiesFunc(s)
+				} else if arr, ok := parsedVal.([]any); ok {
+					for j, v := range arr {
+						if s, ok := v.(string); ok {
+							arr[j] = interpretNumericEntitiesFunc(s)
+						}
+					}
+				}
+			}
+
+			// Handle []= pattern
+			if strings.Contains(part, "[]=") {
+				if arr, ok := parsedVal.([]any); ok {
+					parsedVal = []any{arr}
+				}
+			}
+		}
+
+		// Build nested structure
+		newObj, err := parseKeys(decodedKey, parsedVal, opts, true)
+		if err != nil {
+			return nil, err
+		}
+
+		if newObj != nil {
+			switch opts.Duplicates {
+			case DuplicateFirst:
+				result = mergeKeepFirst(result, newObj)
+			case DuplicateLast:
+				result = mergeKeepLast(result, newObj)
+			default:
+				merged := Merge(result, newObj)
+				if m, ok := merged.(map[string]any); ok {
+					result = m
+				}
+			}
+		}
+	}
+
+	// Compact sparse arrays if AllowSparse is false
+	if !opts.AllowSparse {
+		compacted := Compact(result)
+		if m, ok := compacted.(map[string]any); ok {
+			return m, nil
+		}
+	} else {
+		convertExplicitNulls(result)
+	}
+
+	return result, nil
+}
+
+// findEqualsOutsideBrackets finds the index of '=' that is not inside brackets.
+func findEqualsOutsideBrackets(s string) int {
+	depth := 0
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch c {
+		case '[':
+			depth++
+		case ']':
+			if depth > 0 {
+				depth--
+			}
+		case '%':
+			// Check for encoded brackets
+			if i+2 < len(s) && s[i+1] == '5' {
+				switch s[i+2] {
+				case 'B', 'b':
+					depth++
+					i += 2
+				case 'D', 'd':
+					if depth > 0 {
+						depth--
+					}
+					i += 2
+				}
+			}
+		case '=':
+			if depth == 0 {
+				return i
+			}
+		}
+	}
+	return -1
+}
+
+// estimateParams estimates the number of parameters in a query string.
+func estimateParams(s string) int {
+	if s == "" {
+		return 0
+	}
+	n := 1
+	for i := 0; i < len(s); i++ {
+		if s[i] == '&' {
+			n++
+		}
+	}
+	return n
+}
+
+// mergeKeepFirst merges newObj into result, keeping first values for duplicates.
+func mergeKeepFirst(result map[string]any, newObj any) map[string]any {
+	newMap, ok := newObj.(map[string]any)
+	if !ok {
+		return result
+	}
+
+	for key, newVal := range newMap {
+		existingVal, exists := result[key]
+		if !exists {
+			result[key] = newVal
+			continue
+		}
+
+		// Handle nested objects - recurse
+		existingMap, existingIsMap := existingVal.(map[string]any)
+		newValMap, newIsMap := newVal.(map[string]any)
+		if existingIsMap && newIsMap {
+			result[key] = mergeKeepFirst(existingMap, newValMap)
+			continue
+		}
+
+		// For arrays, keep existing
+		// For scalar values, keep existing
+		// This is the "first" behavior
+	}
+
+	return result
+}
+
+// mergeKeepLast merges newObj into result, keeping last values for duplicates.
+func mergeKeepLast(result map[string]any, newObj any) map[string]any {
+	newMap, ok := newObj.(map[string]any)
+	if !ok {
+		return result
+	}
+
+	for key, newVal := range newMap {
+		existingVal, exists := result[key]
+		if !exists {
+			result[key] = newVal
+			continue
+		}
+
+		// Handle nested objects - recurse
+		existingMap, existingIsMap := existingVal.(map[string]any)
+		newValMap, newIsMap := newVal.(map[string]any)
+		if existingIsMap && newIsMap {
+			result[key] = mergeKeepLast(existingMap, newValMap)
+			continue
+		}
+
+		// For non-map values, keep the new one (last wins)
+		result[key] = newVal
+	}
+
+	return result
+}
+
+// charsetToLang converts qs.Charset to lang.Charset.
+func charsetToLang(c Charset) lang.Charset {
+	if c == CharsetISO88591 {
+		return lang.CharsetISO88591
+	}
+	return lang.CharsetUTF8
+}
+
+// charsetFromLang converts lang.Charset to qs.Charset.
+func charsetFromLang(c lang.Charset) Charset {
+	if c == lang.CharsetISO88591 {
+		return CharsetISO88591
+	}
+	return CharsetUTF8
 }

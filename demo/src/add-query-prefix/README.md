@@ -17,14 +17,13 @@ qs.stringify({ a: "b" }, { addQueryPrefix: true, encode: false })
 Go:
 
 ```go
-qs.Stringify(map[string]any{"a": "b"}, qs.WithEncode(false))
+qs.Stringify(map[string]any{"a": "b"}, qs.WithStringifyEncode(false))
 // a=b
 
 qs.Stringify(
   map[string]any{"a": "b"},
   qs.WithStringifyAddQueryPrefix(true),
-  qs.WithEncode(false),
+  qs.WithStringifyEncode(false),
 )
 // ?a=b
 ```
-

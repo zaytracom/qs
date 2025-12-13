@@ -1,0 +1,39 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/zaytracom/qs/benchmarks
+BenchmarkEncode_Simple_ZaytraQS-10              	11219916	        97.24 ns/op	     208 B/op	       2 allocs/op
+BenchmarkEncode_Simple_GorillaSchema-10         	 1789600	       677.9 ns/op	     256 B/op	      14 allocs/op
+BenchmarkEncode_Simple_PlaygroundForm-10        	 3763755	       320.3 ns/op	     485 B/op	      10 allocs/op
+BenchmarkEncode_Simple_AjgForm-10               	  827181	      1458 ns/op	    1120 B/op	      23 allocs/op
+BenchmarkEncode_Simple_GoogleQS-10              	 1240146	       970.4 ns/op	     656 B/op	      20 allocs/op
+BenchmarkEncode_Nested_ZaytraQS-10              	12111088	        99.41 ns/op	     224 B/op	       2 allocs/op
+BenchmarkEncode_Nested_PlaygroundForm-10        	 2887540	       409.4 ns/op	     528 B/op	      10 allocs/op
+BenchmarkEncode_Nested_AjgForm-10               	  456920	      2588 ns/op	    2072 B/op	      41 allocs/op
+BenchmarkEncode_Nested_GoogleQS-10              	  867668	      1360 ns/op	     776 B/op	      30 allocs/op
+BenchmarkEncode_Array_ZaytraQS-10               	12560276	        96.27 ns/op	     184 B/op	       2 allocs/op
+BenchmarkEncode_Array_PlaygroundForm-10         	 2405964	       501.6 ns/op	     724 B/op	      15 allocs/op
+BenchmarkEncode_Array_AjgForm-10                	  567943	      2137 ns/op	    1472 B/op	      32 allocs/op
+BenchmarkEncode_Array_GoogleQS-10               	 1380483	       843.3 ns/op	     816 B/op	      20 allocs/op
+BenchmarkEncode_Giant_ZaytraQS-10               	   72655	     16533 ns/op	   18205 B/op	     351 allocs/op
+BenchmarkDecode_Simple_ZaytraQS-10              	  463017	      2534 ns/op	    3160 B/op	      47 allocs/op
+BenchmarkDecode_Simple_GorillaSchema-10         	  696928	      1725 ns/op	     792 B/op	      40 allocs/op
+BenchmarkDecode_Simple_PlaygroundForm-10        	 8366780	       121.4 ns/op	      48 B/op	       1 allocs/op
+BenchmarkDecode_Simple_AjgForm-10               	  478662	      2530 ns/op	     944 B/op	      32 allocs/op
+BenchmarkDecode_Nested_ZaytraQS-10              	  311918	      3794 ns/op	    4848 B/op	      68 allocs/op
+BenchmarkDecode_Nested_PlaygroundForm-10        	 3491461	       344.8 ns/op	      64 B/op	       1 allocs/op
+BenchmarkDecode_Array_ZaytraQS-10               	  326884	      3672 ns/op	    4944 B/op	      82 allocs/op
+BenchmarkDecode_Array_PlaygroundForm-10         	 2972041	       412.7 ns/op	     208 B/op	       8 allocs/op
+BenchmarkDecode_DynamicMap_ZaytraQS-10          	   39618	     30540 ns/op	   43735 B/op	     558 allocs/op
+BenchmarkFairDecode_Simple_ZaytraQS-10          	  493252	      2516 ns/op	    3160 B/op	      47 allocs/op
+BenchmarkFairDecode_Simple_GorillaSchema-10     	  579158	      2066 ns/op	     872 B/op	      45 allocs/op
+BenchmarkFairDecode_Simple_PlaygroundForm-10    	 2341412	       515.6 ns/op	     528 B/op	       8 allocs/op
+BenchmarkFairDecode_Simple_AjgForm-10           	  417451	      2888 ns/op	    1024 B/op	      37 allocs/op
+BenchmarkFairDecode_Nested_ZaytraQS-10          	  314323	      3876 ns/op	    4848 B/op	      68 allocs/op
+BenchmarkFairDecode_Nested_PlaygroundForm-10    	 1489040	       804.5 ns/op	     528 B/op	       7 allocs/op
+BenchmarkFairDecode_Nested_AjgForm-10           	  319621	      3810 ns/op	    1736 B/op	      40 allocs/op
+BenchmarkFairDecode_Array_ZaytraQS-10           	  328065	      3664 ns/op	    4944 B/op	      82 allocs/op
+BenchmarkFairDecode_Array_GorillaSchema-10      	  911564	      1356 ns/op	    1208 B/op	      30 allocs/op
+BenchmarkFairDecode_Array_PlaygroundForm-10     	 1394398	       835.3 ns/op	     848 B/op	      14 allocs/op
+BenchmarkFairDecode_Array_AjgForm-10            	  340899	      3514 ns/op	    1507 B/op	      38 allocs/op
+PASS
+ok  	github.com/zaytracom/qs/benchmarks	48.945s
