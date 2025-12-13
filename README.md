@@ -7,20 +7,19 @@
 [![GitHub release](https://img.shields.io/github/v/release/zaytracom/qs?include_prereleases)](https://github.com/zaytracom/qs/releases)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-Full-featured Go port of the popular JavaScript [`qs`](https://github.com/ljharb/qs) library — parse and stringify URL query strings with nested objects, arrays, and all the tricky edge cases.
+Full-featured Go port of the popular JavaScript [`qs`](https://github.com/ljharb/qs) library — parse and stringify URL query strings with nested structures, arrays, and all the tricky edge cases.
 
 ## Table of Contents
 
 - [Features](#-features)
+  - [When should you use qs?](#when-should-you-use-qs)
+  - [Why qs over other libraries?](#why-qs-over-other-libraries)
 - [Installation](#installation)
 - [Quick Start](#-quick-start)
 - [Real-World Example: Strapi API](#-real-world-example-strapi-api)
 - [Comparison with Other Libraries](#comparison-with-other-qs-libraries)
 - [Array Formats](#array-formats-supported)
 - [JS `qs` Option Compatibility](#js-qs-option-compatibility)
-  - [Parse Options](#parse-options)
-  - [Stringify Options](#stringify-options)
-  - [Go-only Extensions](#-go-only-extensions)
 - [Parser Architecture](#parser-architecture-arena-backed-on)
 - [Performance](#performance)
 - [Documentation](#documentation)
@@ -29,9 +28,9 @@ Full-featured Go port of the popular JavaScript [`qs`](https://github.com/ljharb
 
 ## ✨ Features
 
-- 🔍 **Parse** query strings into nested Go values (`map[string]any`, `[]any`) — see `qs.Parse` below.
-- 📝 **Stringify** Go values into query strings (arrays, nested objects, filters/sort) — see `qs.Stringify` below.
-- 🌳 **Any nesting depth** — structs, `map[string]any`, slices, and any JSON-like structure of arbitrary complexity.
+- 🔍 **Parse** query strings into `map[string]any` or structs — see `qs.Parse` below.
+- 📝 **Stringify** `map[string]any`, structs, slices into query strings — see `qs.Stringify` below.
+- 🌳 **Any nesting depth** — structs, maps, slices of arbitrary complexity.
 - 🧩 **JS `qs` compatibility** — validated via the JS compatibility test suite.
 - 🏷️ **Struct API** via `query` tags (`Marshal` / `Unmarshal`).
 - 🎯 **Array formats**: indices, brackets, repeat, comma.
@@ -39,6 +38,23 @@ Full-featured Go port of the popular JavaScript [`qs`](https://github.com/ljharb
 - 📋 **Encoding formats**: RFC 1738 / RFC 3986.
 - ⚡ **Fast** — arena-backed parser, minimal allocations, single-pass processing.
 - 🧪 **Well-tested** — high test coverage, JS compatibility test suite, [benchmarks](#performance).
+
+### When should you use `qs`?
+
+Use `qs` if you need:
+- **JS `qs`-compatible query strings** — Strapi, Keystone, or any API expecting JS `qs` format
+- **Nested filters / deep objects in URLs** — `filters[user][role][$eq]=admin`
+- **Parsing into `map[string]any`** — not only structs, but dynamic data
+- **Strict validation** — catch malformed keys, unmatched brackets, invalid encoding
+
+### Why `qs` over other libraries?
+
+| | `qs` (this repo) | Others |
+|:--|:--|:--|
+| Parse into dynamic `map[string]any` | ✅ | ❌ most only decode into structs |
+| Full JS `qs` compatibility | ✅ battle-tested semantics | ❌ partial or different format |
+| Strict mode for invalid syntax | ✅ | ❌ |
+| Arena-backed parser | ✅ predictable performance | ❌ |
 
 ## Installation
 
@@ -48,7 +64,7 @@ go get github.com/zaytracom/qs/v2
 
 ## 🚀 Quick Start
 
-### Parse query string into nested map
+### Parse query string into `map[string]any`
 
 ```go
 import "github.com/zaytracom/qs/v2"
@@ -65,7 +81,7 @@ result, _ := qs.Parse(query)
 // }
 ```
 
-### Stringify nested map into query string
+### Stringify `map[string]any` into query string
 
 ```go
 data := map[string]any{
@@ -153,7 +169,7 @@ The `WithStringifyEncodeValuesOnly(true)` option keeps brackets in keys unencode
 | Decode struct | ✅ | ✅ | ❌ | ✅ | ✅ |
 | Struct tags | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Nested objects/arrays | ✅ | ❌ | ✅ | ✅ | ✅ |
-| Nested `map[string]any` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Dynamic `map[string]any` | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Multiple array formats | ✅ | ❌ | ✅ | ✅ | ✅ |
 | Depth/limits controls | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Charset sentinel + ISO-8859-1 | ✅ | ❌ | ❌ | ❌ | ❌ |
@@ -170,9 +186,17 @@ The `WithStringifyEncodeValuesOnly(true)` option keeps brackets in keys unencode
 
 ## JS `qs` option compatibility
 
-This library is a Go port of JS `qs`, so most options map 1:1. The table below highlights what exists on both sides and where Go differs.
+This library is a Go port of JS `qs`, so most options map 1:1.
 
-### Parse options
+**Most used options:**
+- `AllowDots` — dot notation (`a.b=c`)
+- `ArrayFormat` — `indices` / `brackets` / `repeat` / `comma`
+- `Depth` — max nesting depth
+- `StrictNullHandling` — `a` → `null` vs `""`
+- `EncodeValuesOnly` — keep brackets unencoded (useful for Strapi)
+
+<details>
+<summary><strong>Parse options (full table)</strong></summary>
 
 | Option | JS `qs` | Go `qs` | Notes |
 |:--|:--:|:--:|:--|
@@ -198,7 +222,10 @@ This library is a Go port of JS `qs`, so most options map 1:1. The table below h
 | `AllowPrototypes` / `PlainObjects` | ✅ | N/A | JS-only prototype pollution controls; in Go keys like `__proto__`, `constructor`, `prototype` are treated as normal map keys [→](demo/src/allow-prototypes-plain-objects/README.md) |
 | `StrictMode` | ❌ | ✅ | Go-only: strict syntax validation (unmatched brackets, invalid percent-encoding, etc.) [→](demo/src/strict-mode/README.md) |
 
-### Stringify options
+</details>
+
+<details>
+<summary><strong>Stringify options (full table)</strong></summary>
 
 | Option | JS `qs` | Go `qs` | Notes |
 |:--|:--:|:--:|:--|
@@ -220,6 +247,8 @@ This library is a Go port of JS `qs`, so most options map 1:1. The table below h
 | `SkipNulls` | ✅ | ✅ | Drop null keys [→](demo/src/skip-nulls/README.md) |
 | `Sort` | ✅ | ✅ | Custom key ordering [→](demo/src/sort/README.md) |
 | `StrictNullHandling` | ✅ | ✅ | `null` → `a` vs `a=` [→](demo/src/strict-null-handling/README.md) |
+
+</details>
 
 ### 🔥 Go-only extensions
 
