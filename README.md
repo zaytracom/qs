@@ -9,15 +9,36 @@
 
 Full-featured Go port of the popular JavaScript [`qs`](https://github.com/ljharb/qs) library — parse and stringify URL query strings with nested objects, arrays, and all the tricky edge cases.
 
+## Table of Contents
+
+- [Features](#-features)
+- [Installation](#installation)
+- [Quick Start](#-quick-start)
+- [Real-World Example: Strapi API](#-real-world-example-strapi-api)
+- [Comparison with Other Libraries](#comparison-with-other-qs-libraries)
+- [Array Formats](#array-formats-supported)
+- [JS `qs` Option Compatibility](#js-qs-option-compatibility)
+  - [Parse Options](#parse-options)
+  - [Stringify Options](#stringify-options)
+  - [Go-only Extensions](#-go-only-extensions)
+- [Parser Architecture](#parser-architecture-arena-backed-on)
+- [Performance](#performance)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [License](#license)
+
 ## ✨ Features
 
 - 🔍 **Parse** query strings into nested Go values (`map[string]any`, `[]any`) — see `qs.Parse` below.
 - 📝 **Stringify** Go values into query strings (arrays, nested objects, filters/sort) — see `qs.Stringify` below.
+- 🌳 **Any nesting depth** — structs, `map[string]any`, slices, and any JSON-like structure of arbitrary complexity.
 - 🧩 **JS `qs` compatibility** — validated via the JS compatibility test suite.
 - 🏷️ **Struct API** via `query` tags (`Marshal` / `Unmarshal`).
 - 🎯 **Array formats**: indices, brackets, repeat, comma.
 - ⚙️ **Limits + charset**: depth controls, UTF-8/ISO-8859-1, charset sentinel.
 - 📋 **Encoding formats**: RFC 1738 / RFC 3986.
+- ⚡ **Fast** — arena-backed parser, minimal allocations, single-pass processing.
+- 🧪 **Well-tested** — high test coverage, JS compatibility test suite, [benchmarks](#performance).
 
 ## Installation
 
@@ -78,6 +99,51 @@ var parsed Request
 qs.Unmarshal("page=2&limit=20&tags[0]=rust", &parsed)
 // Request{Page: 2, Limit: 20, Tags: []string{"rust"}}
 ```
+
+## 🌐 Real-World Example: Strapi API
+
+[Strapi](https://strapi.io/) uses `qs`-style query strings for filtering, sorting, pagination, and population. Here's how to build complex Strapi queries in Go:
+
+```go
+import (
+    "net/http"
+    "github.com/zaytracom/qs/v2"
+)
+
+// Fetch published articles from 2024, written by verified authors,
+// sorted by date, with author and category data included
+query, _ := qs.Stringify(map[string]any{
+    "filters": map[string]any{
+        "status":      map[string]any{"$eq": "published"},
+        "publishedAt": map[string]any{"$gte": "2024-01-01"},
+        "author": map[string]any{
+            "verified": map[string]any{"$eq": true},
+        },
+    },
+    "sort": []any{"publishedAt:desc", "title:asc"},
+    "pagination": map[string]any{
+        "page":     1,
+        "pageSize": 10,
+    },
+    "populate": map[string]any{
+        "author":     map[string]any{"fields": []any{"name", "avatar"}},
+        "categories": map[string]any{"fields": []any{"name", "slug"}},
+        "cover":      map[string]any{"fields": []any{"url"}},
+    },
+    "fields": []any{"title", "slug", "excerpt", "publishedAt"},
+},
+    qs.WithStringifyEncodeValuesOnly(true),
+)
+
+// Result:
+// filters[status][$eq]=published&filters[publishedAt][$gte]=2024-01-01&
+// filters[author][verified][$eq]=true&sort[0]=publishedAt:desc&sort[1]=title:asc&
+// pagination[page]=1&pagination[pageSize]=10&populate[author][fields][0]=name&...
+
+resp, _ := http.Get("https://api.example.com/api/articles?" + query)
+```
+
+The `WithStringifyEncodeValuesOnly(true)` option keeps brackets in keys unencoded for better readability — exactly how Strapi expects it. See [full Strapi examples →](demo/src/strapi-api/README.md)
 
 ## Comparison with Other QS Libraries
 
