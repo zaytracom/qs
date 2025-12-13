@@ -49,11 +49,6 @@ type ParseOptions struct {
 	// Default: false
 	AllowEmptyArrays bool
 
-	// AllowPrototypes allows keys that would overwrite Object prototype properties.
-	// In Go this is less relevant but maintained for JS compatibility.
-	// Default: false
-	AllowPrototypes bool
-
 	// AllowSparse preserves sparse arrays without compacting them.
 	// When false, arrays like [a, undefined, b] become [a, b].
 	// Default: false
@@ -123,11 +118,6 @@ type ParseOptions struct {
 	// Default: true
 	ParseArrays bool
 
-	// PlainObjects creates objects without prototype (Go: less relevant).
-	// Maintained for JS compatibility.
-	// Default: false
-	PlainObjects bool
-
 	// StrictDepth returns an error when input depth exceeds Depth option.
 	// When false, excess depth is preserved as a literal key.
 	// Default: false
@@ -165,7 +155,6 @@ func DefaultParseOptions() ParseOptions {
 	return ParseOptions{
 		AllowDots:                false,
 		AllowEmptyArrays:         false,
-		AllowPrototypes:          false,
 		AllowSparse:              false,
 		ArrayLimit:               DefaultArrayLimit,
 		Charset:                  CharsetUTF8,
@@ -181,7 +170,6 @@ func DefaultParseOptions() ParseOptions {
 		InterpretNumericEntities: false,
 		ParameterLimit:           DefaultParameterLimit,
 		ParseArrays:              true,
-		PlainObjects:             false,
 		StrictDepth:              false,
 		StrictNullHandling:       false,
 		ThrowOnLimitExceeded:     false,
@@ -273,13 +261,6 @@ func WithParseAllowDots(v bool) ParseOption {
 func WithParseAllowEmptyArrays(v bool) ParseOption {
 	return func(o *ParseOptions) {
 		o.AllowEmptyArrays = v
-	}
-}
-
-// WithParseAllowPrototypes allows keys that would overwrite Object prototype properties.
-func WithParseAllowPrototypes(v bool) ParseOption {
-	return func(o *ParseOptions) {
-		o.AllowPrototypes = v
 	}
 }
 
@@ -390,13 +371,6 @@ func WithParseParameterLimit(v int) ParseOption {
 func WithParseArrays(v bool) ParseOption {
 	return func(o *ParseOptions) {
 		o.ParseArrays = v
-	}
-}
-
-// WithParsePlainObjects creates objects without prototype.
-func WithParsePlainObjects(v bool) ParseOption {
-	return func(o *ParseOptions) {
-		o.PlainObjects = v
 	}
 }
 
@@ -525,25 +499,6 @@ func splitByDelimiter(str string, delimiter string, delimiterRegexp *regexp.Rege
 	return parts
 }
 
-// prototypeKeys are JavaScript Object prototype properties that should be blocked.
-var prototypeKeys = map[string]bool{
-	"__proto__":   true,
-	"constructor": true,
-	"prototype":   true,
-	// Common Object.prototype methods
-	"toString":             true,
-	"toLocaleString":       true,
-	"valueOf":              true,
-	"hasOwnProperty":       true,
-	"isPrototypeOf":        true,
-	"propertyIsEnumerable": true,
-}
-
-// isPrototypeKey checks if a key is a JavaScript prototype property.
-func isPrototypeProp(key string) bool {
-	return prototypeKeys[key]
-}
-
 // parseObject builds a nested object structure from a chain of keys.
 // chain is like ["a", "[b]", "[c]"] and val is the leaf value.
 // It builds from the leaf up: {c: val} -> {b: {c: val}} -> {a: {b: {c: val}}}
@@ -598,12 +553,9 @@ func parseObject(chain []string, val any, opts *ParseOptions, valuesParsed bool)
 				arr := make([]any, index+1)
 				arr[index] = leaf
 				obj = arr
-			} else if decodedRoot != "__proto__" {
+			} else {
 				// Regular object key
 				objMap[decodedRoot] = leaf
-				obj = objMap
-			} else {
-				// __proto__ is ALWAYS blocked, regardless of allowPrototypes (security)
 				obj = objMap
 			}
 		}
@@ -642,12 +594,6 @@ func parseKeys(givenKey string, val any, opts *ParseOptions, valuesParsed bool) 
 	var keys []string
 
 	if parent != "" {
-		// Check prototype pollution for parent key
-		if !opts.PlainObjects && isPrototypeProp(parent) {
-			if !opts.AllowPrototypes {
-				return nil, nil
-			}
-		}
 		keys = append(keys, parent)
 	}
 
@@ -665,18 +611,6 @@ func parseKeys(givenKey string, val any, opts *ParseOptions, valuesParsed bool) 
 		}
 
 		seg := remaining[match[0]:match[1]]
-
-		// Check prototype pollution for this segment
-		innerKey := seg
-		if len(seg) >= 2 {
-			innerKey = seg[1 : len(seg)-1] // Remove brackets
-		}
-		if !opts.PlainObjects && isPrototypeProp(innerKey) {
-			if !opts.AllowPrototypes {
-				return nil, nil
-			}
-		}
-
 		keys = append(keys, seg)
 		remaining = remaining[match[1]:]
 		i++
@@ -945,7 +879,7 @@ func Parse(str string, opts ...ParseOption) (map[string]any, error) {
 
 		if newObj != nil {
 			// Merge into result
-			merged := Merge(result, newObj, normalizedOpts.AllowPrototypes)
+			merged := Merge(result, newObj)
 			if m, ok := merged.(map[string]any); ok {
 				result = m
 			}

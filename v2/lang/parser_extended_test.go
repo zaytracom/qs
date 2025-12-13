@@ -766,63 +766,48 @@ func TestParse_CharsetSentinel_OnlyFirst(t *testing.T) {
 // PROTOTYPE KEY TESTS
 // =============================================================================
 
-func TestParse_ProtoAlwaysBlocked(t *testing.T) {
+func TestParse_ProtoIsNormalKey(t *testing.T) {
+	// In Go there's no prototype pollution, so __proto__ is just a normal key
 	arena := NewArena(8)
 	cfg := DefaultConfig()
-	cfg.Flags |= FlagAllowPrototypes // Even with this flag!
 
 	_, _, err := Parse(arena, "__proto__=x&a=b", cfg)
 	if err != nil {
 		t.Fatalf("Parse: %v", err)
 	}
-	// __proto__ is ALWAYS blocked
-	if len(arena.Params) != 1 {
-		t.Fatalf("expected 1 param, got %d", len(arena.Params))
-	}
-	if got := arena.GetString(arena.Params[0].Key.Raw); got != "a" {
-		t.Fatalf("expected 'a', got %q", got)
+	// Both params should be parsed - __proto__ is a normal key
+	if len(arena.Params) != 2 {
+		t.Fatalf("expected 2 params, got %d", len(arena.Params))
 	}
 }
 
-func TestParse_PrototypeKeysBlocked(t *testing.T) {
+func TestParse_PrototypeKeysAreNormal(t *testing.T) {
+	// In Go, these are just normal keys (no prototype pollution)
 	arena := NewArena(8)
 	cfg := DefaultConfig()
 
-	blocked := []string{
+	keys := []string{
 		"constructor",
 		"prototype",
 		"toString",
 		"hasOwnProperty",
 	}
 
-	for _, key := range blocked {
+	for _, key := range keys {
 		arena.Reset("")
 		_, _, err := Parse(arena, key+"=x&ok=y", cfg)
 		if err != nil {
 			t.Fatalf("Parse %s: %v", key, err)
 		}
-		if len(arena.Params) != 1 {
-			t.Errorf("%s: expected 1 param, got %d", key, len(arena.Params))
+		// Both params should be parsed
+		if len(arena.Params) != 2 {
+			t.Errorf("%s: expected 2 params, got %d", key, len(arena.Params))
 		}
 	}
 }
 
-func TestParse_PrototypeKeysAllowed(t *testing.T) {
-	arena := NewArena(8)
-	cfg := DefaultConfig()
-	cfg.Flags |= FlagAllowPrototypes
-
-	_, _, err := Parse(arena, "constructor=x&prototype=y", cfg)
-	if err != nil {
-		t.Fatalf("Parse: %v", err)
-	}
-	// With AllowPrototypes, these should be kept
-	if len(arena.Params) != 2 {
-		t.Fatalf("expected 2 params, got %d", len(arena.Params))
-	}
-}
-
 func TestParse_ProtoInNested(t *testing.T) {
+	// In Go, __proto__ in nested position is also just a normal key
 	arena := NewArena(8)
 	cfg := DefaultConfig()
 
@@ -830,38 +815,23 @@ func TestParse_ProtoInNested(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Parse: %v", err)
 	}
-	// __proto__ as nested key should be blocked
-	if len(arena.Params) != 1 {
-		t.Fatalf("expected 1 param, got %d", len(arena.Params))
+	// Both params should be parsed
+	if len(arena.Params) != 2 {
+		t.Fatalf("expected 2 params, got %d", len(arena.Params))
 	}
 }
 
 func TestParse_ProtoEncoded(t *testing.T) {
+	// Encoded __proto__ is also just a normal key in Go
 	arena := NewArena(8)
 	cfg := DefaultConfig()
 
-	// __proto__ with some chars encoded
 	// %5F = '_'
 	_, _, err := Parse(arena, "%5F%5Fproto%5F%5F=x&a=b", cfg)
 	if err != nil {
 		t.Fatalf("Parse: %v", err)
 	}
-	// Encoded __proto__ should also be blocked
-	if len(arena.Params) != 1 {
-		t.Fatalf("expected 1 param, got %d", len(arena.Params))
-	}
-}
-
-func TestParse_PlainObjects(t *testing.T) {
-	arena := NewArena(8)
-	cfg := DefaultConfig()
-	cfg.PlainObjects = true
-
-	// PlainObjects should allow prototype keys (except __proto__)
-	_, _, err := Parse(arena, "constructor=x&prototype=y", cfg)
-	if err != nil {
-		t.Fatalf("Parse: %v", err)
-	}
+	// Both params should be parsed
 	if len(arena.Params) != 2 {
 		t.Fatalf("expected 2 params, got %d", len(arena.Params))
 	}

@@ -650,36 +650,8 @@ func (p *Parser) makeIdentSegment(span Span, notation Notation, isFirst bool) (S
 }
 
 func (p *Parser) isBlockedSegment(seg Segment) bool {
-	if seg.Kind == SegEmpty || seg.Kind == SegIndex || seg.Kind == SegLiteral {
-		return false
-	}
-
-	// __proto__ is always blocked.
-	if spanEqualsDecodedASCII(p.src, seg.Span, "__proto__") {
-		return true
-	}
-
-	if p.cfg.PlainObjects || p.cfg.Flags.Has(FlagAllowPrototypes) {
-		return false
-	}
-
-	for i := 0; i < len(prototypeKeys); i++ {
-		if spanEqualsDecodedASCII(p.src, seg.Span, prototypeKeys[i]) {
-			return true
-		}
-	}
+	// In Go there's no prototype pollution, so nothing is blocked
 	return false
-}
-
-var prototypeKeys = [...]string{
-	"constructor",
-	"prototype",
-	"toString",
-	"toLocaleString",
-	"valueOf",
-	"hasOwnProperty",
-	"isPrototypeOf",
-	"propertyIsEnumerable",
 }
 
 func (p *Parser) makeSpan(start, end uint32) (Span, error) {

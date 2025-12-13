@@ -864,8 +864,8 @@ func TestDialect_CharsetSentinel_ISO(t *testing.T) {
 // PROTOTYPE BLOCKING TESTS
 // =============================================================================
 
-func TestDialect_ProtoBlocked(t *testing.T) {
-	// From TestAllowPrototypes
+func TestDialect_ProtoIsNormalKey(t *testing.T) {
+	// In Go there's no prototype pollution, so __proto__ is just a normal key
 	input := "a[__proto__][b]=c&normal=value"
 	cfg := DefaultConfig()
 
@@ -875,22 +875,16 @@ func TestDialect_ProtoBlocked(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	// __proto__ param should be skipped
-	if len(arena.Params) != 1 {
-		t.Errorf("expected 1 param (__proto__ blocked), got %d", len(arena.Params))
-	}
-
-	seg := arena.Segments[arena.Params[0].Key.SegStart]
-	if arena.GetString(seg.Span) != "normal" {
-		t.Errorf("expected 'normal', got %q", arena.GetString(seg.Span))
+	// Both params should be parsed - __proto__ is a normal key in Go
+	if len(arena.Params) != 2 {
+		t.Errorf("expected 2 params (__proto__ is normal key), got %d", len(arena.Params))
 	}
 }
 
-func TestDialect_ProtoAllowed(t *testing.T) {
-	// With FlagAllowPrototypes (but __proto__ still blocked!)
+func TestDialect_PrototypeKeysAreNormal(t *testing.T) {
+	// In Go, constructor and prototype are just normal keys
 	input := "constructor=x&prototype=y"
 	cfg := DefaultConfig()
-	cfg.Flags |= FlagAllowPrototypes
 
 	arena := NewArena(32)
 	_, _, err := Parse(arena, input, cfg)
@@ -898,7 +892,7 @@ func TestDialect_ProtoAllowed(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	// With AllowPrototypes, constructor and prototype are allowed
+	// Both should be parsed as normal keys
 	if len(arena.Params) != 2 {
 		t.Errorf("expected 2 params, got %d", len(arena.Params))
 	}

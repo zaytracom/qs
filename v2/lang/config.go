@@ -23,7 +23,6 @@ const (
 	FlagAllowDots Flags = 1 << iota
 	// FlagAllowEmptyArrays affects semantic build (Phase 3); AST parsing records spans only.
 	FlagAllowEmptyArrays
-	FlagAllowPrototypes
 	FlagAllowSparse
 	FlagComma
 	FlagStrictNullHandling
@@ -57,8 +56,7 @@ type Config struct {
 	ArrayLimit     uint16
 	ParameterLimit uint16
 
-	ParseArrays  bool
-	PlainObjects bool
+	ParseArrays bool
 
 	Charset Charset
 }
@@ -73,7 +71,6 @@ func DefaultConfig() Config {
 		ArrayLimit:     DefaultArrayLimit,
 		ParameterLimit: DefaultParameterLimit,
 		ParseArrays:    true,
-		PlainObjects:   false,
 		Charset:        CharsetUTF8,
 	}
 }

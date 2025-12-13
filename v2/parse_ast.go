@@ -70,7 +70,6 @@ func parseValuesAST(str string, opts *ParseOptions) (orderedResult, error) {
 	arena := lang.NewArena(1)
 	cfg := lang.DefaultConfig()
 	cfg.Delimiter = '&'
-	cfg.PlainObjects = true // do not block prototype keys at AST layer
 	if opts.Comma {
 		cfg.Flags |= lang.FlagComma
 	}

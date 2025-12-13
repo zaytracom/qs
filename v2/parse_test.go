@@ -35,9 +35,6 @@ func TestDefaultParseOptions(t *testing.T) {
 	if opts.AllowEmptyArrays != false {
 		t.Errorf("AllowEmptyArrays = %v, want false", opts.AllowEmptyArrays)
 	}
-	if opts.AllowPrototypes != false {
-		t.Errorf("AllowPrototypes = %v, want false", opts.AllowPrototypes)
-	}
 	if opts.AllowSparse != false {
 		t.Errorf("AllowSparse = %v, want false", opts.AllowSparse)
 	}
@@ -82,9 +79,6 @@ func TestDefaultParseOptions(t *testing.T) {
 	}
 	if opts.ParseArrays != true {
 		t.Errorf("ParseArrays = %v, want true", opts.ParseArrays)
-	}
-	if opts.PlainObjects != false {
-		t.Errorf("PlainObjects = %v, want false", opts.PlainObjects)
 	}
 	if opts.StrictDepth != false {
 		t.Errorf("StrictDepth = %v, want false", opts.StrictDepth)
@@ -278,13 +272,6 @@ func TestFunctionalOptions(t *testing.T) {
 		}
 	})
 
-	t.Run("WithAllowPrototypes", func(t *testing.T) {
-		opts := applyParseOptions(WithParseAllowPrototypes(true))
-		if !opts.AllowPrototypes {
-			t.Error("WithParseAllowPrototypes(true) should set AllowPrototypes to true")
-		}
-	})
-
 	t.Run("WithAllowSparse", func(t *testing.T) {
 		opts := applyParseOptions(WithParseAllowSparse(true))
 		if !opts.AllowSparse {
@@ -422,13 +409,6 @@ func TestFunctionalOptions(t *testing.T) {
 		opts := applyParseOptions(WithParseArrays(false))
 		if opts.ParseArrays {
 			t.Error("WithParseArrays(false) should set ParseArrays to false")
-		}
-	})
-
-	t.Run("WithPlainObjects", func(t *testing.T) {
-		opts := applyParseOptions(WithParsePlainObjects(true))
-		if !opts.PlainObjects {
-			t.Error("WithParsePlainObjects(true) should set PlainObjects to true")
 		}
 	})
 
@@ -1156,37 +1136,26 @@ func TestParseArrays(t *testing.T) {
 	})
 }
 
-func TestParsePrototypeProtection(t *testing.T) {
-	t.Run("ignores __proto__ by default", func(t *testing.T) {
+func TestParseJSPrototypeKeys(t *testing.T) {
+	// In Go there's no prototype pollution, so __proto__ etc. are just regular keys
+	t.Run("__proto__ is a normal key in Go", func(t *testing.T) {
 		result, err := Parse("__proto__[a]=b")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		// __proto__ should be ignored
-		if _, ok := result["__proto__"]; ok {
-			t.Error("__proto__ should be ignored by default")
+		// __proto__ is just a normal key in Go
+		if _, ok := result["__proto__"]; !ok {
+			t.Error("__proto__ should be allowed as a normal key")
 		}
 	})
 
-	t.Run("__proto__ is ALWAYS blocked even with AllowPrototypes", func(t *testing.T) {
-		// __proto__ is a security risk and should always be blocked
-		// This matches JS qs library behavior
-		result, err := Parse("__proto__=bad", WithParseAllowPrototypes(true))
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if _, ok := result["__proto__"]; ok {
-			t.Error("__proto__ should always be blocked, even with AllowPrototypes")
-		}
-	})
-
-	t.Run("ignores constructor by default", func(t *testing.T) {
+	t.Run("constructor is a normal key in Go", func(t *testing.T) {
 		result, err := Parse("constructor[prototype]=bad")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if _, ok := result["constructor"]; ok {
-			t.Error("constructor should be ignored by default")
+		if _, ok := result["constructor"]; !ok {
+			t.Error("constructor should be allowed as a normal key")
 		}
 	})
 }
@@ -2066,39 +2035,20 @@ func TestJSPercentEncodedComma(t *testing.T) {
 }
 
 // ===========================================
-// JS Test: "does not allow overwriting prototype properties"
+// JS Test: "prototype keys are normal keys in Go"
 // ===========================================
-func TestJSPrototypeProtection(t *testing.T) {
-	// st.deepEqual(qs.parse('a[hasOwnProperty]=b', { allowPrototypes: false }), {});
-	result, _ := Parse("a[hasOwnProperty]=b", WithParseAllowPrototypes(false))
-	assertEqual(t, result, map[string]any{}, "hasOwnProperty blocked")
-
-	// st.deepEqual(qs.parse('hasOwnProperty=b', { allowPrototypes: false }), {});
-	result, _ = Parse("hasOwnProperty=b", WithParseAllowPrototypes(false))
-	assertEqual(t, result, map[string]any{}, "top-level hasOwnProperty blocked")
-
-	// st.deepEqual(qs.parse('toString', { allowPrototypes: false }), {});
-	result, _ = Parse("toString", WithParseAllowPrototypes(false))
-	assertEqual(t, result, map[string]any{}, "toString blocked")
-}
-
-// ===========================================
-// JS Test: "can allow overwriting prototype properties"
-// ===========================================
-func TestJSAllowPrototypes(t *testing.T) {
-	// st.deepEqual(qs.parse('a[hasOwnProperty]=b', { allowPrototypes: true }), { a: { hasOwnProperty: 'b' } });
-	result, _ := Parse("a[hasOwnProperty]=b", WithParseAllowPrototypes(true))
+func TestJSPrototypeKeysAreNormal(t *testing.T) {
+	// In Go there's no prototype pollution, so these are just normal keys
+	result, _ := Parse("a[hasOwnProperty]=b")
 	assertEqual(t, result, map[string]any{
 		"a": map[string]any{"hasOwnProperty": "b"},
-	}, "hasOwnProperty allowed")
+	}, "hasOwnProperty is normal key")
 
-	// st.deepEqual(qs.parse('hasOwnProperty=b', { allowPrototypes: true }), { hasOwnProperty: 'b' });
-	result, _ = Parse("hasOwnProperty=b", WithParseAllowPrototypes(true))
-	assertEqual(t, result, map[string]any{"hasOwnProperty": "b"}, "top-level hasOwnProperty allowed")
+	result, _ = Parse("hasOwnProperty=b")
+	assertEqual(t, result, map[string]any{"hasOwnProperty": "b"}, "top-level hasOwnProperty")
 
-	// st.deepEqual(qs.parse('toString', { allowPrototypes: true }), { toString: '' });
-	result, _ = Parse("toString", WithParseAllowPrototypes(true))
-	assertEqual(t, result, map[string]any{"toString": ""}, "toString allowed")
+	result, _ = Parse("toString")
+	assertEqual(t, result, map[string]any{"toString": ""}, "toString is normal key")
 }
 
 // ===========================================
@@ -2145,45 +2095,41 @@ func TestJSAddKeysToObjects(t *testing.T) {
 		"a": map[string]any{"b": "c", "d": true},
 	}, "add primitive to object")
 
-	// st.deepEqual(qs.parse('a[b]=c&a=toString'), { a: { b: 'c' } });
+	// In Go, toString is just a normal key (no prototype pollution)
 	result, _ = Parse("a[b]=c&a=toString")
 	assertEqual(t, result, map[string]any{
-		"a": map[string]any{"b": "c"},
-	}, "toString blocked")
-
-	// st.deepEqual(qs.parse('a[b]=c&a=toString', { allowPrototypes: true }), { a: { b: 'c', toString: true } });
-	result, _ = Parse("a[b]=c&a=toString", WithParseAllowPrototypes(true))
-	assertEqual(t, result, map[string]any{
 		"a": map[string]any{"b": "c", "toString": true},
-	}, "toString allowed")
+	}, "toString is normal key in Go")
 }
 
 // ===========================================
-// JS Test: "dunder proto is ignored"
+// JS Test: "__proto__ is a normal key in Go"
 // ===========================================
 func TestJSDunderProto(t *testing.T) {
-	// var payload = 'categories[__proto__]=login&categories[__proto__]&categories[length]=42';
-	// var result = qs.parse(payload, { allowPrototypes: true });
-	// st.deepEqual(result, { categories: { length: '42' } });
-	result, _ := Parse("categories[__proto__]=login&categories[__proto__]&categories[length]=42", WithParseAllowPrototypes(true))
-	assertEqual(t, result, map[string]any{
-		"categories": map[string]any{"length": "42"},
-	}, "__proto__ ignored")
-
-	// var query = qs.parse('categories[__proto__]=cats&categories[__proto__]=dogs&categories[some][json]=toInject', { allowPrototypes: true });
-	// st.deepEqual(query.categories, { some: { json: 'toInject' } });
-	result, _ = Parse("categories[__proto__]=cats&categories[__proto__]=dogs&categories[some][json]=toInject", WithParseAllowPrototypes(true))
+	// In Go there's no prototype pollution, so __proto__ is just a normal key
+	result, _ := Parse("categories[__proto__]=login&categories[__proto__]&categories[length]=42")
 	assertEqual(t, result, map[string]any{
 		"categories": map[string]any{
-			"some": map[string]any{"json": "toInject"},
+			"__proto__": []any{"login", nil},
+			"length":    "42",
 		},
-	}, "__proto__ values ignored")
+	}, "__proto__ is normal key")
 
-	// st.deepEqual(qs.parse('foo[__proto__][hidden]=value&foo[bar]=stuffs', { allowPrototypes: true }), { foo: { bar: 'stuffs' } });
-	result, _ = Parse("foo[__proto__][hidden]=value&foo[bar]=stuffs", WithParseAllowPrototypes(true))
+	result, _ = Parse("categories[__proto__]=cats&categories[__proto__]=dogs&categories[some][json]=toInject")
 	assertEqual(t, result, map[string]any{
-		"foo": map[string]any{"bar": "stuffs"},
-	}, "__proto__ nested ignored")
+		"categories": map[string]any{
+			"__proto__": []any{"cats", "dogs"},
+			"some":      map[string]any{"json": "toInject"},
+		},
+	}, "__proto__ values are kept")
+
+	result, _ = Parse("foo[__proto__][hidden]=value&foo[bar]=stuffs")
+	assertEqual(t, result, map[string]any{
+		"foo": map[string]any{
+			"__proto__": map[string]any{"hidden": "value"},
+			"bar":       "stuffs",
+		},
+	}, "__proto__ nested is kept")
 }
 
 // ===========================================
@@ -2782,36 +2728,6 @@ func TestJSURLEncodedBracketsArrayOfArrays(t *testing.T) {
 }
 
 // ===========================================
-// JS Test: "can return null objects" (plainObjects option)
-// ===========================================
-func TestJSPlainObjects(t *testing.T) {
-	// In Go, PlainObjects doesn't have the same effect as JS (no prototype chain)
-	// but we test that the option is accepted and parsing works
-	result, err := Parse("a[b]=c", WithParsePlainObjects(true))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	a, ok := result["a"].(map[string]any)
-	if !ok {
-		t.Fatalf("result['a'] should be map, got %T", result["a"])
-	}
-	if a["b"] != "c" {
-		t.Errorf("result['a']['b'] = %v, want 'c'", a["b"])
-	}
-
-	// With plainObjects, prototype keys like "toString" should be allowed
-	result, err = Parse("toString=foo", WithParsePlainObjects(true))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if result["toString"] != "foo" {
-		t.Errorf("result['toString'] = %v, want 'foo'", result["toString"])
-	}
-}
-
-// ===========================================
 // Additional edge cases
 // ===========================================
 func TestJSSkipsEmptyStringKey(t *testing.T) {
@@ -2908,10 +2824,9 @@ func TestDetailedJSCompat(t *testing.T) {
 		// sparse compact
 		{"a[10]=1&a[2]=2", []ParseOption{WithParseArrayLimit(20)}, map[string]any{"a": []any{"2", "1"}}, "sparse compact"},
 
-		// prototype
-		{"a[hasOwnProperty]=b", []ParseOption{WithParseAllowPrototypes(false)}, map[string]any{}, "hasOwn blocked"},
-		{"hasOwnProperty=b", []ParseOption{WithParseAllowPrototypes(false)}, map[string]any{}, "top hasOwn blocked"},
-		{"a[hasOwnProperty]=b", []ParseOption{WithParseAllowPrototypes(true)}, map[string]any{"a": map[string]any{"hasOwnProperty": "b"}}, "hasOwn allowed"},
+		// prototype keys are normal in Go (no prototype pollution)
+		{"a[hasOwnProperty]=b", nil, map[string]any{"a": map[string]any{"hasOwnProperty": "b"}}, "hasOwn normal"},
+		{"hasOwnProperty=b", nil, map[string]any{"hasOwnProperty": "b"}, "top hasOwn normal"},
 
 		// special
 		{"a[b]=c&a=d", nil, map[string]any{"a": map[string]any{"b": "c", "d": true}}, "add key to obj"},
@@ -2975,9 +2890,9 @@ func TestDetailedJSCompat2(t *testing.T) {
 		{"{%:%}", []ParseOption{WithParseStrictNullHandling(true)}, map[string]any{"{%:%}": nil}, "malformed null"},
 		{"foo=%:%}", nil, map[string]any{"foo": "%:%}"}, "malformed val"},
 
-		// __proto__ always blocked
-		{"categories[__proto__]=login&categories[length]=42", []ParseOption{WithParseAllowPrototypes(true)}, map[string]any{"categories": map[string]any{"length": "42"}}, "__proto__ blocked"},
-		{"__proto__=bad", []ParseOption{WithParseAllowPrototypes(true)}, map[string]any{}, "__proto__ top"},
+		// __proto__ is a normal key in Go
+		{"categories[__proto__]=login&categories[length]=42", nil, map[string]any{"categories": map[string]any{"__proto__": "login", "length": "42"}}, "__proto__ normal"},
+		{"__proto__=bad", nil, map[string]any{"__proto__": "bad"}, "__proto__ top"},
 
 		// Encoded brackets
 		{"a%5Bb%5D=c", nil, map[string]any{"a": map[string]any{"b": "c"}}, "enc brackets"},
