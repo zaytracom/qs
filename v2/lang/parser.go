@@ -75,6 +75,8 @@ func (p *Parser) ParseInto(input string) (QueryString, Charset, error) {
 	paramStart := uint32(start)
 	keyEnd := uint32(start)
 	hasEquals := false
+	bracketDepth := uint16(0)
+	firstIgnoredEquals := uint32(0)
 
 	var emitted uint32
 	limit := uint32(p.cfg.ParameterLimit)
@@ -94,6 +96,10 @@ func (p *Parser) ParseInto(input string) (QueryString, Charset, error) {
 			if state == stateKey {
 				keyEnd = end
 				hasEquals = false
+				if firstIgnoredEquals != 0 {
+					keyEnd = firstIgnoredEquals
+					hasEquals = true
+				}
 			} else {
 				hasEquals = true
 			}
@@ -121,12 +127,45 @@ func (p *Parser) ParseInto(input string) (QueryString, Charset, error) {
 			state = stateKey
 			keyEnd = paramStart
 			hasEquals = false
+			bracketDepth = 0
+			firstIgnoredEquals = 0
 			continue
 		}
 
-		if c == '=' && state == stateKey {
-			keyEnd = i
-			state = stateValue
+		if state == stateKey {
+			ii := int(i)
+			end := int(srcLen)
+
+			if openLen := lbracketTokenLen(p.src, ii, end); openLen != 0 {
+				bracketDepth++
+				i += uint32(openLen - 1)
+				continue
+			}
+			if closeLen := rbracketTokenLen(p.src, ii, end); closeLen != 0 {
+				if bracketDepth > 0 {
+					bracketDepth--
+					if bracketDepth == 0 {
+						next := i + uint32(closeLen)
+						if next < srcLen && p.src[next] == '=' {
+							keyEnd = next
+							state = stateValue
+							i = next
+							continue
+						}
+					}
+				}
+				i += uint32(closeLen - 1)
+				continue
+			}
+
+			if c == '=' {
+				if bracketDepth == 0 {
+					keyEnd = i
+					state = stateValue
+				} else if firstIgnoredEquals == 0 {
+					firstIgnoredEquals = i
+				}
+			}
 		}
 	}
 
@@ -562,9 +601,11 @@ func (p *Parser) makeBracketSegment(content Span) (Segment, bool, error) {
 	kind := SegIdent
 	index := int32(-1)
 	if p.cfg.ParseArrays {
-		if v, ok := parseCanonicalUint(content, p.src); ok && v <= uint32(p.cfg.ArrayLimit) {
-			kind = SegIndex
-			index = int32(v)
+		if v, ok := parseCanonicalUint(content, p.src); ok {
+			if v <= uint32(p.cfg.ArrayLimit) {
+				kind = SegIndex
+				index = int32(v)
+			}
 		}
 	}
 	seg := Segment{
@@ -585,9 +626,11 @@ func (p *Parser) makeIdentSegment(span Span, notation Notation, isFirst bool) (S
 
 	// Only non-root segments can be indexes (qs compatibility).
 	if notation != NotationRoot && p.cfg.ParseArrays {
-		if v, ok := parseCanonicalUint(span, p.src); ok && v <= uint32(p.cfg.ArrayLimit) {
-			kind = SegIndex
-			index = int32(v)
+		if v, ok := parseCanonicalUint(span, p.src); ok {
+			if v <= uint32(p.cfg.ArrayLimit) {
+				kind = SegIndex
+				index = int32(v)
+			}
 		}
 	}
 

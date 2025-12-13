@@ -926,7 +926,12 @@ func Parse(str string, opts ...ParseOption) (map[string]any, error) {
 	}
 
 	// Parse the query string into flat key-value pairs
-	tempObj, err := parseValues(str, &normalizedOpts)
+	var tempObj orderedResult
+	if normalizedOpts.DelimiterRegexp == nil && len(normalizedOpts.Delimiter) == 1 {
+		tempObj, err = parseValuesAST(str, &normalizedOpts)
+	} else {
+		tempObj, err = parseValues(str, &normalizedOpts)
+	}
 	if err != nil {
 		return nil, err
 	}

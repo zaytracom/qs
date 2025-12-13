@@ -72,6 +72,47 @@ func TestParse_BracketsAndIndex(t *testing.T) {
 	}
 }
 
+func TestParse_EqualsInsideBrackets_KeyValueSplit(t *testing.T) {
+	arena := NewArena(8)
+	cfg := DefaultConfig()
+
+	_, _, err := Parse(arena, "a[>=]=23&a[<=>]==23&a[==]=23", cfg)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if len(arena.Params) != 3 {
+		t.Fatalf("params: %d", len(arena.Params))
+	}
+
+	// a[>=]=23 -> segments: a, >= ; value: 23
+	{
+		p := arena.Params[0]
+		if arena.GetString(p.Key.Raw) != "a[>=]" {
+			t.Fatalf("p0 key: %q", arena.GetString(p.Key.Raw))
+		}
+		if p.Key.SegLen != 2 {
+			t.Fatalf("p0 seglen: %d", p.Key.SegLen)
+		}
+		s1 := arena.Segments[p.Key.SegStart+1]
+		if arena.GetString(s1.Span) != ">=" {
+			t.Fatalf("p0 seg1: %q", arena.GetString(s1.Span))
+		}
+		v := arena.Values[p.ValueIdx]
+		if arena.GetString(v.Raw) != "23" {
+			t.Fatalf("p0 val: %q", arena.GetString(v.Raw))
+		}
+	}
+
+	// a[<=>]==23 -> value should include leading "=" (i.e. "=23")
+	{
+		p := arena.Params[1]
+		v := arena.Values[p.ValueIdx]
+		if arena.GetString(v.Raw) != "=23" {
+			t.Fatalf("p1 val: %q", arena.GetString(v.Raw))
+		}
+	}
+}
+
 func TestParse_AllowDots(t *testing.T) {
 	arena := NewArena(8)
 	cfg := DefaultConfig()
