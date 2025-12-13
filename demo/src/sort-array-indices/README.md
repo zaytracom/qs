@@ -19,8 +19,8 @@ Go (default - numeric order):
 sortAsc := func(a, b string) bool { return a < b }
 qs.Stringify(
   map[string]any{"arr": []any{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l"}},
-  qs.WithEncode(false),
-  qs.WithSort(sortAsc),
+  qs.WithStringifyEncode(false),
+  qs.WithStringifySort(sortAsc),
 )
 // arr[0]=a&arr[1]=b&arr[2]=c&arr[3]=d&arr[4]=e&arr[5]=f&arr[6]=g&arr[7]=h&arr[8]=i&arr[9]=j&arr[10]=k&arr[11]=l
 ```
@@ -31,16 +31,16 @@ Go (with SortArrayIndices - matches JS):
 sortAsc := func(a, b string) bool { return a < b }
 qs.Stringify(
   map[string]any{"arr": []any{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l"}},
-  qs.WithEncode(false),
-  qs.WithSort(sortAsc),
-  qs.WithSortArrayIndices(true),
+  qs.WithStringifyEncode(false),
+  qs.WithStringifySort(sortAsc),
+  qs.WithStringifySortArrayIndices(true),
 )
 // arr[0]=a&arr[1]=b&arr[10]=k&arr[11]=l&arr[2]=c&arr[3]=d&arr[4]=e&arr[5]=f&arr[6]=g&arr[7]=h&arr[8]=i&arr[9]=j
 ```
 
 ## When to Use
 
-Use `WithSortArrayIndices(true)` when you need:
+Use `WithStringifySortArrayIndices(true)` when you need:
 - Byte-for-byte identical output with JS `qs` library using `sort` option
 - Cross-platform testing where Go and JS outputs must match exactly
 - Deterministic string output that matches JS behavior

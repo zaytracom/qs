@@ -27,9 +27,9 @@ q := Query{
 qs.Marshal(
   q,
   qs.WithStringifyAllowDots(true),
-  qs.WithArrayFormat(qs.ArrayFormatBrackets),
-  qs.WithEncode(false),
-  qs.WithSort(func(a, b string) bool { return a < b }),
+  qs.WithStringifyArrayFormat(qs.ArrayFormatBrackets),
+  qs.WithStringifyEncode(false),
+  qs.WithStringifySort(func(a, b string) bool { return a < b }),
 )
 // filters.status=published&filters.tags[]=go&filters.tags[]=qs&page=2
 ```
@@ -58,7 +58,7 @@ var out Query
 qs.Unmarshal(
   "filters.status=published&filters.tags[]=go&filters.tags[]=qs&page=2",
   &out,
-  qs.WithAllowDots(true),
+  qs.WithParseAllowDots(true),
 )
 // {"filters":{"status":"published","tags":["go","qs"]},"page":2}
 ```
@@ -73,4 +73,3 @@ parsed.page = Number(parsed.page)
 console.log(JSON.stringify(parsed))
 // {"filters":{"status":"published","tags":["go","qs"]},"page":2}
 ```
-

@@ -110,58 +110,58 @@ This library is a Go port of JS `qs`, so most options map 1:1. The table below h
 
 | Option | JS `qs` | Go `qs` | Notes |
 |:--|:--:|:--:|:--|
-| `AllowDots` | ✅ | ✅ | Dot notation (`a.b=c`) |
-| `AllowEmptyArrays` | ✅ | ✅ | `a[]=` creates `[]` vs `[""]` |
-| `AllowSparse` | ✅ | ✅ | Preserve array gaps |
-| `ArrayLimit` | ✅ | ✅ | Max index for array notation |
-| `Charset` | ✅ | ✅ | `utf-8` / `iso-8859-1` |
-| `CharsetSentinel` | ✅ | ✅ | `utf8=✓` detection |
-| `Comma` | ✅ | ✅ | `a=1,2` → array |
-| `DecodeDotInKeys` | ✅ | ✅ | `%2E` → `.` in keys |
-| `Decoder` | ✅ | ✅ | Custom decoder hook |
-| `Delimiter` / regexp delimiter | ✅ | ✅ | Go supports `Delimiter` + `DelimiterRegexp` |
-| `Depth` | ✅ | ✅ | Max nesting depth |
-| `Duplicates` | ✅ | ✅ | `combine` / `first` / `last` |
-| `IgnoreQueryPrefix` | ✅ | ✅ | Strip leading `?` |
-| `InterpretNumericEntities` | ✅ | ✅ | ISO-8859-1 numeric entities |
-| `ParameterLimit` | ✅ | ✅ | Max number of params |
-| `ParseArrays` | ✅ | ✅ | Disable bracket parsing when false |
-| `StrictDepth` | ✅ | ✅ | Error when depth exceeded |
-| `StrictNullHandling` | ✅ | ✅ | `a` → `null` vs `""` |
-| `ThrowOnLimitExceeded` | ✅ | ✅ | Error on `ParameterLimit` / `ArrayLimit` |
-| `AllowPrototypes` / `PlainObjects` | ✅ | N/A | JS-only prototype pollution controls; in Go keys like `__proto__`, `constructor`, `prototype` are treated as normal map keys |
-| `StrictMode` | ❌ | ✅ | Go-only: strict syntax validation (unmatched brackets, invalid percent-encoding, etc.) |
+| `AllowDots` | ✅ | ✅ | Dot notation (`a.b=c`) [Read more](demo/src/allow-dots/README.md) |
+| `AllowEmptyArrays` | ✅ | ✅ | `a[]=` creates `[]` vs `[""]` [Read more](demo/src/allow-empty-arrays/README.md) |
+| `AllowSparse` | ✅ | ✅ | Preserve array gaps [Read more](demo/src/allow-sparse/README.md) |
+| `ArrayLimit` | ✅ | ✅ | Max index for array notation [Read more](demo/src/array-limit/README.md) |
+| `Charset` | ✅ | ✅ | `utf-8` / `iso-8859-1` [Read more](demo/src/charset/README.md) |
+| `CharsetSentinel` | ✅ | ✅ | `utf8=✓` detection [Read more](demo/src/charset-sentinel/README.md) |
+| `Comma` | ✅ | ✅ | `a=1,2` → array [Read more](demo/src/comma/README.md) |
+| `DecodeDotInKeys` | ✅ | ✅ | `%2E` → `.` in keys [Read more](demo/src/decode-dot-in-keys/README.md) |
+| `Decoder` | ✅ | ✅ | Custom decoder hook [Read more](demo/src/decoder/README.md) |
+| `Delimiter` / regexp delimiter | ✅ | ✅ | Go supports `Delimiter` + `DelimiterRegexp` [Read more](demo/src/delimiter/README.md), [more](demo/src/delimiter-regexp/README.md) |
+| `Depth` | ✅ | ✅ | Max nesting depth [Read more](demo/src/depth/README.md) |
+| `Duplicates` | ✅ | ✅ | `combine` / `first` / `last` [Read more](demo/src/duplicates/README.md) |
+| `IgnoreQueryPrefix` | ✅ | ✅ | Strip leading `?` [Read more](demo/src/ignore-query-prefix/README.md) |
+| `InterpretNumericEntities` | ✅ | ✅ | ISO-8859-1 numeric entities [Read more](demo/src/interpret-numeric-entities/README.md) |
+| `ParameterLimit` | ✅ | ✅ | Max number of params [Read more](demo/src/parameter-limit/README.md) |
+| `ParseArrays` | ✅ | ✅ | Disable bracket parsing when false [Read more](demo/src/parse-arrays/README.md) |
+| `StrictDepth` | ✅ | ✅ | Error when depth exceeded [Read more](demo/src/strict-depth/README.md) |
+| `StrictNullHandling` | ✅ | ✅ | `a` → `null` vs `""` [Read more](demo/src/strict-null-handling/README.md) |
+| `ThrowOnLimitExceeded` | ✅ | ✅ | Error on `ParameterLimit` / `ArrayLimit` [Read more](demo/src/throw-on-limit-exceeded/README.md) |
+| `AllowPrototypes` / `PlainObjects` | ✅ | N/A | JS-only prototype pollution controls; in Go keys like `__proto__`, `constructor`, `prototype` are treated as normal map keys [Read more](demo/src/allow-prototypes-plain-objects/README.md) |
+| `StrictMode` | ❌ | ✅ | Go-only: strict syntax validation (unmatched brackets, invalid percent-encoding, etc.) [Read more](demo/src/strict-mode/README.md) |
 
 ### Stringify options
 
 | Option | JS `qs` | Go `qs` | Notes |
 |:--|:--:|:--:|:--|
-| `AddQueryPrefix` | ✅ | ✅ | Leading `?` |
-| `AllowDots` | ✅ | ✅ | Dot output instead of brackets |
-| `AllowEmptyArrays` | ✅ | ✅ | Output `key[]` for empty arrays |
-| `ArrayFormat` | ✅ | ✅ | `indices` / `brackets` / `repeat` / `comma` |
-| `Charset` | ✅ | ✅ | Output charset |
-| `CharsetSentinel` | ✅ | ✅ | Add `utf8=✓` |
-| `CommaRoundTrip` | ✅ | ✅ | `comma` single-element round-trip |
-| `Delimiter` | ✅ | ✅ | Join delimiter |
-| `Encode` | ✅ | ✅ | Percent-encode output |
-| `EncodeDotInKeys` | ✅ | ✅ | `.` → `%2E` in keys |
-| `Encoder` | ✅ | ✅ | Custom encoder hook |
-| `EncodeValuesOnly` | ✅ | ✅ | Only encode values |
-| `Filter` | ✅ | ✅ | Function or allowlist |
-| `Format` | ✅ | ✅ | RFC1738 / RFC3986 |
-| `SerializeDate` | ✅ | ✅ | Date formatting hook |
-| `SkipNulls` | ✅ | ✅ | Drop null keys |
-| `Sort` | ✅ | ✅ | Custom key ordering |
-| `StrictNullHandling` | ✅ | ✅ | `null` → `a` vs `a=` |
+| `AddQueryPrefix` | ✅ | ✅ | Leading `?` [Read more](demo/src/add-query-prefix/README.md) |
+| `AllowDots` | ✅ | ✅ | Dot output instead of brackets [Read more](demo/src/allow-dots/README.md) |
+| `AllowEmptyArrays` | ✅ | ✅ | Output `key[]` for empty arrays [Read more](demo/src/allow-empty-arrays/README.md) |
+| `ArrayFormat` | ✅ | ✅ | `indices` / `brackets` / `repeat` / `comma` [Read more](demo/src/array-format/README.md) |
+| `Charset` | ✅ | ✅ | Output charset [Read more](demo/src/charset/README.md) |
+| `CharsetSentinel` | ✅ | ✅ | Add `utf8=✓` [Read more](demo/src/charset-sentinel/README.md) |
+| `CommaRoundTrip` | ✅ | ✅ | `comma` single-element round-trip [Read more](demo/src/comma-round-trip/README.md) |
+| `Delimiter` | ✅ | ✅ | Join delimiter [Read more](demo/src/delimiter/README.md) |
+| `Encode` | ✅ | ✅ | Percent-encode output [Read more](demo/src/encode/README.md) |
+| `EncodeDotInKeys` | ✅ | ✅ | `.` → `%2E` in keys [Read more](demo/src/encode-dot-in-keys/README.md) |
+| `Encoder` | ✅ | ✅ | Custom encoder hook [Read more](demo/src/encoder/README.md) |
+| `EncodeValuesOnly` | ✅ | ✅ | Only encode values [Read more](demo/src/encode-values-only/README.md) |
+| `Filter` | ✅ | ✅ | Function or allowlist [Read more](demo/src/filter/README.md) |
+| `Format` | ✅ | ✅ | RFC1738 / RFC3986 [Read more](demo/src/format/README.md) |
+| `SerializeDate` | ✅ | ✅ | Date formatting hook [Read more](demo/src/serialize-date/README.md) |
+| `SkipNulls` | ✅ | ✅ | Drop null keys [Read more](demo/src/skip-nulls/README.md) |
+| `Sort` | ✅ | ✅ | Custom key ordering [Read more](demo/src/sort/README.md) |
+| `StrictNullHandling` | ✅ | ✅ | `null` → `a` vs `a=` [Read more](demo/src/strict-null-handling/README.md) |
 
 ### 🔥 Go-only extensions
 
 | Feature | Go `qs` |
 |:--|:--:|
-| Struct API | ✅ (`Marshal` / `Unmarshal`, `query` tags) |
-| `[]byte` decode API | ✅ (`UnmarshalBytes`) |
-| `SortArrayIndices` | ✅ (matches JS key sorting behavior for array indices) |
+| Struct API | ✅ (`Marshal` / `Unmarshal`, `query` tags) [Read more](demo/src/struct-tags/README.md) |
+| `[]byte` decode API | ✅ (`UnmarshalBytes`) [Read more](demo/src/unmarshal-bytes/README.md) |
+| `SortArrayIndices` | ✅ (matches JS key sorting behavior for array indices) [Read more](demo/src/sort-array-indices/README.md) |
 
 ## Parser architecture (Arena-backed, O(n))
 
@@ -199,6 +199,14 @@ Time / allocs (`μs/op`, `B/op`, `allocs/op`). Benchmarks use raw query string i
 
 - [Go Reference (v2)](https://pkg.go.dev/github.com/zaytracom/qs/v2)
 - [GitHub Issues](https://github.com/zaytracom/qs/issues)
+
+## Contributing
+
+PRs and issue reports are welcome — see `CONTRIBUTING.md`.
+
+## Code of Conduct
+
+This project follows the Contributor Covenant — see `CODE_OF_CONDUCT.md`.
 
 ## License
 

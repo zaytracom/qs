@@ -1,6 +1,6 @@
 # delimiter / Delimiter
 
-The `delimiter` option (JS) / `WithDelimiter(...)` (Go, Parse) and `WithStringifyDelimiter(...)` (Go, Stringify) sets the separator between `key=value` pairs.
+The `delimiter` option (JS) / `WithParseDelimiter(...)` (Go, Parse) and `WithStringifyDelimiter(...)` (Go, Stringify) sets the separator between `key=value` pairs.
 
 The default delimiter is `&`, but some systems use `;` or other characters. This option lets you customize the separator for both parsing and stringifying to match your requirements.
 
@@ -24,8 +24,8 @@ Go:
 qs.Stringify(
   map[string]any{"a": "1", "b": "2"},
   qs.WithStringifyDelimiter(";"),
-  qs.WithEncode(false),
-  qs.WithSort(func(a, b string) bool { return a < b }),
+  qs.WithStringifyEncode(false),
+  qs.WithStringifySort(func(a, b string) bool { return a < b }),
 )
 // a=1;b=2
 ```
@@ -42,7 +42,6 @@ qs.parse("a=1;b=2", { delimiter: ";" })
 Go:
 
 ```go
-qs.Parse("a=1;b=2", qs.WithDelimiter(";"))
+qs.Parse("a=1;b=2", qs.WithParseDelimiter(";"))
 // {"a":"1","b":"2"}
 ```
-
