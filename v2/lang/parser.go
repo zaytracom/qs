@@ -216,8 +216,11 @@ func (p *Parser) emitParam(paramStart, keyEnd, paramEnd uint32, hasEquals bool) 
 	valsN := len(p.arena.Values)
 	partsN := len(p.arena.ValueParts)
 
-	// empty key => ignore (matches qs behavior)
+	// empty key => ignore (matches qs behavior), but error in strict mode
 	if keyEnd <= paramStart {
+		if p.cfg.Flags.Has(FlagStrictMode) {
+			return ErrEmptyKey
+		}
 		return nil
 	}
 
@@ -253,6 +256,13 @@ func (p *Parser) emitParam(paramStart, keyEnd, paramEnd uint32, hasEquals bool) 
 		}
 	}
 
+	// Full strict mode validation
+	if p.cfg.Flags.Has(FlagStrictMode) {
+		if err := p.validateKeyStrict(paramStart, keyEnd); err != nil {
+			return err
+		}
+	}
+
 	key, skip, err := p.parseKey(paramStart, keyEnd)
 	if err != nil {
 		p.rollback(paramsN, segsN, valsN, partsN)
@@ -270,6 +280,13 @@ func (p *Parser) emitParam(paramStart, keyEnd, paramEnd uint32, hasEquals bool) 
 	}
 
 	if hasEquals {
+		// Validate value in strict mode
+		if p.cfg.Flags.Has(FlagStrictMode) {
+			if err := p.validateValueStrict(keyEnd+1, paramEnd); err != nil {
+				p.rollback(paramsN, segsN, valsN, partsN)
+				return err
+			}
+		}
 		valIdx, err := p.emitValue(keyEnd+1, paramEnd)
 		if err != nil {
 			p.rollback(paramsN, segsN, valsN, partsN)
@@ -812,6 +829,107 @@ func findBracketClose(src []byte, contentStart, end int) (pos, closeLen int, ok 
 		}
 	}
 	return 0, 0, false
+}
+
+// validateKeyStrict performs strict validation on a key.
+func (p *Parser) validateKeyStrict(keyStart, keyEnd uint32) error {
+	if keyStart >= keyEnd {
+		return ErrEmptyKey
+	}
+
+	src := p.src
+	start := int(keyStart)
+	end := int(keyEnd)
+
+	// Check percent encoding
+	keySpan := Span{Off: keyStart, Len: uint16(keyEnd - keyStart)}
+	if err := validatePercentEncoding(src, keySpan); err != nil {
+		return err
+	}
+
+	// Check bracket matching
+	depth := 0
+	for i := start; i < end; i++ {
+		if openLen := lbracketTokenLen(src, i, end); openLen != 0 {
+			depth++
+			i += openLen - 1
+			continue
+		}
+		if closeLen := rbracketTokenLen(src, i, end); closeLen != 0 {
+			depth--
+			if depth < 0 {
+				return ErrUnmatchedCloseBracket
+			}
+			i += closeLen - 1
+			continue
+		}
+	}
+	if depth != 0 {
+		return ErrUnclosedBracket
+	}
+
+	// Check dots if allowDots is enabled
+	if p.cfg.Flags.Has(FlagAllowDots) {
+		decodeDots := p.cfg.Flags.Has(FlagDecodeDotInKeys)
+
+		// Check for leading dot
+		if dotLen := dotTokenLen(src, start, end, decodeDots); dotLen > 0 {
+			return ErrLeadingDot
+		}
+
+		// Check for trailing dot and consecutive dots
+		prevWasDot := false
+		for i := start; i < end; {
+			if openLen := lbracketTokenLen(src, i, end); openLen != 0 {
+				// Skip bracket content
+				prevWasDot = false
+				closePos, closeLen, ok := findBracketClose(src, i+openLen, end)
+				if ok {
+					i = closePos + closeLen
+					continue
+				}
+				i += openLen
+				continue
+			}
+
+			if dotLen := dotTokenLen(src, i, end, decodeDots); dotLen > 0 {
+				if prevWasDot {
+					return ErrConsecutiveDots
+				}
+				prevWasDot = true
+				i += dotLen
+				continue
+			}
+
+			prevWasDot = false
+			i++
+		}
+
+		// Check for trailing dot (last char before end)
+		if end > start {
+			lastDotLen := dotTokenLen(src, end-1, end, false)
+			if lastDotLen > 0 {
+				return ErrTrailingDot
+			}
+			// Also check encoded dot %2E at end
+			if decodeDots && end >= start+3 {
+				if dotTokenLen(src, end-3, end, true) == 3 {
+					return ErrTrailingDot
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// validateValueStrict performs strict validation on a value.
+func (p *Parser) validateValueStrict(valueStart, valueEnd uint32) error {
+	if valueStart > valueEnd {
+		return nil
+	}
+	valSpan := Span{Off: valueStart, Len: uint16(valueEnd - valueStart)}
+	return validatePercentEncoding(p.src, valSpan)
 }
 
 func parseCanonicalUint(sp Span, src []byte) (uint32, bool) {

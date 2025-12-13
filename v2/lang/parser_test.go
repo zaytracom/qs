@@ -223,6 +223,61 @@ func TestParse_StrictDepthErrors(t *testing.T) {
 	}
 }
 
+func TestParse_StrictMode(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		flags   Flags
+		wantErr error
+	}{
+		// Bracket errors
+		{"unclosed bracket", "a[b=1", 0, ErrUnclosedBracket},
+		{"unmatched close", "a]b=1", 0, ErrUnmatchedCloseBracket},
+		{"nested unclosed", "a[b[c]=1", 0, ErrUnclosedBracket},
+
+		// Empty key
+		{"empty key", "=value", 0, ErrEmptyKey},
+
+		// Percent encoding errors
+		{"invalid percent hex", "a=%ZZ", 0, ErrInvalidPercentCode},
+		{"incomplete percent", "a=%2", 0, ErrInvalidPercentCode},
+		{"just percent", "a=%", 0, ErrInvalidPercentCode},
+		{"invalid percent in value", "a=b%GG", 0, ErrInvalidPercentCode},
+
+		// Dot notation errors (only with FlagAllowDots)
+		{"leading dot", ".a.b=1", FlagAllowDots, ErrLeadingDot},
+		{"trailing dot", "a.b.=1", FlagAllowDots, ErrTrailingDot},
+		{"consecutive dots", "a..b=1", FlagAllowDots, ErrConsecutiveDots},
+
+		// Valid inputs (should not error)
+		{"valid simple", "a=1&b=2", 0, nil},
+		{"valid nested", "a[b][c]=1", 0, nil},
+		{"valid dots", "a.b.c=1", FlagAllowDots, nil},
+		{"valid percent", "a=%20%21", 0, nil},
+		{"empty string", "", 0, nil},
+		{"valid empty brackets", "a[]=1", 0, nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			arena := NewArena(8)
+			cfg := DefaultConfig()
+			cfg.Flags = tt.flags | FlagStrictMode
+
+			_, _, err := Parse(arena, tt.input, cfg)
+			if tt.wantErr != nil {
+				if err != tt.wantErr {
+					t.Errorf("got error %v, want %v", err, tt.wantErr)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+			}
+		})
+	}
+}
+
 func TestParse_CommaValues(t *testing.T) {
 	arena := NewArena(8)
 	cfg := DefaultConfig()

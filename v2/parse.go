@@ -134,6 +134,15 @@ type ParseOptions struct {
 	// When false, excess parameters/elements are silently ignored.
 	// Default: false
 	ThrowOnLimitExceeded bool
+
+	// StrictMode enables strict syntax validation.
+	// When true, returns errors for:
+	// - Unclosed or unmatched brackets
+	// - Empty keys
+	// - Invalid percent-encoding sequences
+	// - Leading/trailing/consecutive dots (when AllowDots is true)
+	// Default: false
+	StrictMode bool
 }
 
 // Default values for ParseOptions
@@ -189,6 +198,17 @@ var (
 	ErrParameterLimitExceeded  = errors.New("parameter limit exceeded")
 	ErrArrayLimitExceeded      = errors.New("array limit exceeded")
 	ErrDepthLimitExceeded      = errors.New("depth limit exceeded")
+)
+
+// Strict mode errors (re-exported from lang package)
+var (
+	ErrUnclosedBracket        = lang.ErrUnclosedBracket
+	ErrUnmatchedCloseBracket  = lang.ErrUnmatchedCloseBracket
+	ErrEmptyKey               = lang.ErrEmptyKey
+	ErrInvalidPercentEncoding = lang.ErrInvalidPercentEncoding
+	ErrConsecutiveDots        = lang.ErrConsecutiveDots
+	ErrLeadingDot             = lang.ErrLeadingDot
+	ErrTrailingDot            = lang.ErrTrailingDot
 )
 
 // Charset sentinel values for auto-detection
@@ -394,6 +414,15 @@ func WithParseStrictNullHandling(v bool) ParseOption {
 func WithParseThrowOnLimitExceeded(v bool) ParseOption {
 	return func(o *ParseOptions) {
 		o.ThrowOnLimitExceeded = v
+	}
+}
+
+// WithParseStrictMode enables strict syntax validation.
+// When true, returns errors for unclosed brackets, empty keys,
+// invalid percent-encoding, and dot notation issues.
+func WithParseStrictMode(v bool) ParseOption {
+	return func(o *ParseOptions) {
+		o.StrictMode = v
 	}
 }
 
@@ -815,6 +844,9 @@ func buildLangConfig(opts *ParseOptions) lang.Config {
 	}
 	if opts.ThrowOnLimitExceeded {
 		cfg.Flags |= lang.FlagThrowOnLimitExceeded
+	}
+	if opts.StrictMode {
+		cfg.Flags |= lang.FlagStrictMode
 	}
 
 	return cfg
