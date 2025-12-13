@@ -210,15 +210,15 @@ func TestUnmarshalBytes_URLEncoded(t *testing.T) {
 	}
 }
 
-func TestUnmarshalString(t *testing.T) {
+func TestUnmarshal(t *testing.T) {
 	type User struct {
 		Name string `query:"name"`
 	}
 
 	var user User
-	err := UnmarshalString("name=John", &user)
+	err := Unmarshal("name=John", &user)
 	if err != nil {
-		t.Fatalf("UnmarshalString: %v", err)
+		t.Fatalf("Unmarshal: %v", err)
 	}
 
 	if user.Name != "John" {

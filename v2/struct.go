@@ -110,48 +110,6 @@ func StructToMap(obj any) (map[string]any, error) {
 	return marshalStruct(objValue)
 }
 
-// Unmarshal parses a query string and stores the result in the value pointed to by v.
-//
-// This function provides idiomatic Go unmarshaling with automatic type detection.
-// It works with structs, maps, slices, and primitive types.
-//
-// Example:
-//
-//	// Unmarshal to struct
-//	var user User
-//	err := qs.Unmarshal("name=John&age=30", &user)
-//
-//	// Unmarshal to map
-//	var data map[string]any
-//	err := qs.Unmarshal("name=John&age=30", &data)
-//
-//	// Unmarshal to interface{}
-//	var result any
-//	err := qs.Unmarshal("name=John&age=30", &result)
-func Unmarshal(queryString string, v any, opts ...ParseOption) error {
-	if v == nil {
-		return fmt.Errorf("unmarshal target cannot be nil")
-	}
-
-	rv := reflect.ValueOf(v)
-	if rv.Kind() != reflect.Ptr {
-		return fmt.Errorf("unmarshal target must be a pointer, got %T", v)
-	}
-
-	rv = rv.Elem()
-	if !rv.CanSet() {
-		return fmt.Errorf("unmarshal target must be settable")
-	}
-
-	// Parse the query string to map first
-	data, err := Parse(queryString, opts...)
-	if err != nil {
-		return err
-	}
-
-	return unmarshalValue(data, rv)
-}
-
 // Marshal converts a value to a query string.
 //
 // This function provides idiomatic Go marshaling with automatic type detection.

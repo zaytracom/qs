@@ -156,8 +156,13 @@ func UnmarshalBytes(data []byte, dest any, opts ...ParseOption) error {
 	return u.unmarshalTo(rv)
 }
 
-// UnmarshalString is like UnmarshalBytes but accepts a string.
-func UnmarshalString(data string, dest any, opts ...ParseOption) error {
+// Unmarshal parses a query string and stores the result in the value pointed to by dest.
+//
+// Example:
+//
+//	var user User
+//	err := qs.Unmarshal("name=John&age=30", &user)
+func Unmarshal(data string, dest any, opts ...ParseOption) error {
 	return UnmarshalBytes([]byte(data), dest, opts...)
 }
 
