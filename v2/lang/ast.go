@@ -1,5 +1,63 @@
 package lang
 
+// DecodeString extracts and decodes a string (lazy decode).
+// It allocates only if decoding is needed.
+func (a *Arena) DecodeString(s Span, charset Charset) string {
+	raw := a.GetString(s)
+
+	// Fast path: no decoding needed.
+	needsDecode := false
+	for i := 0; i < len(raw); i++ {
+		if raw[i] == '%' || raw[i] == '+' {
+			needsDecode = true
+			break
+		}
+	}
+	if !needsDecode {
+		return raw
+	}
+
+	// Decode %XX and '+' -> space.
+	out := make([]byte, 0, len(raw))
+	for i := 0; i < len(raw); i++ {
+		c := raw[i]
+		switch c {
+		case '+':
+			out = append(out, ' ')
+		case '%':
+			if i+2 >= len(raw) {
+				// Invalid escape: keep as-is (graceful).
+				out = append(out, '%')
+				continue
+			}
+			hi := fromHex(raw[i+1])
+			lo := fromHex(raw[i+2])
+			if hi < 0 || lo < 0 {
+				// Invalid escape: keep as-is (graceful).
+				out = append(out, '%')
+				continue
+			}
+			out = append(out, byte(hi<<4|lo))
+			i += 2
+		default:
+			out = append(out, c)
+		}
+	}
+
+	// For ISO-8859-1, bytes map directly to Unicode code points 0x00..0xFF.
+	// For UTF-8, bytes are interpreted as UTF-8.
+	// Converting []byte -> string uses UTF-8; ISO callers should only pass
+	// input that was encoded as ISO-8859-1 bytes.
+	if charset == CharsetISO88591 {
+		runes := make([]rune, len(out))
+		for i, b := range out {
+			runes[i] = rune(b)
+		}
+		return string(runes)
+	}
+	return string(out)
+}
+
 // Span references a substring in the original input without copying.
 // Off is a byte offset into Arena.Source.
 type Span struct {

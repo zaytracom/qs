@@ -21,6 +21,7 @@ type Flags uint32
 
 const (
 	FlagAllowDots Flags = 1 << iota
+	// FlagAllowEmptyArrays affects semantic build (Phase 3); AST parsing records spans only.
 	FlagAllowEmptyArrays
 	FlagAllowPrototypes
 	FlagAllowSparse

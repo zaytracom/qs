@@ -606,6 +606,7 @@ func (p *Parser) makeBracketSegment(content Span) (Segment, bool, error) {
 				kind = SegIndex
 				index = int32(v)
 			}
+			// v > ArrayLimit: keep as SegIdent to be treated as an object key ("{ '21': ... }").
 		}
 	}
 	seg := Segment{

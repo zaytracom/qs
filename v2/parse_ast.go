@@ -12,66 +12,48 @@ func parseValuesAST(str string, opts *ParseOptions) (orderedResult, error) {
 		values: make(map[string]any),
 	}
 
-	// We only support single-byte delimiters here; callers must fallback otherwise.
+	// Strip query prefix if requested (match parseValues behavior).
+	cleanStr := str
+	if opts.IgnoreQueryPrefix && len(cleanStr) > 0 && cleanStr[0] == '?' {
+		cleanStr = cleanStr[1:]
+	}
+	// Decode URL-encoded brackets for easier parsing (match parseValues behavior).
+	cleanStr = decodeBrackets(cleanStr)
+
+	// Calculate limit for splitting (match parseValues behavior).
+	limit := opts.ParameterLimit
+	if opts.ThrowOnLimitExceeded {
+		limit = opts.ParameterLimit + 1
+	}
+
+	// Split by delimiter (string or regexp), matching parseValues behavior.
 	delimiter := opts.Delimiter
 	if delimiter == "" {
 		delimiter = DefaultDelimiter
 	}
+	parts := splitByDelimiter(cleanStr, delimiter, opts.DelimiterRegexp, limit)
 
-	cfg := lang.DefaultConfig()
-	cfg.Delimiter = delimiter[0]
-	cfg.PlainObjects = true // don't block prototype keys at AST layer
-	if opts.IgnoreQueryPrefix {
-		cfg.Flags |= lang.FlagIgnoreQueryPrefix
-	}
-	if opts.Comma {
-		cfg.Flags |= lang.FlagComma
-	}
-	if opts.ThrowOnLimitExceeded {
-		cfg.Flags |= lang.FlagThrowOnLimitExceeded
+	// Check parameter limit.
+	if opts.ThrowOnLimitExceeded && len(parts) > opts.ParameterLimit {
+		return orderedResult{}, ErrParameterLimitExceeded
 	}
 
-	if opts.ParameterLimit <= 0 {
-		cfg.ParameterLimit = 0 // unlimited
-	} else if opts.ParameterLimit > int(^uint16(0)) {
-		cfg.ParameterLimit = ^uint16(0)
-	} else {
-		cfg.ParameterLimit = uint16(opts.ParameterLimit)
-	}
-
-	arena := lang.NewArena(estimateParams(str))
-	qsNode, _, err := lang.Parse(arena, str, cfg)
-	if err != nil {
-		if err == lang.ErrParameterLimitExceeded {
-			return orderedResult{}, ErrParameterLimitExceeded
-		}
-		return orderedResult{}, err
-	}
-
-	// Detect charset from sentinel, matching parseValues behavior.
+	// Detect charset from sentinel (same logic as parseValues).
 	charset := opts.Charset
 	skipIndex := -1
 	if opts.CharsetSentinel {
-		for i := uint16(0); i < qsNode.ParamLen; i++ {
-			p := arena.Params[qsNode.ParamStart+i]
-			if !p.HasEquals {
-				continue
+		for i, part := range parts {
+			if strings.HasPrefix(part, "utf8=") {
+				if part == charsetSentinel {
+					charset = CharsetUTF8
+					skipIndex = i
+				} else if part == isoSentinel {
+					charset = CharsetISO88591
+					skipIndex = i
+				}
+				// Unknown utf8=... => treat as regular param (no skip).
+				break
 			}
-			keyRaw := arena.GetString(p.Key.Raw)
-			if keyRaw != "utf8" {
-				continue
-			}
-			v := arena.Values[p.ValueIdx]
-			valRaw := arena.GetString(v.Raw)
-			if valRaw == strings.TrimPrefix(charsetSentinel, "utf8=") {
-				charset = CharsetUTF8
-				skipIndex = int(i)
-			} else if valRaw == strings.TrimPrefix(isoSentinel, "utf8=") {
-				charset = CharsetISO88591
-				skipIndex = int(i)
-			}
-			// Unknown utf8=... => keep as regular param (no skip).
-			break
 		}
 	}
 
@@ -83,16 +65,39 @@ func parseValuesAST(str string, opts *ParseOptions) (orderedResult, error) {
 		decoder = defaultDecoder
 	}
 
-	for i := uint16(0); i < qsNode.ParamLen; i++ {
-		if int(i) == skipIndex {
+	// Parse each part with the AST parser to get bracket-aware key/value split.
+	// This works regardless of delimiter type because each part is a single param.
+	arena := lang.NewArena(1)
+	cfg := lang.DefaultConfig()
+	cfg.Delimiter = '&'
+	cfg.PlainObjects = true // do not block prototype keys at AST layer
+	if opts.Comma {
+		cfg.Flags |= lang.FlagComma
+	}
+
+	for i, part := range parts {
+		if i == skipIndex {
 			continue
 		}
 
-		p := arena.Params[qsNode.ParamStart+i]
-		keyPart := arena.GetString(p.Key.Raw)
-		if keyPart == "" {
+		if part == "" {
 			continue
 		}
+
+		qsNode, _, err := lang.Parse(arena, part, cfg)
+		if err != nil {
+			if err == lang.ErrParameterLimitExceeded {
+				return orderedResult{}, ErrParameterLimitExceeded
+			}
+			return orderedResult{}, err
+		}
+
+		if qsNode.ParamLen == 0 {
+			continue
+		}
+
+		p := arena.Params[0]
+		keyPart := arena.GetString(p.Key.Raw)
 
 		decodedKey, err := decoder(keyPart, charset, "key")
 		if err != nil {
@@ -126,23 +131,6 @@ func parseValuesAST(str string, opts *ParseOptions) (orderedResult, error) {
 			parsedVal, err := parseArrayValue(rawVal, opts, currentLen)
 			if err != nil {
 				return orderedResult{}, err
-			}
-
-			// If comma flag is enabled and the AST tokenizer already split, use parts.
-			if opts.Comma && p.ValueIdx != uint16(0xFFFF) {
-				v := arena.Values[p.ValueIdx]
-				if v.Kind == lang.ValComma {
-					parts := make([]any, 0, int(v.PartsLen))
-					for j := uint16(0); j < uint16(v.PartsLen); j++ {
-						partRaw := arena.GetString(arena.ValueParts[v.PartsOff+j])
-						decoded, err := decoder(partRaw, charset, "value")
-						if err != nil {
-							return orderedResult{}, err
-						}
-						parts = append(parts, decoded)
-					}
-					val = parts
-				}
 			}
 
 			if val == nil {
@@ -185,13 +173,10 @@ func parseValuesAST(str string, opts *ParseOptions) (orderedResult, error) {
 				}
 			}
 
-			// Handle []= (empty bracket) notation - wrap in array to preserve nested arrays.
-			if p.Key.SegLen > 0 {
-				last := arena.Segments[p.Key.SegStart+uint16(p.Key.SegLen)-1]
-				if last.Kind == lang.SegEmpty {
-					if arr, ok := val.([]any); ok {
-						val = []any{arr}
-					}
+			// Handle []= (empty bracket) notation - wrap in array (matches parseValues behavior).
+			if strings.Contains(part, "[]=") {
+				if arr, ok := val.([]any); ok {
+					val = []any{arr}
 				}
 			}
 		}
