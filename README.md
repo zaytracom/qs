@@ -110,18 +110,22 @@ qs.Unmarshal("page=2&limit=20&tags[0]=rust", &parsed)
 // Request{Page: 2, Limit: 20, Tags: []string{"rust"}}
 ```
 
-## 🌐 Real-World Example: Strapi API
+## 🌐 Real-World Example: Strapi-style APIs (server + client)
 
-[Strapi](https://strapi.io/) uses `qs`-style query strings for filtering, sorting, pagination, and population. Here's how to build complex Strapi queries in Go:
+Many APIs (Strapi, Keystone, and similar) use JavaScript `qs`-style query strings for filtering, sorting, pagination, and population.
+`qs` helps in both directions:
+
+- When you're building a **client**, you can generate complex GET query strings reliably.
+- When you're designing an **API**, you can parse the same query syntax into a nested `map[string]any` and handle it consistently.
 
 ```go
 import (
     "net/http"
+
     "github.com/zaytracom/qs/v2"
 )
 
-// Fetch published articles from 2024, written by verified authors,
-// sorted by date, with author and category data included
+// Client side: build a Strapi-style query.
 query, _ := qs.Stringify(map[string]any{
     "filters": map[string]any{
         "status":      map[string]any{"$eq": "published"},
@@ -142,18 +146,27 @@ query, _ := qs.Stringify(map[string]any{
     },
     "fields": []any{"title", "slug", "excerpt", "publishedAt"},
 },
+    // Keep brackets in keys unescaped (matches Strapi expectations and is more readable).
     qs.WithStringifyEncodeValuesOnly(true),
 )
 
-// Result:
-// filters[status][$eq]=published&filters[publishedAt][$gte]=2024-01-01&
-// filters[author][verified][$eq]=true&sort[0]=publishedAt:desc&sort[1]=title:asc&
-// pagination[page]=1&pagination[pageSize]=10&populate[author][fields][0]=name&...
-
 resp, _ := http.Get("https://api.example.com/api/articles?" + query)
+
+// Server side: parse the same syntax when your API receives it.
+func handler(w http.ResponseWriter, r *http.Request) {
+    params, err := qs.Parse(r.URL.RawQuery)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
+    }
+
+    // params is a nested map/slice structure, e.g. params["filters"].(map[string]any)["status"]...
+    _ = params
+    w.WriteHeader(http.StatusOK)
+}
 ```
 
-The `WithStringifyEncodeValuesOnly(true)` option keeps brackets in keys unencoded for better readability — exactly how Strapi expects it. See [full Strapi examples →](demo/src/strapi-api/README.md)
+See more Strapi examples in `demo/src/strapi-api/README.md`.
 
 ## Comparison with Other QS Libraries
 
