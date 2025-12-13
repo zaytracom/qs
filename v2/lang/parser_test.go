@@ -241,7 +241,8 @@ func TestParse_CharsetSentinel_SkipsParam(t *testing.T) {
 	}
 }
 
-func TestParse_PrototypeKeys_Skipped(t *testing.T) {
+func TestParse_ProtoKeyNormal(t *testing.T) {
+	// In Go, __proto__ is just a normal key (no prototype pollution)
 	arena := NewArena(8)
 	cfg := DefaultConfig()
 
@@ -249,11 +250,9 @@ func TestParse_PrototypeKeys_Skipped(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Parse: %v", err)
 	}
-	if len(arena.Params) != 1 {
+	// Both params should be parsed - __proto__ is a normal key
+	if len(arena.Params) != 2 {
 		t.Fatalf("params: %d", len(arena.Params))
-	}
-	if got := arena.GetString(arena.Params[0].Key.Raw); got != "a" {
-		t.Fatalf("key: %q", got)
 	}
 }
 

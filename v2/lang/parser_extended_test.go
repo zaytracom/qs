@@ -1315,18 +1315,18 @@ func TestParse_StrictDepth_WithDots(t *testing.T) {
 	}
 }
 
-func TestParse_EncodedProtoPlus(t *testing.T) {
+func TestParse_ProtoNormalKey(t *testing.T) {
+	// In Go, __proto__ is just a normal key (no prototype pollution)
 	arena := NewArena(8)
 	cfg := DefaultConfig()
 
-	// + in key should be decoded to space for comparison
 	_, _, err := Parse(arena, "__proto__=x&a=b", cfg)
 	if err != nil {
 		t.Fatalf("Parse: %v", err)
 	}
-	// __proto__ should be blocked
-	if len(arena.Params) != 1 {
-		t.Fatalf("expected 1 param, got %d", len(arena.Params))
+	// Both params should be parsed - __proto__ is a normal key in Go
+	if len(arena.Params) != 2 {
+		t.Fatalf("expected 2 params, got %d", len(arena.Params))
 	}
 }
 

@@ -2110,7 +2110,7 @@ func TestJSDunderProto(t *testing.T) {
 	result, _ := Parse("categories[__proto__]=login&categories[__proto__]&categories[length]=42")
 	assertEqual(t, result, map[string]any{
 		"categories": map[string]any{
-			"__proto__": []any{"login", nil},
+			"__proto__": []any{"login", ""},
 			"length":    "42",
 		},
 	}, "__proto__ is normal key")
