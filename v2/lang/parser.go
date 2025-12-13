@@ -531,7 +531,15 @@ func (p *Parser) parseKey(keyStart, keyEnd uint32) (Key, bool, error) {
 							p.arena.Segments = p.arena.Segments[:segBase]
 							return Key{}, false, ErrDepthLimitExceeded
 						}
-						litSpan, err := p.makeSpan(uint32(i), keyEnd)
+						var litSpan Span
+						var err error
+						if p.cfg.Flags.Has(FlagAllowDotsNoBracketConversion) {
+							// Keep original dot notation
+							litSpan, err = p.makeSpan(uint32(i), keyEnd)
+						} else {
+							// Convert dot notation to bracket notation
+							litSpan, err = p.makeSynthSpanDotToBracket(uint32(i), keyEnd)
+						}
 						if err != nil {
 							p.arena.Segments = p.arena.Segments[:segBase]
 							return Key{}, false, err
@@ -692,6 +700,50 @@ func (p *Parser) makeSpan(start, end uint32) (Span, error) {
 		return Span{}, ErrSpanTooLarge
 	}
 	return Span{Off: start, Len: uint16(n)}, nil
+}
+
+// makeSynthSpanDotToBracket converts dot notation to bracket notation in synth buffer.
+// Input like ".d.e.f" becomes "[d][e][f]".
+func (p *Parser) makeSynthSpanDotToBracket(start, end uint32) (Span, error) {
+	if end <= start || end > uint32(len(p.src)) {
+		return Span{}, ErrSpanTooLarge
+	}
+
+	raw := p.src[start:end]
+	synthStart := uint32(len(p.arena.Synth))
+
+	// Convert: scan raw, replace dots with ][, wrap segments in []
+	i := 0
+	for i < len(raw) {
+		// Skip leading dot if present
+		dotLen := dotTokenLen(raw, i, len(raw), p.cfg.Flags.Has(FlagDecodeDotInKeys))
+		if dotLen > 0 {
+			i += dotLen
+		}
+
+		// Find end of current segment (next dot or end)
+		segStart := i
+		for i < len(raw) {
+			if dl := dotTokenLen(raw, i, len(raw), p.cfg.Flags.Has(FlagDecodeDotInKeys)); dl > 0 {
+				break
+			}
+			i++
+		}
+
+		if segStart < i {
+			p.arena.Synth = append(p.arena.Synth, '[')
+			p.arena.Synth = append(p.arena.Synth, raw[segStart:i]...)
+			p.arena.Synth = append(p.arena.Synth, ']')
+		}
+	}
+
+	synthEnd := uint32(len(p.arena.Synth))
+	n := synthEnd - synthStart
+	if n > uint32(maxUint16) {
+		return Span{}, ErrSpanTooLarge
+	}
+
+	return Span{Off: p.arena.synthOffset + synthStart, Len: uint16(n)}, nil
 }
 
 func spanContainsByte(src []byte, sp Span, b byte) bool {

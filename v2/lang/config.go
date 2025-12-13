@@ -32,6 +32,7 @@ const (
 	FlagInterpretNumericEntities
 	FlagDecodeDotInKeys
 	FlagThrowOnLimitExceeded
+	FlagAllowDotsNoBracketConversion
 )
 
 func (f Flags) Has(flag Flags) bool { return f&flag != 0 }

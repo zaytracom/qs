@@ -181,8 +181,33 @@ func TestParse_DepthLimit_LiteralRemainder(t *testing.T) {
 	if s2.Kind != SegLiteral {
 		t.Fatalf("literal kind: %+v", s2)
 	}
+	// By default, dot notation is converted to bracket notation
+	if got := arena.GetString(s2.Span); got != "[c]" {
+		t.Fatalf("literal text: %q, want [c]", got)
+	}
+}
+
+func TestParse_DepthLimit_LiteralRemainder_NoBracketConversion(t *testing.T) {
+	arena := NewArena(8)
+	cfg := DefaultConfig()
+	cfg.Flags |= FlagAllowDots | FlagAllowDotsNoBracketConversion
+	cfg.Depth = 1
+
+	_, _, err := Parse(arena, "a.b.c=d", cfg)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	p := arena.Params[0]
+	if p.Key.SegLen != 3 {
+		t.Fatalf("seg len: %d", p.Key.SegLen)
+	}
+	s2 := arena.Segments[p.Key.SegStart+2]
+	if s2.Kind != SegLiteral {
+		t.Fatalf("literal kind: %+v", s2)
+	}
+	// With NoBracketConversion flag, keep original dot notation
 	if got := arena.GetString(s2.Span); got != ".c" {
-		t.Fatalf("literal text: %q", got)
+		t.Fatalf("literal text: %q, want .c", got)
 	}
 }
 

@@ -174,6 +174,11 @@ type Arena struct {
 	Values     []Value
 	ValueParts []Span
 
+	// Synth holds synthesized data (e.g., dot-to-bracket conversions).
+	// Spans with Off >= synthOffset reference this buffer instead of Source.
+	Synth       []byte
+	synthOffset uint32
+
 	// Scratch buffer for decoding - reused to avoid allocations.
 	scratch []byte
 }
@@ -201,6 +206,8 @@ func (a *Arena) Reset(source string) {
 	a.Segments = a.Segments[:0]
 	a.Values = a.Values[:0]
 	a.ValueParts = a.ValueParts[:0]
+	a.Synth = a.Synth[:0]
+	a.synthOffset = uint32(len(a.Source))
 	a.scratch = a.scratch[:0]
 }
 
@@ -211,13 +218,21 @@ func (a *Arena) ResetBytes(source []byte) {
 	a.Segments = a.Segments[:0]
 	a.Values = a.Values[:0]
 	a.ValueParts = a.ValueParts[:0]
+	a.Synth = a.Synth[:0]
+	a.synthOffset = uint32(len(a.Source))
 	a.scratch = a.scratch[:0]
 }
 
 // GetBytes returns the raw bytes referenced by span (no decoding, zero-copy).
+// If span offset >= synthOffset, it references the Synth buffer.
 func (a *Arena) GetBytes(s Span) []byte {
 	start := int(s.Off)
 	end := start + int(s.Len)
+	if s.Off >= a.synthOffset {
+		synthStart := start - int(a.synthOffset)
+		synthEnd := synthStart + int(s.Len)
+		return a.Synth[synthStart:synthEnd]
+	}
 	return a.Source[start:end]
 }
 
