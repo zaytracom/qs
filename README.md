@@ -163,6 +163,10 @@ This library is a Go port of JS `qs`, so most options map 1:1. The table below h
 | `[]byte` decode API | ✅ (`UnmarshalBytes`) |
 | `SortArrayIndices` | ✅ (matches JS key sorting behavior for array indices) |
 
+## Parser architecture (Arena-backed, O(n))
+
+Under the hood, `v2` uses a small lexer/parser in `v2/lang` that tokenizes the query string in a single pass and builds an arena-backed AST of `Span`s (offset/len views into the original input). This design keeps the hot path allocation-free in steady state when you reuse a `lang.Arena` (and is fully zero-copy via `ParseBytes`), while correctly handling the tricky `qs` key syntax (deeply nested brackets, percent-encoded `[`/`]` and dots, and `=` inside bracketed segments) and enabling strict error reporting for malformed keys (unmatched/unclosed brackets, invalid percent-encoding, etc.). It was added to make JS `qs`-compat parsing both fast and predictable for complex real-world keys; for the full grammar/AST details see `v2/LANGUAGE_SPECIFICATION.md`.
+
 ## Performance
 
 Benchmarks on `darwin/arm64` (`go test -bench=. -benchmem` in `benchmarks/`). Lower is better.
