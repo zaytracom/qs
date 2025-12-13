@@ -173,7 +173,6 @@ func BenchmarkEncode_Simple_GoogleQS(b *testing.B) {
 	}
 }
 
-
 // =============================================================================
 // ENCODE Benchmarks: Nested struct (libraries that support it)
 // =============================================================================
@@ -224,7 +223,6 @@ func BenchmarkEncode_Nested_GoogleQS(b *testing.B) {
 	}
 }
 
-
 // =============================================================================
 // ENCODE Benchmarks: Array
 // =============================================================================
@@ -274,7 +272,6 @@ func BenchmarkEncode_Array_GoogleQS(b *testing.B) {
 		}
 	}
 }
-
 
 // =============================================================================
 // ENCODE Benchmarks: Giant nested map
@@ -496,13 +493,13 @@ var (
 	// "name=John&age=30&email=john%40example.com&active=true"
 
 	// Nested: different formats per library
-	nestedQueryStringDot      = "profile.name=John&profile.age=30&settings.theme=dark&settings.lang=en"       // go-playground, ajg
-	nestedQueryStringBracket  = "profile[name]=John&profile[age]=30&settings[theme]=dark&settings[lang]=en"   // zaytra
+	nestedQueryStringDot     = "profile.name=John&profile.age=30&settings.theme=dark&settings.lang=en"     // go-playground, ajg
+	nestedQueryStringBracket = "profile[name]=John&profile[age]=30&settings[theme]=dark&settings[lang]=en" // zaytra
 
 	// Array: different formats per library
-	arrayQueryStringRepeat  = "tags=go&tags=rust&tags=python&tags=javascript&tags=typescript"                           // gorilla, go-playground
-	arrayQueryStringIndices = "tags[0]=go&tags[1]=rust&tags[2]=python&tags[3]=javascript&tags[4]=typescript"            // zaytra
-	arrayQueryStringDot     = "tags.0=go&tags.1=rust&tags.2=python&tags.3=javascript&tags.4=typescript"                 // ajg
+	arrayQueryStringRepeat  = "tags=go&tags=rust&tags=python&tags=javascript&tags=typescript"                // gorilla, go-playground
+	arrayQueryStringIndices = "tags[0]=go&tags[1]=rust&tags[2]=python&tags[3]=javascript&tags[4]=typescript" // zaytra
+	arrayQueryStringDot     = "tags.0=go&tags.1=rust&tags.2=python&tags.3=javascript&tags.4=typescript"      // ajg
 )
 
 // =============================================================================

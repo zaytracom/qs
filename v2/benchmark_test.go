@@ -167,8 +167,10 @@ func generateGiantNestedData() map[string]any {
 	}
 }
 
-var giantNestedQueryString = generateGiantNestedQueryString()
-var giantNestedData = generateGiantNestedData()
+var (
+	giantNestedQueryString = generateGiantNestedQueryString()
+	giantNestedData        = generateGiantNestedData()
+)
 
 // =============================================================================
 // Benchmarks: Parse
