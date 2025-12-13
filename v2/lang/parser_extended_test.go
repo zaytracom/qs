@@ -1541,3 +1541,124 @@ func BenchmarkParse_Complex(b *testing.B) {
 		_, _, _ = Parse(arena, input, cfg)
 	}
 }
+
+func BenchmarkParse_DotsNoDepthExceeded(b *testing.B) {
+	arena := NewArena(8)
+	cfg := DefaultConfig()
+	cfg.Flags |= FlagAllowDots
+	cfg.Depth = 5
+	input := "a.b.c=value&x.y.z=other"
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _, _ = Parse(arena, input, cfg)
+	}
+}
+
+func BenchmarkParse_DotsDepthExceeded(b *testing.B) {
+	arena := NewArena(8)
+	cfg := DefaultConfig()
+	cfg.Flags |= FlagAllowDots
+	cfg.Depth = 2
+	input := "a.b.c.d.e=value&x.y.z.w=other"
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _, _ = Parse(arena, input, cfg)
+	}
+}
+
+func BenchmarkParse_DotsDepthExceeded_NoBracketConversion(b *testing.B) {
+	arena := NewArena(8)
+	cfg := DefaultConfig()
+	cfg.Flags |= FlagAllowDots | FlagAllowDotsNoBracketConversion
+	cfg.Depth = 2
+	input := "a.b.c.d.e=value&x.y.z.w=other"
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _, _ = Parse(arena, input, cfg)
+	}
+}
+
+func BenchmarkParseBytes_DotsDepthExceeded(b *testing.B) {
+	arena := NewArena(8)
+	cfg := DefaultConfig()
+	cfg.Flags |= FlagAllowDots
+	cfg.Depth = 2
+	input := []byte("a.b.c.d.e=value&x.y.z.w=other")
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _, _ = ParseBytes(arena, input, cfg)
+	}
+}
+
+func BenchmarkParseBytes_DotsDepthExceeded_NoBracketConversion(b *testing.B) {
+	arena := NewArena(8)
+	cfg := DefaultConfig()
+	cfg.Flags |= FlagAllowDots | FlagAllowDotsNoBracketConversion
+	cfg.Depth = 2
+	input := []byte("a.b.c.d.e=value&x.y.z.w=other")
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _, _ = ParseBytes(arena, input, cfg)
+	}
+}
+
+// Large complex query string simulating real-world API request
+var largeComplexInput = []byte(
+	"user[profile][firstName]=John&user[profile][lastName]=Doe&user[profile][email]=john.doe%40example.com&" +
+		"user[profile][phone]=%2B1-555-123-4567&user[settings][theme]=dark&user[settings][language]=en-US&" +
+		"user[settings][notifications][email]=true&user[settings][notifications][sms]=false&" +
+		"user[settings][notifications][push]=true&user[preferences][timezone]=America%2FNew_York&" +
+		"filters[status][]=active&filters[status][]=pending&filters[status][]=review&" +
+		"filters[category][0]=electronics&filters[category][1]=computers&filters[category][2]=accessories&" +
+		"filters[price][min]=100&filters[price][max]=5000&filters[price][currency]=USD&" +
+		"filters[date][from]=2024-01-01&filters[date][to]=2024-12-31&" +
+		"pagination[page]=1&pagination[limit]=50&pagination[offset]=0&" +
+		"sort[field]=createdAt&sort[order]=desc&sort[nulls]=last&" +
+		"search[query]=laptop%20computer&search[fields][]=title&search[fields][]=description&search[fields][]=tags&" +
+		"meta[requestId]=550e8400-e29b-41d4-a716-446655440000&meta[timestamp]=1702483200&meta[version]=2.1.0&" +
+		"flags[includeDeleted]=false&flags[expandRefs]=true&flags[validate]=strict&" +
+		"nested.dot.notation.field=value1&another.deeply.nested.path.here=value2&" +
+		"arr[]=first&arr[]=second&arr[]=third&arr[]=fourth&arr[]=fifth&" +
+		"matrix[0][0]=a&matrix[0][1]=b&matrix[1][0]=c&matrix[1][1]=d&" +
+		"empty=&nullish&special[chars]=hello%20world%21%40%23%24%25",
+)
+
+func BenchmarkParseBytes_LargeComplex(b *testing.B) {
+	arena := NewArena(64)
+	cfg := DefaultConfig()
+	cfg.Flags |= FlagAllowDots
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _, _ = ParseBytes(arena, largeComplexInput, cfg)
+	}
+}
+
+func BenchmarkParseBytes_LargeComplex_DepthLimited(b *testing.B) {
+	arena := NewArena(64)
+	cfg := DefaultConfig()
+	cfg.Flags |= FlagAllowDots
+	cfg.Depth = 3
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _, _ = ParseBytes(arena, largeComplexInput, cfg)
+	}
+}
+
+func BenchmarkParse_LargeComplex(b *testing.B) {
+	arena := NewArena(64)
+	cfg := DefaultConfig()
+	cfg.Flags |= FlagAllowDots
+	input := string(largeComplexInput)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _, _ = Parse(arena, input, cfg)
+	}
+}
