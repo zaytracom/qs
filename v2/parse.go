@@ -696,77 +696,57 @@ func Parse(str string, opts ...ParseOption) (map[string]any, error) {
 		charset = charsetFromLang(detectedCharset)
 	}
 
-	// First pass: accumulate values by decoded key (like parseValues in original JS)
-	type keyInfo struct {
+	// Accumulate values by raw key, storing chain only once per unique key
+	type accumulated struct {
 		chain []string
 		val   any
 	}
-	keyOrder := make([]string, 0)
-	keyValues := make(map[string]any)
+	keyOrder := make([]string, 0, qs.ParamLen)
+	keyData := make(map[string]*accumulated, qs.ParamLen)
 
 	for i := uint16(0); i < qs.ParamLen; i++ {
 		param := arena.Params[i]
-
-		// Build key info
-		info, err := buildKeyInfo(arena, param, charset, &normalizedOpts)
-		if err != nil {
-			return nil, err
-		}
-		if info == nil {
-			continue
-		}
-
-		// Use raw decoded key for accumulation
 		rawKey := arena.GetString(param.Key.Raw)
 
-		if existing, exists := keyValues[rawKey]; exists {
+		if existing, exists := keyData[rawKey]; exists {
+			// Key already seen - just accumulate value
+			val, err := extractValue(arena, param, charset, &normalizedOpts)
+			if err != nil {
+				return nil, err
+			}
+
 			switch normalizedOpts.Duplicates {
 			case DuplicateFirst:
 				// Keep existing
 			case DuplicateLast:
-				keyValues[rawKey] = info.val
+				existing.val = val
 			default:
-				// Check array limit for [] notation
 				if normalizedOpts.ThrowOnLimitExceeded {
-					if existingArr, isArr := existing.([]any); isArr {
-						if len(existingArr) >= normalizedOpts.ArrayLimit {
-							return nil, ErrArrayLimitExceeded
-						}
+					if arr, isArr := existing.val.([]any); isArr && len(arr) >= normalizedOpts.ArrayLimit {
+						return nil, ErrArrayLimitExceeded
 					}
 				}
-				keyValues[rawKey] = Combine(existing, info.val)
+				existing.val = Combine(existing.val, val)
 			}
 		} else {
-			keyOrder = append(keyOrder, rawKey)
-			keyValues[rawKey] = info.val
-		}
-	}
-
-	// We also need to store chains by rawKey
-	keyChains := make(map[string][]string)
-
-	// Re-process to get chains (we need to do this in first pass)
-	for i := uint16(0); i < qs.ParamLen; i++ {
-		param := arena.Params[i]
-		rawKey := arena.GetString(param.Key.Raw)
-		if _, exists := keyChains[rawKey]; !exists {
-			info, _ := buildKeyInfo(arena, param, charset, &normalizedOpts)
-			if info != nil {
-				keyChains[rawKey] = info.chain
+			// First occurrence - build full key info
+			info, err := buildKeyInfo(arena, param, charset, &normalizedOpts)
+			if err != nil {
+				return nil, err
 			}
+			if info == nil {
+				continue
+			}
+			keyOrder = append(keyOrder, rawKey)
+			keyData[rawKey] = &accumulated{chain: info.chain, val: info.val}
 		}
 	}
 
-	// Second pass: build nested structure from accumulated values
+	// Build nested structure from accumulated values
 	result := make(map[string]any)
 	for _, rawKey := range keyOrder {
-		val := keyValues[rawKey]
-		chain := keyChains[rawKey]
-		if chain == nil {
-			continue
-		}
-
-		newObj := parseObject(chain, val, &normalizedOpts, true)
+		data := keyData[rawKey]
+		newObj := parseObject(data.chain, data.val, &normalizedOpts, true)
 		if newObj != nil {
 			merged := Merge(result, newObj)
 			if m, ok := merged.(map[string]any); ok {
@@ -846,22 +826,21 @@ type keyInfoResult struct {
 	val   any
 }
 
-// buildKeyInfo extracts key chain and value from AST param.
-func buildKeyInfo(arena *lang.Arena, param lang.Param, charset Charset, opts *ParseOptions) (*keyInfoResult, error) {
+// getDecoder returns the decoder function from options or default.
+func getDecoder(opts *ParseOptions) DecoderFunc {
+	if opts.Decoder != nil {
+		return opts.Decoder
+	}
+	return func(s string, cs Charset, kind string) (string, error) {
+		return Decode(s, cs), nil
+	}
+}
+
+// extractValue extracts only the value from a param (no chain building).
+func extractValue(arena *lang.Arena, param lang.Param, charset Charset, opts *ParseOptions) (any, error) {
+	decoder := getDecoder(opts)
 	key := param.Key
-	if key.SegLen == 0 {
-		return nil, nil
-	}
 
-	// Setup decoder
-	decoder := opts.Decoder
-	if decoder == nil {
-		decoder = func(s string, cs Charset, kind string) (string, error) {
-			return Decode(s, cs), nil
-		}
-	}
-
-	// Get the value
 	var val any
 	if !param.HasEquals {
 		if opts.StrictNullHandling {
@@ -879,12 +858,10 @@ func buildKeyInfo(arena *lang.Arena, param lang.Param, charset Charset, opts *Pa
 				val = ""
 			}
 		case lang.ValComma:
-			// Comma-separated value - build array
 			parts := make([]any, v.PartsLen)
 			for j := uint8(0); j < v.PartsLen; j++ {
 				partSpan := arena.ValueParts[int(v.PartsOff)+int(j)]
-				rawPart := arena.GetString(partSpan)
-				decoded, err := decoder(rawPart, charset, "value")
+				decoded, err := decoder(arena.GetString(partSpan), charset, "value")
 				if err != nil {
 					return nil, err
 				}
@@ -892,8 +869,7 @@ func buildKeyInfo(arena *lang.Arena, param lang.Param, charset Charset, opts *Pa
 			}
 			val = parts
 		default:
-			rawVal := arena.GetString(v.Raw)
-			decoded, err := decoder(rawVal, charset, "value")
+			decoded, err := decoder(arena.GetString(v.Raw), charset, "value")
 			if err != nil {
 				return nil, err
 			}
@@ -903,61 +879,73 @@ func buildKeyInfo(arena *lang.Arena, param lang.Param, charset Charset, opts *Pa
 		val = ""
 	}
 
-	// Interpret numeric entities if enabled
 	if opts.InterpretNumericEntities && charset == CharsetISO88591 {
-		if s, ok := val.(string); ok {
-			val = interpretNumericEntitiesFunc(s)
-		} else if arr, ok := val.([]any); ok {
-			for i, v := range arr {
-				if s, ok := v.(string); ok {
-					arr[i] = interpretNumericEntitiesFunc(s)
-				}
+		val = applyNumericEntities(val)
+	}
+
+	// Wrap comma-split array if key ends with []
+	if key.SegLen > 0 {
+		lastSeg := arena.Segments[int(key.SegStart)+int(key.SegLen)-1]
+		if lastSeg.Kind == lang.SegEmpty {
+			if arr, ok := val.([]any); ok {
+				val = []any{arr}
 			}
 		}
+	}
+
+	return val, nil
+}
+
+// applyNumericEntities interprets numeric entities in value.
+func applyNumericEntities(val any) any {
+	if s, ok := val.(string); ok {
+		return interpretNumericEntitiesFunc(s)
+	}
+	if arr, ok := val.([]any); ok {
+		for i, v := range arr {
+			if s, ok := v.(string); ok {
+				arr[i] = interpretNumericEntitiesFunc(s)
+			}
+		}
+	}
+	return val
+}
+
+// buildKeyInfo extracts key chain and value from AST param.
+func buildKeyInfo(arena *lang.Arena, param lang.Param, charset Charset, opts *ParseOptions) (*keyInfoResult, error) {
+	key := param.Key
+	if key.SegLen == 0 {
+		return nil, nil
+	}
+
+	decoder := getDecoder(opts)
+
+	// Get the value
+	val, err := extractValue(arena, param, charset, opts)
+	if err != nil {
+		return nil, err
 	}
 
 	// Build chain of keys from segments
 	chain := make([]string, 0, key.SegLen)
 	for j := uint8(0); j < key.SegLen; j++ {
 		seg := arena.Segments[int(key.SegStart)+int(j)]
-		rawSeg := arena.GetString(seg.Span)
-
-		// Decode the segment
-		decoded, err := decoder(rawSeg, charset, "key")
+		decoded, err := decoder(arena.GetString(seg.Span), charset, "key")
 		if err != nil {
 			return nil, err
 		}
 
-		// Format segment based on notation and kind
 		switch seg.Kind {
 		case lang.SegEmpty:
 			chain = append(chain, "[]")
-		case lang.SegIndex:
-			if seg.Notation == lang.NotationRoot {
-				chain = append(chain, decoded)
-			} else {
-				chain = append(chain, "["+decoded+"]")
-			}
 		case lang.SegLiteral:
 			chain = append(chain, "["+decoded+"]")
-		default: // SegIdent
+		default: // SegIdent, SegIndex
 			if seg.Notation == lang.NotationRoot {
 				chain = append(chain, decoded)
 			} else {
 				chain = append(chain, "["+decoded+"]")
 			}
-		}
-	}
-
-	// Check for []= pattern to wrap comma-split array in another array.
-	hasEmptyBracket := false
-	if key.SegLen > 0 {
-		lastSeg := arena.Segments[int(key.SegStart)+int(key.SegLen)-1]
-		hasEmptyBracket = (lastSeg.Kind == lang.SegEmpty)
-	}
-	if hasEmptyBracket {
-		if arr, ok := val.([]any); ok {
-			val = []any{arr}
 		}
 	}
 
