@@ -683,3 +683,55 @@ func BenchmarkFairDecode_Array_AjgForm(b *testing.B) {
 		}
 	}
 }
+
+// =============================================================================
+// NEW OPTIMIZED DECODE: UnmarshalBytes (direct AST → struct, no intermediate map)
+// =============================================================================
+
+func BenchmarkOptimized_Simple_ZaytraQS(b *testing.B) {
+	data := []byte(simpleQueryString)
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		var s SimpleStruct
+		err := zaytraq.UnmarshalBytes(data, &s)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkOptimized_Nested_ZaytraQS(b *testing.B) {
+	data := []byte(nestedQueryStringBracket)
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		var s NestedStruct
+		err := zaytraq.UnmarshalBytes(data, &s)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkOptimized_Array_ZaytraQS(b *testing.B) {
+	data := []byte(arrayQueryStringIndices)
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		var s ArrayStruct
+		err := zaytraq.UnmarshalBytes(data, &s)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkOptimized_DynamicMap_ZaytraQS(b *testing.B) {
+	data := []byte(giantNestedQueryString)
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		var m map[string]any
+		err := zaytraq.UnmarshalBytes(data, &m)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
